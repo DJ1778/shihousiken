@@ -37,7 +37,7 @@
   --ok:#6fbf94; --ng:#e8836f; --ng-soft:#3a2420; --warn:#d9a948; --scrim:rgba(0,0,0,.6); color-scheme:dark}
 
 *{box-sizing:border-box}
-[hidden]{display:none!important}
+[hidden],.gone{display:none!important}
 body{background:var(--bg);color:var(--ink);font-family:var(--f-body);font-size:1rem;line-height:1.75;
   padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));
   padding-block:0 calc(var(--tabh) + env(safe-area-inset-bottom,0px) + 24px)}
@@ -314,14 +314,14 @@ details summary{cursor:pointer;font-size:.85rem;color:var(--muted)}
   <section id="v-today" class="view" hidden>
     <section class="count" id="count" aria-label="試験までの日数"></section>
     <div class="panel" id="t-timer"></div>
-    <div class="panel" id="t-elective" hidden></div>
+    <div class="panel gone" id="t-elective" hidden></div>
     <div class="panel" id="t-plan"></div>
     <div class="panel" id="t-review"></div>
-    <div class="panel" id="t-reco" data-fold="reco"></div>
-    <div class="panel" id="t-goal" data-fold="goal"></div>
-    <div class="panel" id="t-week" data-fold="week"></div>
-    <div class="panel" data-fold="forecast"><h3>これから7日間の復習予定</h3><div id="t-forecast"></div></div>
-    <div class="panel"><details class="info"><summary><h3 style="display:inline">試験の基本（配点・時間・合格ライン）</h3></summary>
+    <div class="panel gone" id="t-reco"></div>
+    <div class="panel gone" id="t-goal"></div>
+    <div class="panel gone" id="t-week"></div>
+    <div class="panel gone"><h3>これから7日間の復習予定</h3><div id="t-forecast"></div></div>
+    <div class="panel gone"><details class="info"><summary><h3 style="display:inline">試験の基本（配点・時間・合格ライン）</h3></summary>
       <div class="tbl"><table><thead><tr><th>短答式</th><th>時間</th><th>配点</th></tr></thead><tbody>
         <tr><th>憲法</th><td>50分</td><td>50点</td></tr><tr><th>民法</th><td>75分</td><td>75点</td></tr><tr><th>刑法</th><td>50分</td><td>50点</td></tr></tbody></table></div>
       <p class="note">1科目でも満点の40%未満があると不合格です。令和7年は175点中81点以上が、合格に必要な成績でした。</p>
@@ -331,7 +331,6 @@ details summary{cursor:pointer;font-size:.85rem;color:var(--muted)}
       <p class="note">1科目でも配点の25%未満があると不合格です。総合点は「短答の点＋論文の点×1400/800」（1575点満点）で、令和7年の合格点は770点でした。</p>
     </details></div>
     <button class="btn" id="open-settings">設定とデータ</button>
-    <p class="note" style="text-align:center">目標・試験日の変更、問題の一括取り込み、バックアップ</p>
   </section>
 
   <!-- 合格プラン -->
@@ -363,10 +362,9 @@ details summary{cursor:pointer;font-size:.85rem;color:var(--muted)}
         <label class="f">1問の時間<select id="m-per"><option value="45">45秒</option><option value="60" selected>1分</option><option value="90">1分30秒</option><option value="0">計らない</option></select></label>
       </div>
       <button class="btn primary" id="m-start">本番形式で始める</button>
-      <p class="note">途中で正解は出ません。最後にまとめて採点し、科目ごとの足切りライン（40%）と比べます。</p>
       <div id="m-hist" class="list" style="gap:8px"></div>
     </div>
-    <div class="panel" data-fold="qrate"><h3>科目別の正答率</h3><div id="q-rate" class="list" style="gap:8px"></div></div>
+    <div class="panel gone"><h3>科目別の正答率</h3><div id="q-rate" class="list" style="gap:8px"></div></div>
     <div class="panel">
       <h3>問題一覧</h3>
       <div class="searchrow"><input type="search" id="ql-q" placeholder="問題文・条文・タグで検索" aria-label="問題を検索"><select id="ql-s" aria-label="科目で絞り込み"></select></div>
@@ -380,7 +378,7 @@ details summary{cursor:pointer;font-size:.85rem;color:var(--muted)}
     <div class="panel">
       <div class="spread"><h2>暗記カード</h2><div class="row" style="gap:6px"><button class="btn" data-import="c">取り込み</button><button class="btn" id="c-add">＋ カード</button></div></div>
       <div class="stats" id="c-stats"></div>
-      <p class="note" id="c-breakdown"></p>
+      <p class="note gone" id="c-breakdown"></p>
       <div class="grid3">
         <label class="f">種類<select id="c-type"><option value="">すべて</option><option value="ronsho">論証</option><option value="hanrei">判例の規範</option><option value="teigi">定義・要件</option><option value="qa">一問一答</option></select></label>
         <label class="f">用途<select id="c-use"><option value="">短答・論文</option><option value="tanto">短答用</option><option value="ronbun">論文用</option></select></label>
@@ -390,7 +388,6 @@ details summary{cursor:pointer;font-size:.85rem;color:var(--muted)}
         <label class="f">覚え方<select id="c-mode"><option value="flip">めくる</option><option value="cloze">穴埋め</option><option value="write">書いて確認</option></select></label>
       </div>
       <button class="btn primary" id="c-start">復習を始める</button>
-      <p class="note">裏面のキーワードを【】で囲むと、穴埋めと「書いて確認」の採点に使われます。判例は「規範→判例名」の逆向きでも復習できます。</p>
     </div>
     <div class="panel">
       <h3>カード一覧</h3>
@@ -408,18 +405,18 @@ details summary{cursor:pointer;font-size:.85rem;color:var(--muted)}
       <h2>過去問の達成度</h2>
       <div class="row" style="gap:8px"><div class="seg" id="k-ex" role="group" aria-label="試験"></div><div class="seg" id="k-ty" role="group" aria-label="形式"></div></div>
       <div class="stats" id="k-stats"></div>
-      <div class="goal" id="k-goalbar"></div>
+      <div class="goal gone" id="k-goalbar"></div>
       <div class="grid2"><label class="f">選択科目<select id="k-el" class="el-sel"></select></label>
       <label class="f">目標の周回数<select id="k-goal"><option value="1">1周</option><option value="2">2周</option><option value="3">3周</option><option value="4">4周</option><option value="5">5周</option></select></label></div>
     </div>
-    <div class="panel"><h3>次に解くおすすめ</h3><div id="k-next"></div></div>
+    <div class="panel gone"><div id="k-next"></div></div>
     <div class="panel">
       <h3>年度 × 科目（数字は解いた回数）</h3>
       <div class="tbl" id="k-grid"></div>
       <div class="klegend"><span><button class="kc" tabindex="-1" aria-hidden="true"></button> 未着手</span><span><button class="kc k1" tabindex="-1" aria-hidden="true">1</button> 1回</span><span><button class="kc k2" tabindex="-1" aria-hidden="true">2</button> 2回以上</span><span><button class="kc k3" tabindex="-1" aria-hidden="true">3</button> 目標達成</span></div>
-      <p class="note">マスを押すと、解いた回数・点数・メモを記録できます。</p>
+      <p class="note">マスを押して記録します。</p>
     </div>
-    <div class="panel" data-fold="ksubj"><h3>科目別の進み具合</h3><div id="k-subj" class="list" style="gap:8px"></div></div>
+    <div class="panel gone"><h3>科目別の進み具合</h3><div id="k-subj" class="list" style="gap:8px"></div></div>
   </section>
 
   <!-- 記録 -->
@@ -436,11 +433,11 @@ details summary{cursor:pointer;font-size:.85rem;color:var(--muted)}
       </form>
     </div>
     <div class="panel" data-fold="heat"><h3>学習カレンダー（18週）</h3><div class="chart" id="l-heat"></div></div>
-    <div class="panel" data-fold="chart14"><h3>直近14日の学習時間</h3><div class="chart" id="l-chart"></div></div>
+    <div class="panel gone"><h3>直近14日の学習時間</h3><div class="chart" id="l-chart"></div></div>
     <div class="panel" data-fold="weak"><h3>弱点分析（直近30日）</h3><div id="l-weak"></div></div>
-    <div class="panel" data-fold="rev30"><h3>復習の成績（直近30日）</h3><div class="stats" id="l-review"></div></div>
-    <div class="panel" data-fold="subj30"><h3>科目別（直近30日）</h3><div id="l-subjbars" class="list" style="gap:8px"></div></div>
-    <div class="panel" id="l-badges" data-fold="badges"></div>
+    <div class="panel gone"><h3>復習の成績（直近30日）</h3><div class="stats" id="l-review"></div></div>
+    <div class="panel gone"><h3>科目別（直近30日）</h3><div id="l-subjbars" class="list" style="gap:8px"></div></div>
+    <div class="panel gone" id="l-badges"></div>
     <div class="panel"><h3>最近の記録</h3><div class="list" id="l-list"></div></div>
   </section>
 
@@ -450,7 +447,6 @@ details summary{cursor:pointer;font-size:.85rem;color:var(--muted)}
       <div class="spread"><h2>論文答練</h2><button class="btn" id="a-add">＋ 手で記録</button></div>
       <button class="btn primary" id="a-ai">答案をアップロードして採点する</button>
       <div class="stats" id="a-stats"></div>
-      <p class="note">答案を書いたら、拾うべき論点を一行ずつ登録し、書けた論点にチェックします。落とした論点は暗記カード（論証）にできます。時間を計って解くときは、過去問タブのマスから本番タイマーを使います。</p>
     </div>
     <div class="panel"><h3>落とした論点（新しい順）</h3><div class="list" id="a-miss"></div></div>
     <div class="panel"><h3>答練一覧</h3><div class="list" id="a-list"></div></div>
@@ -960,7 +956,7 @@ function renderCount(){
   $('count').innerHTML=`<div class="days">${n>0?`<span>あと</span><b>${n}</b><span>日</span>`:n===0?'<b>当日</b>':`<b>${-n}</b><span>日経過</span>`}</div>
     <div class="lbl"><span>${esc(c.label)}</span><button class="btn ghost" data-open="settings">変更</button></div>
     <div class="sub">${esc(c.sub||md(c.date))}${n>0?`<span class="meta">　約${Math.floor(n/7)}週</span>`:''}</div>
-    ${nx?`<div class="next">次の節目　<b>${nx[0]}</b> ${md(nx[1])}（あと${daysTo(nx[1])}日）</div>`:''}`;
+`;
 }
 function renderToday(){
   renderCount();
@@ -968,11 +964,10 @@ function renderToday(){
   const s=S(),t=today(),qs=list('q'),cs=list('c');
   const dq=qs.filter(isDue).length,dc=cs.filter(isDue).length,nn=Math.min(newLeft(),[...qs,...cs].filter(isNew).length),tot=dq+dc+nn;
   const r=histOn(t),mins=minutesOn(t)+(tm.run||tm.acc?Math.floor(tmElapsed()/60000):0);
-  $('t-review').innerHTML=`<div class="spread"><h2>今日の復習</h2><span class="meta">新規は1日${s.newPerDay}枚まで</span></div>
+  $('t-review').innerHTML=`<h2>今日の復習</h2>
     <div class="stats"><div class="stat"><b>${dq}</b><span>短答</span></div><div class="stat"><b>${dc}</b><span>暗記カード</span></div><div class="stat"><b>${nn}</b><span>新しく覚える</span></div></div>
-    ${tot?`<button class="btn primary" data-go="all">まとめて復習する（${tot}問）</button><div class="grid2"><button class="btn" data-go="q"${dq+nn?'':' disabled'}>短答だけ</button><button class="btn" data-go="c">暗記カードだけ</button></div>`
-      :`<p class="note">今日の復習はすべて終わりました。苦手★や未学習は各タブから演習できます。</p>`}
-    ${!mine('q').length&&!mine('c').length?'<p class="note">いまは見本で試せます。自分の問題やカードを登録すると、忘れかけた頃に自動で出題されます。</p>':''}`;
+    ${tot?`<button class="btn primary" data-go="all">復習を始める（${tot}問）</button>`
+      :`<p class="note">今日の復習は終わりました。</p>`}`;
   const rg=+s.reviewGoal||0,mg=+s.minGoal||0,st=streak();
   $('t-goal').innerHTML=`<div class="spread"><h3>今日の目標</h3><span class="meta">連続 <b style="color:var(--ink)">${st}日</b></span></div>
     <div class="goal"><div class="spread"><span>復習</span><span><b>${r.n}</b> / ${rg}問${r.n?`（正答 ${Math.round(r.ok/r.n*100)}%）`:''}</span></div><div class="meter"><i style="width:${rg?Math.min(100,r.n/rg*100):0}%"></i></div></div>
