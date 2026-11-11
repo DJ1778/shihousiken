@@ -1549,17 +1549,48 @@ function planSheet(){
 }
 function renderPlanToday(){
   const el=$('t-plan'),p=plan();
-  if(!p){el.innerHTML=`<h2>合格プラン</h2><p class="note">1日の時間割と、試験日までのロードマップを自動で作ります。あとから自由に変えられます。</p><button class="btn primary" data-plan="new">プランを作る</button>`;return}
+  if(!p){el.innerHTML=`<h2>今日の予定</h2><p class="note">1日の時間割を自動で作ります。あとから1つずつ直せます。</p><button class="btn primary" data-plan="new">時間割を作る</button>`;return}
   const t=today(),bl=p.blocks||[],done=new Set((items.get('pd_'+t)?.done||[]).filter(i=>i<bl.length)),tot=bl.reduce((a,b)=>a+(+b.min||0),0),cp=curPhase(p);
-  el.innerHTML=`<div class="spread"><h2>今日の予定</h2><a class="btn ghost" href="#plan">プランを見る・編集</a></div>
-    ${cp?`<div class="spread"><span class="chip">${esc(cp.ph.name)}</span><span class="meta">${cp.over?'ロードマップの最後の段階です':`この段階は${md(cp.ph.end)}まで（あと${daysTo(cp.ph.end)}日）`}</span></div>`:''}
-    <div class="list">${bl.map((b,i)=>`<div class="pl-item${done.has(i)?' done':''}"><input type="checkbox" id="pl-${i}" data-pl="${i}"${done.has(i)?' checked':''}><label for="pl-${i}" class="pl-time">${esc(b.t)}<small>${hm(+b.min||0)}</small></label><label for="pl-${i}" class="what">${esc(b.what)}</label>${b.tab&&PTAB[b.tab]?`<a class="btn ghost" href="#${b.tab}">${PTAB[b.tab]}へ</a>`:'<span></span>'}</div>`).join('')}</div>
-    <div class="goal"><div class="spread"><span>今日の予定の完了</span><span><b>${done.size}</b> / ${bl.length}（合計 ${hm(tot)}）</span></div><div class="meter"><i style="width:${bl.length?done.size/bl.length*100:0}%"></i></div></div>`;
+  el.innerHTML=`<div class="spread"><h2>今日の予定</h2>${cp&&!cp.over?`<a class="chip" href="#plan" style="text-decoration:none">${esc(cp.ph.name)} ›</a>`:''}</div>
+    <div class="list">${bl.map((b,i)=>`<div class="pl-item${done.has(i)?' done':''}"><input type="checkbox" id="pl-${i}" data-pl="${i}"${done.has(i)?' checked':''} aria-label="完了"><label for="pl-${i}" class="pl-time">${esc(b.t)}<small>${hm(+b.min||0)}</small></label><label for="pl-${i}" class="what">${esc(b.what)}</label><button class="btn ghost" data-pe-edit="${i}">直す</button></div>`).join('')}</div>
+    <div class="row"><button class="btn wide" data-pe-edit="new">＋ 予定を追加</button></div>
+    <div class="goal"><div class="spread"><span>完了</span><span><b>${done.size}</b> / ${bl.length}（合計 ${hm(tot)}）</span></div><div class="meter"><i style="width:${bl.length?done.size/bl.length*100:0}%"></i></div></div>`;
   el.querySelectorAll('[data-pl]').forEach(cb=>cb.onchange=()=>{
     const cur=new Set((items.get('pd_'+t)?.done||[]).filter(i=>i<bl.length));cb.checked?cur.add(+cb.dataset.pl):cur.delete(+cb.dataset.pl);
     put({id:'pd_'+t,kind:'pd',date:t,done:[...cur].sort((a,b)=>a-b)});
     if(cb.checked&&cur.size===bl.length)toast('今日の予定をすべて終えました。おつかれさまでした')});
 }
+function savePlanBlocks(newBl,keepRefs){
+  // keepRefs: today's done blocks (object refs) to re-map after sort
+  const sorted=newBl.slice().sort((a,b)=>a.t.localeCompare(b.t)),t=today();
+  put({...plan(),blocks:sorted});
+  const nd=keepRefs.map(r=>sorted.indexOf(r)).filter(i=>i>=0).sort((a,b)=>a-b);
+  put({id:'pd_'+t,kind:'pd',date:t,done:nd});
+}
+function blockSheet(idx){
+  const p=plan();if(!p)return;
+  const bl=(p.blocks||[]).map(b=>({...b})),t=today(),doneIdx=(items.get('pd_'+t)?.done||[]).filter(i=>i<bl.length),refs=doneIdx.map(i=>bl[i]);
+  const isNew=idx==='new',last=bl[bl.length-1],b=isNew?{t:last?fromMin(toMin(last.t)+(+last.min||0)):'09:00',min:60,what:'',tab:''}:bl[+idx];
+  const DUR=[30,60,90,120,180];
+  openSheet(`<h2>${isNew?'予定を追加':'予定を直す'}</h2>
+    <label class="f">やること<input id="pb-w" value="${esc(b.what)}" placeholder="例：民法の過去問を1年分"></label>
+    <label class="f">始める時刻<input type="time" id="pb-t" value="${esc(b.t)}"></label>
+    <div class="f" style="display:flex;flex-direction:column;gap:6px;font-size:.8rem;color:var(--muted)">時間
+      <div class="seg" role="group" aria-label="時間">${DUR.map(m=>`<button type="button" data-dur="${m}" aria-pressed="${+b.min===m}">${hm(m)}</button>`).join('')}</div>
+      <label class="row" style="gap:6px;color:var(--ink)"><input type="number" id="pb-m" min="5" max="720" step="5" value="${+b.min||60}" style="width:6em" aria-label="分">分</label></div>
+    <div class="row">${isNew?'':'<button class="btn ng" id="pb-del">この予定を消す</button>'}<button class="btn primary wide" id="pb-save">保存</button></div>`,sh=>{
+    const q=x=>sh.querySelector(x);
+    sh.querySelectorAll('[data-dur]').forEach(x=>x.onclick=()=>{q('#pb-m').value=x.dataset.dur;sh.querySelectorAll('[data-dur]').forEach(y=>y.setAttribute('aria-pressed',y===x))});
+    q('#pb-m').oninput=()=>sh.querySelectorAll('[data-dur]').forEach(y=>y.setAttribute('aria-pressed',y.dataset.dur===q('#pb-m').value));
+    q('#pb-save').onclick=()=>{const w=q('#pb-w').value.trim();if(!w){toast('やることを入れてください');return}
+      const nb={...b,t:q('#pb-t').value||b.t,min:Math.max(5,Math.round(+q('#pb-m').value||60)),what:w};
+      if(isNew)bl.push(nb);else{bl[+idx]=nb;const r=refs.indexOf(b);if(r>=0)refs[r]=nb}
+      savePlanBlocks(bl,refs);closeSheet();toast(isNew?'予定を追加しました':'予定を直しました')};
+    const d=q('#pb-del');if(d){let arm=false;d.onclick=()=>{if(!arm){arm=true;d.textContent='もう一度押すと消します';return}
+      const r=refs.indexOf(b);if(r>=0)refs.splice(r,1);bl.splice(+idx,1);savePlanBlocks(bl,refs);closeSheet();toast('予定を消しました')}}
+  });
+}
+document.addEventListener('click',e=>{const x=e.target.closest('[data-pe-edit]');if(x)blockSheet(x.dataset.peEdit)});
 let planDirty={day:false,phase:false},regenArm=false;
 const tabOpts=v=>`<option value="">（なし）</option>${Object.entries(PTAB).map(([k,l])=>`<option value="${k}"${k===v?' selected':''}>${l}タブ</option>`).join('')}`;
 const peRow=b=>`<div class="pe-row"><input type="time" class="pe-t" value="${esc(b.t)}" aria-label="開始時刻"><label class="row" style="gap:4px;flex-wrap:nowrap"><input type="number" class="pe-m" min="5" max="720" step="5" value="${+b.min||60}" aria-label="時間（分）"><span class="meta">分</span></label><select class="pe-tab" aria-label="開くタブ">${tabOpts(b.tab)}</select><button class="btn ghost" data-pe="del">削除</button><input type="text" class="pe-w what" value="${esc(b.what)}" placeholder="やること" aria-label="やること"></div>`;
@@ -1575,7 +1606,7 @@ function roadHtml(p){
 function renderPlanView(){
   const p=plan();
   if(!p){$('pv-road').innerHTML=`<h2>合格プラン</h2><p class="note">まだプランがありません。1日の時間割と、試験日までのロードマップを自動で作ります。</p><button class="btn primary" data-plan="new">プランを作る</button>`;$('pv-day').hidden=true;$('pv-phase').hidden=true;return}
-  $('pv-day').hidden=false;$('pv-phase').hidden=false;
+  $('pv-day').hidden=true;$('pv-phase').hidden=false;
   $('pv-road').innerHTML=roadHtml(p);
   if(!planDirty.day){
     $('pv-day').innerHTML=`<div class="spread"><h3>1日の時間割</h3><span class="meta" id="pe-tot"></span></div><div id="pe-rows">${(p.blocks||[]).map(peRow).join('')}</div>
