@@ -256,6 +256,14 @@ details.info .tbl+.note{margin-bottom:12px}
 .ai-wait i{width:14px;height:14px;border-radius:50%;border:2px solid var(--accent);border-right-color:transparent;display:inline-block}
 @media (prefers-reduced-motion:no-preference){.ai-wait i{animation:spin 1s linear infinite}}
 @keyframes spin{to{transform:rotate(360deg)}}
+/* 百選スタンプ */
+.hs-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(40px,1fr));gap:6px}
+.hs{aspect-ratio:1;max-width:100%;border-radius:50%;border:1.5px dashed var(--line);background:var(--surface);color:var(--muted);font-family:var(--f-num);font-size:.78rem;cursor:pointer;padding:0;position:relative}
+.hs.s1,.hs.s2,.hs.s3{border:2px solid var(--ng);color:var(--ng);background:var(--ng-soft);font-weight:700;transform:rotate(-8deg)}
+.hs.s2{box-shadow:inset 0 0 0 3px var(--ng-soft),inset 0 0 0 4px var(--ng)}
+.hs.s3{background:var(--ng);color:var(--surface)}
+.hs:focus-visible{outline:2px solid var(--ink);outline-offset:2px}
+.hs-top{display:grid;grid-template-columns:1fr 6.5em;gap:8px}
 /* player */
 .player{position:fixed;inset:0;z-index:60;background:var(--bg);overflow:auto;
   padding:calc(env(safe-area-inset-top,0px) + 12px) max(16px,env(safe-area-inset-right,0px)) calc(env(safe-area-inset-bottom,0px) + 28px) max(16px,env(safe-area-inset-left,0px))}
@@ -432,6 +440,7 @@ details summary{cursor:pointer;font-size:.85rem;color:var(--muted)}
         <button class="btn primary" style="grid-column:1/-1">記録する</button>
       </form>
     </div>
+    <div class="panel" id="hs-panel"></div>
     <div class="panel" data-fold="heat"><h3>学習カレンダー（18週）</h3><div class="chart" id="l-heat"></div></div>
     <div class="panel gone"><h3>直近14日の学習時間</h3><div class="chart" id="l-chart"></div></div>
     <div class="panel" data-fold="weak"><h3>弱点分析（直近30日）</h3><div id="l-weak"></div></div>
@@ -1027,6 +1036,7 @@ function renderKiroku(){
   const ls=list('l'),t=today();
   const sum=from=>ls.filter(l=>l.date>=from&&l.date<=t).reduce((a,l)=>a+(+l.min||0),0);
   $('l-stats').innerHTML=`<div class="stat"><b>${hm(sum(t))}</b><span>今日</span></div><div class="stat"><b>${hm(sum(addDays(t,-6)))}</b><span>直近7日</span></div><div class="stat"><b>${hm(sum(addDays(t,-29)))}</b><span>直近30日</span></div>`;
+  renderHS();
   $('l-heat').innerHTML=heatmap(ls);renderWeak();renderBadges();
   const days=[...Array(14)].map((_,i)=>addDays(t,i-13)),vals=days.map(x=>ls.filter(l=>l.date===x).reduce((a,l)=>a+(+l.min||0),0));
   const top=Math.max(1,Math.ceil(Math.max(...vals,60)/60)),W=340,H=150,L=26,B=20,T=8,cw=(W-L-4)/14,bw=cw*.62,sy=v=>H-B-(v/(top*60))*(H-B-T);
@@ -1157,7 +1167,7 @@ const parseAns=s=>{s=nz(s);if(['○','〇','o','◯','正','true','1','t','ま�
 function parseImport(type,text){
   const out=[];let bad=0;
   if(type==='json'){try{const j=JSON.parse(text),arr=Array.isArray(j)?j:j&&j.items;
-      (arr||[]).forEach(x=>{if(x&&typeof x==='object'&&['q','c','l','a','s','m','st','k','p','pd'].includes(x.kind)&&/^[A-Za-z0-9_.~:@+-]{1,150}$/.test(String(x.id))&&!/^\.{1,2}$/.test(x.id)&&!isEx(x))out.push(x);else bad++})}
+      (arr||[]).forEach(x=>{if(x&&typeof x==='object'&&['q','c','l','a','s','m','st','k','p','pd','h'].includes(x.kind)&&/^[A-Za-z0-9_.~:@+-]{1,150}$/.test(String(x.id))&&!/^\.{1,2}$/.test(x.id)&&!isEx(x))out.push(x);else bad++})}
     catch(e){return {out,bad:-1}}return {out,bad}}
   let rows=parseTable(text);if(rows.length&&/^(科目|種類)/.test(rows[0][0]))rows=rows.slice(1);
   rows.forEach(r=>{const subj=normSubj(r[0]);
@@ -1679,6 +1689,28 @@ async function gradeSheet(pre){
     };
   });
 }
+
+/* ---------- 判例百選スタンプラリー ---------- */
+const HS_BOOKS=[['kenpo1','憲法判例百選Ⅰ'],['kenpo2','憲法判例百選Ⅱ'],['gyosei1','行政判例百選Ⅰ'],['gyosei2','行政判例百選Ⅱ'],['minpo1','民法判例百選Ⅰ（総則・物権）'],['minpo2','民法判例百選Ⅱ（債権）'],['minpo3','民法判例百選Ⅲ（親族・相続）'],['kaisha','会社法判例百選'],['minso','民事訴訟法判例百選'],['keiho1','刑法判例百選Ⅰ（総論）'],['keiho2','刑法判例百選Ⅱ（各論）'],['keiso','刑事訴訟法判例百選']];
+const hsDoc=()=>items.get('hyakusen')||{id:'hyakusen',kind:'h',books:{}};
+const hsBook=k=>{const b=(hsDoc().books||{})[k]||{};return {n:+b.n||100,r:b.r||{}}};
+function renderHS(){
+  const el=$('hs-panel');if(!el)return;
+  const k=HS_BOOKS.some(b=>b[0]===ui.hs)?ui.hs:'kenpo1',b=hsBook(k),read=Object.values(b.r).filter(v=>v>0).length;
+  el.innerHTML=`<div class="spread"><h3>判例百選スタンプラリー</h3><span class="meta"><b style="color:var(--ink)">${read}</b> / ${b.n}件（${Math.round(read/b.n*100)}%）</span></div>
+    <div class="hs-top"><label class="f">本<select id="hs-b">${HS_BOOKS.map(([key,l])=>{const bb=hsBook(key),rd=Object.values(bb.r).filter(v=>v>0).length;return `<option value="${key}"${key===k?' selected':''}>${l}${rd?`（${rd}/${bb.n}）`:''}</option>`}).join('')}</select></label>
+    <label class="f">件数<input type="number" id="hs-n" min="1" max="400" inputmode="numeric" value="${b.n}"></label></div>
+    <div class="meter"><i style="width:${Math.round(read/b.n*100)}%"></i></div>
+    <div class="hs-grid">${Array.from({length:b.n},(_,i)=>{const c=+b.r[i+1]||0;return `<button class="hs${c?' s'+Math.min(c,3):''}" data-hs="${i+1}" aria-label="${i+1}番 ${c?c+'回読んだ':'未読'}">${i+1}</button>`}).join('')}</div>
+    <p class="note">読んだ番号を押すとスタンプ。押すたびに 1回→2回→3回→消す。件数はお使いの版に合わせてください。</p>`;
+}
+function hsSave(k,fn){const d=hsDoc(),books={...(d.books||{})},b={n:hsBook(k).n,r:{...hsBook(k).r}};fn(b);books[k]=b;put({...d,id:'hyakusen',kind:'h',books})}
+document.addEventListener('click',e=>{const t=e.target.closest('[data-hs]');if(!t)return;const k=HS_BOOKS.some(b=>b[0]===ui.hs)?ui.hs:'kenpo1',i=t.dataset.hs;
+  hsSave(k,b=>{const c=((+b.r[i]||0)+1)%4;if(c)b.r[i]=c;else delete b.r[i]})});
+document.addEventListener('change',e=>{
+  if(e.target.id==='hs-b'){ui.hs=e.target.value;saveUi();renderHS()}
+  if(e.target.id==='hs-n'){const n=Math.max(1,Math.min(400,Math.round(+e.target.value||100))),k=HS_BOOKS.some(b=>b[0]===ui.hs)?ui.hs:'kenpo1';hsSave(k,b=>{b.n=n});toast(`件数を${n}件にしました`)}
+});
 
 /* ---------- 画面切替 ---------- */
 const VIEWS=['today','tanto','ronsho','kakomon','kiroku','toren','plan'];
