@@ -147,7 +147,7 @@ label.f>input,label.f>select,label.f>textarea{color:var(--ink);font-size:15px}
 nav.tabs{position:fixed;left:0;right:0;bottom:0;z-index:20;background:var(--surface);border-top:1px solid var(--line);
   padding-left:max(8px,env(safe-area-inset-left,0px));padding-right:max(8px,env(safe-area-inset-right,0px));
   padding-bottom:env(safe-area-inset-bottom,0px)}
-nav.tabs .in{max-width:640px;margin:0 auto;display:grid;grid-template-columns:repeat(5,1fr);height:var(--tabh)}
+nav.tabs .in{max-width:640px;margin:0 auto;display:grid;grid-template-columns:repeat(6,1fr);height:var(--tabh)}
 .tab{appearance:none;border:0;background:none;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;cursor:pointer;color:var(--muted);font-size:.72rem;text-decoration:none;position:relative}
 .tab b{font-family:var(--f-display);font-size:1.15rem;font-weight:800;line-height:1}
 .tab[aria-current="page"]{color:var(--accent)}
@@ -187,6 +187,21 @@ details.info .tbl+.note{margin-bottom:12px}
 .pal button{font:inherit;font-family:var(--f-num);font-size:.8rem;min-height:36px;border-radius:6px;border:1px solid var(--line);background:var(--surface);color:var(--muted);cursor:pointer}
 .pal button.done{background:var(--accent-soft);color:var(--accent);border-color:var(--accent-soft)}
 .pal button.cur{outline:2px solid var(--ink);outline-offset:1px;color:var(--ink)}
+/* 過去問 */
+.kgrid{width:auto!important}
+.kgrid th,.kgrid td{text-align:center!important;border-bottom:0!important;padding:2px!important}
+.kgrid thead th{font-size:.72rem}
+.kgrid tbody th{font-family:var(--f-num);font-size:.75rem;color:var(--muted);padding-right:6px!important;text-align:left!important}
+.kc{width:34px;height:30px;border-radius:5px;border:1px solid var(--line);background:var(--surface);font-family:var(--f-num);font-size:.8rem;cursor:pointer;color:var(--ink);padding:0}
+.kc.k1{background:var(--accent-soft);border-color:var(--accent);color:var(--accent)}
+.kc.k2{background:var(--accent-soft);border-color:var(--accent);color:var(--accent);font-weight:700;box-shadow:inset 0 -4px 0 var(--accent)}
+.kc.k3{background:var(--accent);border-color:var(--accent);color:var(--on-accent);font-weight:700}
+.kc:focus-visible{outline:2px solid var(--ink);outline-offset:1px}
+.knext{display:flex;flex-wrap:wrap;gap:8px}
+.knext .btn{display:flex;flex-direction:column;align-items:flex-start;line-height:1.3;padding:6px 12px}
+.knext .btn small{font-size:.7rem;color:var(--muted)}
+.klegend{display:flex;gap:12px;flex-wrap:wrap;align-items:center;font-size:.75rem;color:var(--muted)}
+.klegend .kc{width:22px;height:18px;cursor:default;font-size:.65rem}
 /* player */
 .player{position:fixed;inset:0;z-index:60;background:var(--bg);overflow:auto;
   padding:calc(env(safe-area-inset-top,0px) + 12px) max(16px,env(safe-area-inset-right,0px)) calc(env(safe-area-inset-bottom,0px) + 28px) max(16px,env(safe-area-inset-left,0px))}
@@ -321,6 +336,25 @@ details summary{cursor:pointer;font-size:.85rem;color:var(--muted)}
     </div>
   </section>
 
+  <!-- 過去問 -->
+  <section id="v-kakomon" class="view" hidden>
+    <div class="panel">
+      <h2>過去問の達成度</h2>
+      <div class="row" style="gap:8px"><div class="seg" id="k-ex" role="group" aria-label="試験"></div><div class="seg" id="k-ty" role="group" aria-label="形式"></div></div>
+      <div class="stats" id="k-stats"></div>
+      <div class="goal" id="k-goalbar"></div>
+      <label class="f" style="max-width:14em">目標の周回数<select id="k-goal"><option value="1">1周</option><option value="2">2周</option><option value="3">3周</option><option value="4">4周</option><option value="5">5周</option></select></label>
+    </div>
+    <div class="panel"><h3>次に解くおすすめ</h3><div id="k-next"></div></div>
+    <div class="panel">
+      <h3>年度 × 科目（数字は解いた回数）</h3>
+      <div class="tbl" id="k-grid"></div>
+      <div class="klegend"><span><button class="kc" tabindex="-1" aria-hidden="true"></button> 未着手</span><span><button class="kc k1" tabindex="-1" aria-hidden="true">1</button> 1回</span><span><button class="kc k2" tabindex="-1" aria-hidden="true">2</button> 2回以上</span><span><button class="kc k3" tabindex="-1" aria-hidden="true">3</button> 目標達成</span></div>
+      <p class="note">マスを押すと、解いた回数・点数・メモを記録できます。</p>
+    </div>
+    <div class="panel"><h3>科目別の進み具合</h3><div id="k-subj" class="list" style="gap:8px"></div></div>
+  </section>
+
   <!-- 記録 -->
   <section id="v-kiroku" class="view" hidden>
     <div class="panel">
@@ -361,6 +395,7 @@ details summary{cursor:pointer;font-size:.85rem;color:var(--muted)}
     <a class="tab" href="#today" data-v="today"><b>今</b>今日<span class="badge" id="badge" hidden></span></a>
     <a class="tab" href="#tanto" data-v="tanto"><b>短</b>短答</a>
     <a class="tab" href="#ronsho" data-v="ronsho"><b>暗</b>暗記</a>
+    <a class="tab" href="#kakomon" data-v="kakomon"><b>過</b>過去問</a>
     <a class="tab" href="#kiroku" data-v="kiroku"><b>録</b>記録</a>
     <a class="tab" href="#toren" data-v="toren"><b>答</b>答練</a>
   </div>
@@ -376,7 +411,7 @@ const SUBJ=['憲法','行政法','民法','商法','民訴','刑法','刑訴','�
 const ALIAS={'民事訴訟法':'民訴','刑事訴訟法':'刑訴','会社法':'商法','行政':'行政法','憲':'憲法','民':'民法','刑':'刑法','商':'商法','選択科目':'選択'};
 const LEGACY_INT=[1,1,3,7,14,30,60];
 const LS='shiho-gakushucho-v1', LS_UI='shiho-gakushucho-ui', LS_TM='shiho-gakushucho-timer';
-const DEF={newPerDay:20,reviewGoal:50,minGoal:180,weekHours:30,label:'',date:''};
+const DEF={newPerDay:20,reviewGoal:50,minGoal:180,weekHours:30,kakoGoal:3,label:'',date:''};
 let items=new Map(), mode='loading', col=null, dlP=null;
 const $=id=>document.getElementById(id);
 const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -554,6 +589,8 @@ document.addEventListener('click',e=>{
   const tmb=e.target.closest('[data-tm]');if(tmb){timerAct(tmb.dataset.tm);return}
   const rc=e.target.closest('[data-reco]');if(rc){const r=RECO[+rc.dataset.reco];if(r)r.f();return}
   const wb=e.target.closest('[data-w]');if(wb){wAct(wb.dataset.w);return}
+  const kk=e.target.closest('[data-kk]');if(kk){const [y,sj]=kk.dataset.kk.split('|');kSheet(ui.kEx||'shiho',ui.kTy||'tanto',+y,sj);return}
+  const kx=e.target.closest('[data-kex],[data-kty]');if(kx){if(kx.dataset.kex)ui.kEx=kx.dataset.kex;else ui.kTy=kx.dataset.kty;saveUi();renderKako();return}
   const more=e.target.closest('[data-more]');if(more){LF[more.dataset.more].limit+=60;more.dataset.more==='q'?renderQList():renderCList();return}
 });
 
@@ -1033,7 +1070,7 @@ const parseAns=s=>{s=nz(s);if(['○','〇','o','◯','正','true','1','t','ま�
 function parseImport(type,text){
   const out=[];let bad=0;
   if(type==='json'){try{const j=JSON.parse(text),arr=Array.isArray(j)?j:j&&j.items;
-      (arr||[]).forEach(x=>{if(x&&typeof x==='object'&&['q','c','l','a','s','m','st'].includes(x.kind)&&/^[A-Za-z0-9_.~:@+-]{1,150}$/.test(String(x.id))&&!/^\.{1,2}$/.test(x.id)&&!isEx(x))out.push(x);else bad++})}
+      (arr||[]).forEach(x=>{if(x&&typeof x==='object'&&['q','c','l','a','s','m','st','k'].includes(x.kind)&&/^[A-Za-z0-9_.~:@+-]{1,150}$/.test(String(x.id))&&!/^\.{1,2}$/.test(x.id)&&!isEx(x))out.push(x);else bad++})}
     catch(e){return {out,bad:-1}}return {out,bad}}
   let rows=parseTable(text);if(rows.length&&/^(科目|種類)/.test(rows[0][0]))rows=rows.slice(1);
   rows.forEach(r=>{const subj=normSubj(r[0]);
@@ -1134,12 +1171,12 @@ function maxStreak(){
 }
 function renderBadges(){
   const st=items.get('stats')||{},rv=Math.max(+st.reviews||0,[...mine('q'),...mine('c')].reduce((a,x)=>a+(x.hist||[]).length,0));
-  const ms=maxStreak(),cards=mine('q').length+mine('c').length,hrs=mine('l').reduce((a,l)=>a+(+l.min||0),0)/60,mk=mine('m'),best=mk.reduce((a,m)=>Math.max(a,m.n>=10?m.ok/m.n:0),0),ar=mine('a').length;
+  const kn=kTotal(),ms=maxStreak(),cards=mine('q').length+mine('c').length,hrs=mine('l').reduce((a,l)=>a+(+l.min||0),0)/60,mk=mine('m'),best=mk.reduce((a,m)=>Math.max(a,m.n>=10?m.ok/m.n:0),0),ar=mine('a').length;
   const B=[['3日連続',ms>=3],['7日連続',ms>=7],['30日連続',ms>=30],['100日連続',ms>=100],['復習100回',rv>=100],['復習1000回',rv>=1000],['復習5000回',rv>=5000],['登録50件',cards>=50],['登録300件',cards>=300],
-    ['学習100時間',hrs>=100],['学習500時間',hrs>=500],['学習1000時間',hrs>=1000],['本番形式に挑戦',mk.length>0],['本番形式で8割',best>=0.8],['答練10通',ar>=10],['答練50通',ar>=50]];
+    ['学習100時間',hrs>=100],['学習500時間',hrs>=500],['学習1000時間',hrs>=1000],['本番形式に挑戦',mk.length>0],['本番形式で8割',best>=0.8],['答練10通',ar>=10],['答練50通',ar>=50],['過去問50回分',kn>=50],['過去問200回分',kn>=200]];
   $('l-badges').innerHTML=`<div class="spread"><h3>実績</h3><span class="meta">${B.filter(b=>b[1]).length} / ${B.length}</span></div>
     <div class="badges">${B.map(([l,g])=>`<span class="badge2${g?' on':''}">${g?'✓ ':''}${l}</span>`).join('')}</div>
-    <p class="note">最長連続 ${ms}日・復習 ${rv}回・学習 ${hrs.toFixed(0)}時間</p>`;
+    <p class="note">最長連続 ${ms}日・復習 ${rv}回・学習 ${hrs.toFixed(0)}時間・過去問 ${kn}回分</p>`;
 }
 
 /* ---------- 短答の本番形式 ---------- */
@@ -1269,8 +1306,69 @@ setInterval(()=>{
   wTick();
 },1000);
 
+/* ---------- 過去問 ---------- */
+const KK={
+  shiho:{l:'司法試験',from:2006,tanto:['憲法','民法','刑法'],ronbun:['憲法','行政法','民法','商法','民訴','刑法','刑訴','選択']},
+  yobi:{l:'予備試験',from:2011,tanto:['憲法','行政法','民法','商法','民訴','刑法','刑訴'],ronbun:['憲法','行政法','民法','商法','民訴','刑法','刑訴','民事実務','刑事実務','選択']},
+};
+const KSH={'憲法':'憲','行政法':'行','民法':'民','商法':'商','民訴':'民訴','刑法':'刑','刑訴':'刑訴','選択':'選','民事実務':'民実','刑事実務':'刑実'};
+const ERA=y=>y>=2019?(y===2019?'R元':'R'+(y-2018)):'H'+(y-1988);
+const latestYear=()=>{const t=today();return +t.slice(0,4)-(t.slice(5)>='08-01'?0:1)};
+const kAvail=(ex,ty,y,sj)=>!(ex==='yobi'&&ty==='ronbun'&&sj==='選択'&&y<2022);
+const kid=(ex,ty,y)=>`k_${ex}_${ty}_${y}`;
+const kN=(ex,ty,y,sj)=>(items.get(kid(ex,ty,y))?.cells?.[sj]?.n)||0;
+const kTotal=()=>mine('k').reduce((a,d)=>a+Object.values(d.cells||{}).reduce((b,c)=>b+(+c.n||0),0),0);
+function renderKako(){
+  const ex=KK[ui.kEx]?ui.kEx:'shiho',ty=ui.kTy==='ronbun'?'ronbun':'tanto',K=KK[ex],subs=K[ty],goal=+S().kakoGoal||3,years=[];
+  for(let y=latestYear();y>=K.from;y--)years.push(y);
+  $('k-ex').innerHTML=Object.entries(KK).map(([k,v])=>`<button data-kex="${k}" aria-pressed="${k===ex}">${v.l}</button>`).join('');
+  $('k-ty').innerHTML=[['tanto','短答'],['ronbun','論文']].map(([k,l])=>`<button data-kty="${k}" aria-pressed="${k===ty}">${l}</button>`).join('');
+  if(document.activeElement!==$('k-goal'))$('k-goal').value=String(goal);
+  let cells=0,started=0,rounds=0,total=0;const per={};subs.forEach(sj=>per[sj]={c:0,d:0,r:0});
+  years.forEach(y=>subs.forEach(sj=>{if(!kAvail(ex,ty,y,sj))return;const n=kN(ex,ty,y,sj);cells++;per[sj].c++;total+=n;rounds+=Math.min(n,goal);per[sj].r+=Math.min(n,goal);if(n){started++;per[sj].d++}}));
+  const rp=cells?Math.round(rounds/(cells*goal)*100):0;
+  $('k-stats').innerHTML=`<div class="stat"><b>${cells?Math.round(started/cells*100):0}%</b><span>1周目（${started}/${cells}）</span></div><div class="stat"><b>${rp}%</b><span>目標${goal}周の達成度</span></div><div class="stat"><b>${total}</b><span>解いた合計（回）</span></div>`;
+  $('k-goalbar').innerHTML=`<div class="spread"><span>${K.l}・${ty==='tanto'?'短答':'論文'}（${ERA(years[years.length-1])}〜${ERA(years[0])}）</span><span><b>${rp}%</b></span></div><div class="meter"><i style="width:${rp}%"></i></div>`;
+  $('k-grid').innerHTML=`<table class="kgrid"><thead><tr><th>年度</th>${subs.map(sj=>`<th title="${sj}">${KSH[sj]||sj}</th>`).join('')}</tr></thead><tbody>${years.map(y=>`<tr><th>${ERA(y)}</th>${subs.map(sj=>{
+      if(!kAvail(ex,ty,y,sj))return '<td class="na">—</td>';const n=kN(ex,ty,y,sj),lv=!n?'':n>=goal?'k3':n>=2?'k2':'k1';
+      return `<td><button class="kc ${lv}" data-kk="${y}|${sj}" aria-label="${ERA(y)} ${sj} ${n}回">${n||''}</button></td>`}).join('')}</tr>`).join('')}</tbody></table>`;
+  const nx=[];
+  subs.forEach(sj=>{let pick=null;
+    for(const y of years){if(kAvail(ex,ty,y,sj)&&!kN(ex,ty,y,sj)){pick={y,sj,t:'未着手'};break}}
+    if(!pick){let mn=Infinity;years.forEach(y=>{if(!kAvail(ex,ty,y,sj))return;const n=kN(ex,ty,y,sj);if(n<goal&&n<mn){mn=n;pick={y,sj,t:(n+1)+'周目'}}})}
+    if(pick)nx.push(pick)});
+  $('k-next').innerHTML=nx.length?`<div class="knext">${nx.map(o=>`<button class="btn" data-kk="${o.y}|${o.sj}">${o.sj} ${ERA(o.y)}<small>${o.t}</small></button>`).join('')}</div><p class="note">各科目で、まだ解いていない一番新しい年度です。1周したら、回数の少ない年度を出します。</p>`
+    :`<p class="note">目標の${goal}周をすべて達成しました。目標の周回数を上げるか、もう一方の試験・形式に進みましょう。</p>`;
+  $('k-subj').innerHTML=rateBars(subs.map(sj=>({label:KSH[sj]||sj,v:per[sj].r,max:per[sj].c*goal,txt:`${per[sj].d}/${per[sj].c}年`})),'wide')+'<p class="note">棒は目標周回の達成度、右の数字は1回以上解いた年度の数です。</p>';
+}
+function kSheet(ex,ty,y,sj){
+  const id=kid(ex,ty,y),doc=items.get(id)||{id,kind:'k',ex,ty,y,cells:{}},c={n:0,dates:[],score:'',memo:'',...((doc.cells||{})[sj]||{})};
+  openSheet(`<h2>${ERA(y)} ${KK[ex].l} ${ty==='tanto'?'短答':'論文'}・${esc(sj)}</h2>
+    <div class="spread"><span>解いた回数</span><div class="row" style="gap:8px"><button class="btn" id="k-minus" aria-label="1回減らす">−</button><b class="score" id="k-n" style="font-size:1.4rem;min-width:2ch;text-align:center">${c.n}</b><button class="btn" id="k-plus" aria-label="1回増やす">＋</button></div></div>
+    <p class="note">${(c.dates||[]).length?'解いた日：'+c.dates.map(md).join('、'):'まだ記録がありません'}</p>
+    <div class="grid2"><label class="f">点数・正答数（任意）<input id="k-sc" value="${esc(c.score)}" placeholder="${ty==='tanto'?'例：58/75':'例：B評価'}"></label>
+    <label class="f">かかった時間（分・任意）<input type="number" id="k-min" min="1" max="600" inputmode="numeric" placeholder="学習時間にも記録"></label></div>
+    <label class="f">メモ（まちがえた所・次の注意点）<textarea id="k-memo" style="min-height:80px">${esc(c.memo)}</textarea></label>
+    <div class="row"><button class="btn" id="fx">閉じる</button><button class="btn wide" id="fs">保存</button><button class="btn primary wide" id="k-today">今日解いた（＋1回）</button></div>`,sh=>{
+    const q=x=>sh.querySelector(x);let n=+c.n||0;
+    q('#k-minus').onclick=()=>{n=Math.max(0,n-1);q('#k-n').textContent=n};
+    q('#k-plus').onclick=()=>{n++;q('#k-n').textContent=n};
+    const save=addToday=>{
+      let dates=(c.dates||[]).slice(),nn=n;
+      if(addToday){nn=n+1;dates.push(today())}
+      if(dates.length>nn)dates=dates.slice(dates.length-nn);
+      const cur=items.get(id)||doc;
+      put({...cur,id,kind:'k',ex,ty,y,cells:{...(cur.cells||{}),[sj]:{n:nn,dates:dates.slice(-10),score:q('#k-sc').value.trim(),memo:q('#k-memo').value.trim()}}});
+      const m=Math.round(+q('#k-min').value||0);
+      if(m>0)put({id:'l_'+uid(),kind:'l',date:today(),subject:SUBJ.includes(sj)?sj:sj==='民事実務'?'民法':sj==='刑事実務'?'刑法':'選択',min:m,memo:`過去問 ${ERA(y)} ${ty==='tanto'?'短答':'論文'} ${sj}`});
+      closeSheet();toast(addToday?`${ERA(y)} ${sj}：${nn}回目を記録しました`:'保存しました')};
+    q('#fx').onclick=closeSheet;q('#fs').onclick=()=>save(false);q('#k-today').onclick=()=>save(true);
+  });
+}
+$('k-goal').onchange=e=>{put({...(items.get('settings')||{}),id:'settings',kind:'s',kakoGoal:+e.target.value});toast(`目標を${e.target.value}周にしました`)};
+
 /* ---------- 画面切替 ---------- */
-const VIEWS=['today','tanto','ronsho','kiroku','toren'];
+const VIEWS=['today','tanto','ronsho','kakomon','kiroku','toren'];
 const current=()=>{const h=location.hash.slice(1);return VIEWS.includes(h)?h:'today'};
 let rq=0;
 function render(){if(rq)return;rq=requestAnimationFrame(()=>{rq=0;doRender()});setTimeout(()=>{if(rq){cancelAnimationFrame(rq);rq=0;doRender()}},120)}
@@ -1281,7 +1379,7 @@ function doRender(){
   const due=[...list('q'),...list('c')].filter(isDue).length,b=$('badge');b.hidden=!due||!(mine('q').length+mine('c').length);b.textContent=due>99?'99+':due;
   VIEWS.forEach(x=>$('v-'+x).hidden=x!==v);
   document.querySelectorAll('.tab').forEach(t=>t.setAttribute('aria-current',t.dataset.v===v?'page':'false'));
-  ({today:renderToday,tanto:renderTanto,ronsho:renderRonsho,kiroku:renderKiroku,toren:renderToren})[v]();
+  ({today:renderToday,tanto:renderTanto,ronsho:renderRonsho,kakomon:renderKako,kiroku:renderKiroku,toren:renderToren})[v]();
 }
 window.addEventListener('hashchange',()=>{doRender();window.scrollTo(0,0)});
 subjOptions($('q-subj'),'全科目');subjOptions($('c-subj'),'全科目');subjOptions($('l-subj'));
