@@ -162,6 +162,31 @@ nav.tabs .in{max-width:640px;margin:0 auto;display:grid;grid-template-columns:re
 .confirm{display:flex;gap:4px;align-items:center;font-size:.8rem;flex-wrap:wrap;justify-content:flex-end}
 .kwhelp{font-size:.78rem;color:var(--muted);display:flex;gap:8px;align-items:center;flex-wrap:wrap}
 .kwhelp .btn{min-height:32px;padding:4px 10px;font-size:.8rem}
+/* plan / analysis */
+.hbar.wide{grid-template-columns:3.2em 1fr 7.6em}
+.reco{display:flex;gap:10px;align-items:center;justify-content:space-between;flex-wrap:wrap;padding-block:10px;border-top:1px solid var(--line)}
+.reco:first-of-type{border-top:0}
+.reco span{flex:1 1 14em;min-width:0;font-size:.9rem}
+.tbl{overflow-x:auto}
+.tbl table{border-collapse:collapse;width:100%;font-size:.85rem;font-variant-numeric:tabular-nums}
+.tbl th,.tbl td{padding:6px 8px;text-align:right;border-bottom:1px solid var(--line);white-space:nowrap}
+.tbl th:first-child,.tbl tbody th{text-align:left;font-weight:500}
+.tbl thead th{font-size:.72rem;color:var(--muted);font-weight:700}
+.low{color:var(--ng);font-weight:700}
+.tbl td.na{color:var(--muted)}
+.badges{display:flex;flex-wrap:wrap;gap:6px}
+.badge2{font-size:.78rem;padding:3px 10px;border-radius:999px;border:1px dashed var(--line);color:var(--muted)}
+.badge2.on{border:1px solid var(--accent);background:var(--accent-soft);color:var(--accent);font-weight:700}
+details.info summary{cursor:pointer;list-style-position:inside}
+details.info[open] summary{margin-bottom:10px}
+details.info .tbl+.note{margin-bottom:12px}
+/* exam */
+.e-time{margin-left:auto;font-family:var(--f-num);font-variant-numeric:tabular-nums;font-size:1rem}
+.e-time.warn{color:var(--ng);font-weight:700}
+.pal{display:grid;grid-template-columns:repeat(auto-fill,minmax(38px,1fr));gap:6px}
+.pal button{font:inherit;font-family:var(--f-num);font-size:.8rem;min-height:36px;border-radius:6px;border:1px solid var(--line);background:var(--surface);color:var(--muted);cursor:pointer}
+.pal button.done{background:var(--accent-soft);color:var(--accent);border-color:var(--accent-soft)}
+.pal button.cur{outline:2px solid var(--ink);outline-offset:1px;color:var(--ink)}
 /* player */
 .player{position:fixed;inset:0;z-index:60;background:var(--bg);overflow:auto;
   padding:calc(env(safe-area-inset-top,0px) + 12px) max(16px,env(safe-area-inset-right,0px)) calc(env(safe-area-inset-bottom,0px) + 28px) max(16px,env(safe-area-inset-left,0px))}
@@ -219,9 +244,20 @@ details summary{cursor:pointer;font-size:.85rem;color:var(--muted)}
   <section id="v-today" class="view" hidden>
     <section class="count" id="count" aria-label="試験までの日数"></section>
     <div class="panel" id="t-review"></div>
+    <div class="panel" id="t-reco"></div>
     <div class="panel" id="t-goal"></div>
+    <div class="panel" id="t-week"></div>
     <div class="panel" id="t-timer"></div>
     <div class="panel"><h3>これから7日間の復習予定</h3><div id="t-forecast"></div></div>
+    <div class="panel"><details class="info"><summary><h3 style="display:inline">試験の基本（配点・時間・合格ライン）</h3></summary>
+      <div class="tbl"><table><thead><tr><th>短答式</th><th>時間</th><th>配点</th></tr></thead><tbody>
+        <tr><th>憲法</th><td>50分</td><td>50点</td></tr><tr><th>民法</th><td>75分</td><td>75点</td></tr><tr><th>刑法</th><td>50分</td><td>50点</td></tr></tbody></table></div>
+      <p class="note">1科目でも満点の40%未満があると不合格です。令和7年は175点中81点以上が、合格に必要な成績でした。</p>
+      <div class="tbl"><table><thead><tr><th>論文式</th><th>時間</th><th>配点</th></tr></thead><tbody>
+        <tr><th>公法系（憲法・行政法）</th><td>各120分</td><td>200点</td></tr><tr><th>民事系（民法・商法・民訴）</th><td>各120分</td><td>300点</td></tr>
+        <tr><th>刑事系（刑法・刑訴）</th><td>各120分</td><td>200点</td></tr><tr><th>選択科目（2問）</th><td>180分</td><td>100点</td></tr></tbody></table></div>
+      <p class="note">1科目でも配点の25%未満があると不合格です。総合点は「短答の点＋論文の点×1400/800」（1575点満点）で、令和7年の合格点は770点でした。</p>
+    </details></div>
     <button class="btn" id="open-settings">設定とデータ</button>
     <p class="note" style="text-align:center">目標・試験日の変更、問題の一括取り込み、バックアップ</p>
   </section>
@@ -238,6 +274,17 @@ details summary{cursor:pointer;font-size:.85rem;color:var(--muted)}
         <label class="f">問題数<select id="q-num"><option value="10">10問</option><option value="20" selected>20問</option><option value="50">50問</option><option value="0">すべて</option></select></label>
       </div>
       <button class="btn primary" id="q-start">演習を始める</button>
+    </div>
+    <div class="panel" id="m-panel">
+      <h3>本番形式（時間を計って解く）</h3>
+      <div class="grid3">
+        <label class="f">科目<select id="m-subj"><option value="">全科目</option><option>憲法</option><option>民法</option><option>刑法</option></select></label>
+        <label class="f">問題数<select id="m-num"><option value="10">10問</option><option value="20" selected>20問</option><option value="30">30問</option><option value="50">50問</option></select></label>
+        <label class="f">1問の時間<select id="m-per"><option value="45">45秒</option><option value="60" selected>1分</option><option value="90">1分30秒</option><option value="0">計らない</option></select></label>
+      </div>
+      <button class="btn primary" id="m-start">本番形式で始める</button>
+      <p class="note">途中で正解は出ません。最後にまとめて採点し、科目ごとの足切りライン（40%）と比べます。</p>
+      <div id="m-hist" class="list" style="gap:8px"></div>
     </div>
     <div class="panel"><h3>科目別の正答率</h3><div id="q-rate" class="list" style="gap:8px"></div></div>
     <div class="panel">
@@ -289,8 +336,10 @@ details summary{cursor:pointer;font-size:.85rem;color:var(--muted)}
     </div>
     <div class="panel"><h3>学習カレンダー（18週）</h3><div class="chart" id="l-heat"></div></div>
     <div class="panel"><h3>直近14日の学習時間</h3><div class="chart" id="l-chart"></div></div>
+    <div class="panel"><h3>弱点分析（直近30日）</h3><div id="l-weak"></div></div>
     <div class="panel"><h3>復習の成績（直近30日）</h3><div class="stats" id="l-review"></div></div>
     <div class="panel"><h3>科目別（直近30日）</h3><div id="l-subjbars" class="list" style="gap:8px"></div></div>
+    <div class="panel" id="l-badges"></div>
     <div class="panel"><h3>最近の記録</h3><div class="list" id="l-list"></div></div>
   </section>
 
@@ -301,6 +350,7 @@ details summary{cursor:pointer;font-size:.85rem;color:var(--muted)}
       <div class="stats" id="a-stats"></div>
       <p class="note">答案を書いたら、拾うべき論点を一行ずつ登録し、書けた論点にチェックします。落とした論点は暗記カード（論証）にできます。</p>
     </div>
+    <div class="panel" id="w-panel"></div>
     <div class="panel"><h3>落とした論点（新しい順）</h3><div class="list" id="a-miss"></div></div>
     <div class="panel"><h3>答練一覧</h3><div class="list" id="a-list"></div></div>
   </section>
@@ -326,8 +376,8 @@ const SUBJ=['憲法','行政法','民法','商法','民訴','刑法','刑訴','�
 const ALIAS={'民事訴訟法':'民訴','刑事訴訟法':'刑訴','会社法':'商法','行政':'行政法','憲':'憲法','民':'民法','刑':'刑法','商':'商法','選択科目':'選択'};
 const LEGACY_INT=[1,1,3,7,14,30,60];
 const LS='shiho-gakushucho-v1', LS_UI='shiho-gakushucho-ui', LS_TM='shiho-gakushucho-timer';
-const DEF={newPerDay:20,reviewGoal:50,minGoal:180,label:'',date:''};
-let items=new Map(), mode='loading', col=null;
+const DEF={newPerDay:20,reviewGoal:50,minGoal:180,weekHours:30,label:'',date:''};
+let items=new Map(), mode='loading', col=null, dlP=null;
 const $=id=>document.getElementById(id);
 const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const pad=n=>String(n).padStart(2,'0');
@@ -344,6 +394,7 @@ const loadJSON=k=>{try{return JSON.parse(localStorage.getItem(k)||'null')}catch(
 const saveJSON=(k,v)=>{try{localStorage.setItem(k,JSON.stringify(v))}catch(e){}};
 let ui=Object.assign({cMode:'flip'},loadJSON(LS_UI)||{});
 const saveUi=()=>saveJSON(LS_UI,ui);
+const inClaude=!!(window.claude&&window.claude.use);
 const canSpeak='speechSynthesis' in window&&'SpeechSynthesisUtterance' in window;
 
 /* ---------- 見本（自分の項目を追加すると表示されなくなる） ---------- */
@@ -414,6 +465,7 @@ function grade(x,g,ok){
   if(x.kind==='q'){const st={c:0,w:0,...(x.stats||{})};ok?st.c++:st.w++;upd.stats=st;upd.last=!!ok}
   else upd.last=g>0;
   put(upd);
+  const st=items.get('stats')||{id:'stats',kind:'st',reviews:0};put({...st,reviews:(+st.reviews||0)+1});
 }
 const newToday=()=>[...mine('q'),...mine('c')].filter(x=>x.srs&&x.srs.first===today()).length;
 const newLeft=()=>Math.max(0,(+S().newPerDay||0)-newToday());
@@ -483,7 +535,7 @@ const exNote=kind=>mine(kind).length?'':'<p class="note" style="padding-bottom:6
 const delBtn=id=>`<span class="confirm" data-del="${esc(id)}"><button class="btn ghost" data-ask>削除</button></span>`;
 const tagsHtml=x=>{const t=String(x.tags||'').split(/[\s,、]+/).filter(Boolean);return t.length?`<span class="tags">${t.map(s=>'#'+esc(s)).join(' ')}</span>`:''};
 const lvHtml=x=>{const lv=level(x),s=srsOf(x);return `<span class="lv" aria-label="${LV[lv]}">${[1,2,3].map(i=>`<i class="${i<=lv?'on':''}"></i>`).join('')}</span><span class="meta">${LV[lv]}${s?'・'+(s.due<=today()?'<b class="due">今日</b>':'次回 '+md(s.due)):''}</span>`};
-function rateBars(arr){return arr.map(a=>`<div class="hbar"><span>${esc(a.label)}</span><div class="track"><div class="fill" style="width:${a.max?Math.round(a.v/a.max*100):0}%"></div></div><span class="v">${a.txt}</span></div>`).join('')}
+function rateBars(arr,cls){return arr.map(a=>`<div class="hbar${cls?' '+cls:''}"><span>${esc(a.label)}</span><div class="track"><div class="fill" style="width:${a.max?Math.round(a.v/a.max*100):0}%"></div></div><span class="v">${a.txt}</span></div>`).join('')}
 function toggleFlag(x){if(!x)return;if(isEx(x)){toast('見本には付けられません');return}put({...x,flag:!x.flag});toast(x.flag?'苦手★を外しました':'苦手★に登録しました')}
 
 document.addEventListener('click',e=>{
@@ -500,6 +552,8 @@ document.addEventListener('click',e=>{
   const im=e.target.closest('[data-import]');if(im){importSheet(im.dataset.import);return}
   const go=e.target.closest('[data-go]');if(go){const k=go.dataset.go;startSession(todayIds(k==='all'?['q','c']:[k],''),'今日の復習');return}
   const tmb=e.target.closest('[data-tm]');if(tmb){timerAct(tmb.dataset.tm);return}
+  const rc=e.target.closest('[data-reco]');if(rc){const r=RECO[+rc.dataset.reco];if(r)r.f();return}
+  const wb=e.target.closest('[data-w]');if(wb){wAct(wb.dataset.w);return}
   const more=e.target.closest('[data-more]');if(more){LF[more.dataset.more].limit+=60;more.dataset.more==='q'?renderQList():renderCList();return}
 });
 
@@ -507,7 +561,7 @@ document.addEventListener('click',e=>{
 let P=null;
 function startSession(ids,label){
   if(!ids.length){toast('今やる問題はありません。範囲を変えてみてください');return}
-  closeSheet();
+  closeSheet();E=null;
   P={q:ids.map(id=>({id,re:false})),i:0,res:[0,0,0,0],wrong:new Set(),reN:{},t0:Date.now(),label};
   resetCard();$('player').hidden=false;document.body.style.overflow='hidden';renderPlayer();
 }
@@ -615,9 +669,10 @@ function pAct(d){
     case 'retry':startSession(shuffle([...P.wrong]),'まちがえた問題');break;
   }
 }
-$('player').addEventListener('click',e=>{const b=e.target.closest('[data-p],[data-g],[data-mode],[data-b]');if(b)pAct({...b.dataset})});
+$('player').addEventListener('click',e=>{if(E){const x=e.target.closest('[data-e]');if(x)examAct({...x.dataset});return}const b=e.target.closest('[data-p],[data-g],[data-mode],[data-b]');if(b)pAct({...b.dataset})});
 document.addEventListener('keydown',e=>{
   if(!$('scrim').hidden&&e.key==='Escape'){closeSheet();return}
+  if(E&&!$('player').hidden){examKey(e);return}
   if(!P||$('player').hidden||e.metaKey&&e.key!=='Enter'||e.altKey)return;
   const typing=/^(TEXTAREA|INPUT|SELECT)$/.test(e.target.tagName);
   if(typing){if(e.key==='Escape')e.target.blur();else if(e.key==='Enter'&&(e.ctrlKey||e.metaKey)){e.preventDefault();pAct({p:'reveal'})}return}
@@ -703,7 +758,7 @@ function renderTanto(){
   $('q-stats').innerHTML=`<div class="stat"><b>${due}</b><span>今日の復習</span></div><div class="stat"><b>${qs.length}</b><span>登録問題</span></div><div class="stat"><b>${c+w?Math.round(c/(c+w)*100)+'%':'—'}</b><span>通算正答率</span></div>`;
   const rows=SUBJ.map(s=>{let c=0,w=0;qs.filter(q=>q.subject===s).forEach(q=>{c+=q.stats?.c||0;w+=q.stats?.w||0});return{label:s,v:c,max:c+w,txt:c+w?Math.round(c/(c+w)*100)+'%':'—'}}).filter(r=>r.max);
   $('q-rate').innerHTML=rows.length?rateBars(rows):'<div class="empty">演習するとここに科目別の正答率が出ます。</div>';
-  renderQList();
+  renderQList();renderMock();
 }
 
 /* ---------- 暗記カード ---------- */
@@ -799,7 +854,7 @@ function renderToday(){
   $('t-goal').innerHTML=`<div class="spread"><h3>今日の目標</h3><span class="meta">連続 <b style="color:var(--ink)">${st}日</b></span></div>
     <div class="goal"><div class="spread"><span>復習</span><span><b>${r.n}</b> / ${rg}問${r.n?`（正答 ${Math.round(r.ok/r.n*100)}%）`:''}</span></div><div class="meter"><i style="width:${rg?Math.min(100,r.n/rg*100):0}%"></i></div></div>
     <div class="goal"><div class="spread"><span>学習時間</span><span><b>${hm(mins)}</b> / ${hm(mg)}</span></div><div class="meter"><i style="width:${mg?Math.min(100,mins/mg*100):0}%"></i></div></div>`;
-  renderTimer();
+  renderTimer();renderReco();renderWeek();
   // 7日予測
   const days=[...Array(7)].map((_,i)=>addDays(t,i)),cnt=days.map(()=>0);
   [...mine('q'),...mine('c')].forEach(x=>{const sr=srsOf(x);if(!sr)return;const i=Math.max(0,daysTo(sr.due));if(i<7)cnt[i]++});
@@ -854,7 +909,7 @@ function renderKiroku(){
   const ls=list('l'),t=today();
   const sum=from=>ls.filter(l=>l.date>=from&&l.date<=t).reduce((a,l)=>a+(+l.min||0),0);
   $('l-stats').innerHTML=`<div class="stat"><b>${hm(sum(t))}</b><span>今日</span></div><div class="stat"><b>${hm(sum(addDays(t,-6)))}</b><span>直近7日</span></div><div class="stat"><b>${hm(sum(addDays(t,-29)))}</b><span>直近30日</span></div>`;
-  $('l-heat').innerHTML=heatmap(ls);
+  $('l-heat').innerHTML=heatmap(ls);renderWeak();renderBadges();
   const days=[...Array(14)].map((_,i)=>addDays(t,i-13)),vals=days.map(x=>ls.filter(l=>l.date===x).reduce((a,l)=>a+(+l.min||0),0));
   const top=Math.max(1,Math.ceil(Math.max(...vals,60)/60)),W=340,H=150,L=26,B=20,T=8,cw=(W-L-4)/14,bw=cw*.62,sy=v=>H-B-(v/(top*60))*(H-B-T);
   let g='';for(let k=0;k<=top;k++){if(top>4&&k%2)continue;const y=sy(k*60);g+=`<line class="grid" x1="${L}" x2="${W-2}" y1="${y}" y2="${y}"/><text x="${L-4}" y="${y+3}" text-anchor="end">${k}h</text>`}
@@ -894,6 +949,7 @@ function aForm(a){
   });
 }
 function renderToren(){
+  renderW();
   const as=list('a').slice().sort((x,y)=>(y.date||'').localeCompare(x.date||''));
   let tot=0,hit=0;as.forEach(a=>(a.points||[]).forEach(p=>{tot++;if(p.h)hit++}));
   $('a-stats').innerHTML=`<div class="stat"><b>${as.length}</b><span>答練数</span></div><div class="stat"><b>${tot?Math.round(hit/tot*100)+'%':'—'}</b><span>論点の拾い率</span></div><div class="stat"><b>${tot-hit}</b><span>落とした論点</span></div>`;
@@ -923,26 +979,44 @@ function settingsSheet(){
    <div class="grid3"><label class="f">新しく覚える数／日<input type="number" id="st-n" min="0" max="500" inputmode="numeric" value="${s.newPerDay}"></label>
    <label class="f">復習の目標（問）<input type="number" id="st-r" min="0" max="2000" inputmode="numeric" value="${s.reviewGoal}"></label>
    <label class="f">学習時間の目標（分）<input type="number" id="st-m" min="0" max="1440" inputmode="numeric" value="${s.minGoal}"></label></div>
-   <p class="note">新しく覚える数を増やすと、数日後の復習量も増えます。まずは1日20前後がおすすめです。</p>
+   <label class="f">1週間の学習時間の目標（時間）<input type="number" id="st-w" min="0" max="120" inputmode="numeric" value="${s.weekHours}"></label>
+   <p class="note">新しく覚える数を増やすと、数日後の復習量も増えます。まずは1日20前後がおすすめです。週の目標時間は、今日の画面で科目ごとに配点の割合で割り振られます。</p>
+   ${inClaude?'':`<hr><h3>毎日のリマインダー</h3><div class="row"><input type="time" id="st-time" value="${esc(ui.remind||'20:00')}" style="width:auto" aria-label="通知する時刻"><button class="btn" id="st-ics">カレンダーに登録</button></div>
+   <p class="note">ファイルを開くと、スマホやPCのカレンダーに毎日の予定が通知つきで追加されます。</p>`}
    <div class="row"><button class="btn wide" id="fx">閉じる</button><button class="btn primary wide" id="fs">設定を保存</button></div>
    <hr><h3>データ</h3>
    <div class="row"><button class="btn wide" id="im-q">短答を取り込む</button><button class="btn wide" id="im-c">暗記カードを取り込む</button></div>
-   <div class="row"><button class="btn wide" id="bk-save">バックアップを保存</button><button class="btn wide" id="bk-copy">バックアップをコピー</button><button class="btn wide" id="im-j">バックアップから復元</button></div>
+   <div class="row"><button class="btn wide" id="bk-save" hidden>バックアップを保存</button><button class="btn wide" id="bk-copy">バックアップをコピー</button><button class="btn wide" id="im-j">バックアップから復元</button></div>
    <div id="bk-out"></div>
    <p class="note">データはこのブラウザの中に保存されます。別の端末へ移すときや念のための保管には、バックアップと復元を使ってください。</p>`,sh=>{
     sh.querySelector('#fx').onclick=closeSheet;
     sh.querySelector('#fs').onclick=()=>{const num=(id,d)=>{const v=parseInt(sh.querySelector(id).value,10);return isNaN(v)||v<0?d:v};
       put({...(items.get('settings')||{}),id:'settings',kind:'s',label:sh.querySelector('#st-l').value.trim(),date:sh.querySelector('#st-d').value,
-        newPerDay:num('#st-n',20),reviewGoal:num('#st-r',50),minGoal:num('#st-m',180)});closeSheet();toast('設定を保存しました')};
+        newPerDay:num('#st-n',20),reviewGoal:num('#st-r',50),minGoal:num('#st-m',180),weekHours:num('#st-w',30)});closeSheet();toast('設定を保存しました')};
     sh.querySelector('#im-q').onclick=()=>importSheet('q');sh.querySelector('#im-c').onclick=()=>importSheet('c');sh.querySelector('#im-j').onclick=()=>importSheet('json');
     const backup=()=>JSON.stringify({app:'司法試験 学習帳',version:2,exported:new Date().toISOString(),items:[...items.values()]});
     sh.querySelector('#bk-copy').onclick=()=>{const data=backup();
       const fallback=()=>{sh.querySelector('#bk-out').innerHTML='<label class="f">下の文字をすべて選んでコピーし、メモなどに保管してください<textarea id="bk-ta" readonly style="min-height:90px;font-family:var(--f-num);font-size:.75rem"></textarea></label>';const ta=sh.querySelector('#bk-ta');ta.value=data;ta.focus();ta.select()};
       try{navigator.clipboard.writeText(data).then(()=>toast(`${items.size}件をコピーしました。メモなどに貼り付けて保管してください`),fallback)}catch(e){fallback()}};
-    sh.querySelector('#bk-save').onclick=()=>{try{const url=URL.createObjectURL(new Blob([backup()],{type:'application/json'}));const a=document.createElement('a');a.href=url;a.download='shiho-backup-'+today().replace(/-/g,'')+'.json';document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),2000);toast('バックアップを保存しました')}catch(e){toast('保存できませんでした。「コピー」を使ってください')}};
+    const bs=sh.querySelector('#bk-save');
+    if(!inClaude)bs.hidden=false;else if(dlP)dlP.then(dl=>{if(dl&&bs.isConnected)bs.hidden=false});
+    bs.onclick=async()=>{if(await saveFile('shiho-backup-'+today().replace(/-/g,'')+'.json',backup(),'application/json'))toast('バックアップを保存しました')};
+    const ics=sh.querySelector('#st-ics');
+    if(ics)ics.onclick=async()=>{const tv=sh.querySelector('#st-time').value||'20:00';ui.remind=tv;saveUi();
+      const [hh,mm]=tv.split(':'),d=today().replace(/-/g,''),now=new Date().toISOString().replace(/[-:]/g,'').replace(/\.\d+/,''),url=location.href.split('#')[0];
+      const cal=['BEGIN:VCALENDAR','VERSION:2.0','PRODID:-//shiho-gakushucho//JA','CALSCALE:GREGORIAN','BEGIN:VEVENT','UID:daily-'+Date.now()+'@shiho-gakushucho','DTSTAMP:'+now,
+        'DTSTART:'+d+'T'+pad(hh)+pad(mm)+'00','DURATION:PT30M','RRULE:FREQ=DAILY','SUMMARY:司法試験 学習帳：今日の復習','DESCRIPTION:'+url,'URL:'+url,
+        'BEGIN:VALARM','TRIGGER:PT0M','ACTION:DISPLAY','DESCRIPTION:今日の復習をしましょう','END:VALARM','END:VEVENT','END:VCALENDAR'].join('\r\n');
+      if(await saveFile('shiho-reminder.ics',cal,'text/calendar'))toast('ファイルを開いて、カレンダーに追加してください')};
   });
 }
 document.addEventListener('click',e=>{if(e.target.closest('[data-open="settings"]')||e.target.closest('#open-settings'))settingsSheet()});
+async function saveFile(name,data,mime){
+  if(inClaude){const dl=dlP?await dlP:null;if(!dl){toast('ここでは保存できません。「コピー」を使ってください');return false}
+    try{await dl.save({filename:name,data});return true}catch(e){if(!e||e.code!=='declined')toast('ここでは保存できません。「コピー」を使ってください');return false}}
+  try{const url=URL.createObjectURL(new Blob([data],{type:mime}));const a=document.createElement('a');a.href=url;a.download=name;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),3000);return true}
+  catch(e){toast('保存できませんでした');return false}
+}
 function parseTable(text){
   const delim=text.includes('\t')?'\t':',',rows=[];let row=[],f='',q=false;
   for(let i=0;i<text.length;i++){const ch=text[i];
@@ -959,7 +1033,7 @@ const parseAns=s=>{s=nz(s);if(['○','〇','o','◯','正','true','1','t','ま�
 function parseImport(type,text){
   const out=[];let bad=0;
   if(type==='json'){try{const j=JSON.parse(text),arr=Array.isArray(j)?j:j&&j.items;
-      (arr||[]).forEach(x=>{if(x&&typeof x==='object'&&['q','c','l','a','s'].includes(x.kind)&&/^[A-Za-z0-9_.~:@+-]{1,150}$/.test(String(x.id))&&!/^\.{1,2}$/.test(x.id)&&!isEx(x))out.push(x);else bad++})}
+      (arr||[]).forEach(x=>{if(x&&typeof x==='object'&&['q','c','l','a','s','m','st'].includes(x.kind)&&/^[A-Za-z0-9_.~:@+-]{1,150}$/.test(String(x.id))&&!/^\.{1,2}$/.test(x.id)&&!isEx(x))out.push(x);else bad++})}
     catch(e){return {out,bad:-1}}return {out,bad}}
   let rows=parseTable(text);if(rows.length&&/^(科目|種類)/.test(rows[0][0]))rows=rows.slice(1);
   rows.forEach(r=>{const subj=normSubj(r[0]);
@@ -996,6 +1070,205 @@ function importSheet(type){
   });
 }
 
+/* ---------- 時期と学習プラン ---------- */
+const W8={'憲法':1.3,'行政法':1,'民法':1.8,'商法':1,'民訴':1,'刑法':1.3,'刑訴':1,'選択':0.8};
+function phase(){const n=daysTo(exam().date);
+  if(n<=0)return {l:'本番',t:'積み上げてきたものを信じて、体調と時間配分を最優先に。'};
+  if(n<=60)return {l:'直前期',t:'新しいことより復習を優先。苦手★とよく忘れるカードを毎日回し、本番形式で時間配分を固めます。'};
+  if(n<=150)return {l:'実戦期',t:'論文は本番タイマーで答案を書き、短答は本番形式で時間を計って解きます。'};
+  if(n<=300)return {l:'演習期',t:'過去問の短答・論文演習が中心。答練で落とした論点は、その日のうちにカードにします。'};
+  return {l:'基礎固め期',t:'インプットと論証・判例カード作りが中心。短答の知識も毎日少しずつ。'};
+}
+const monday=()=>{const k=(new Date(today()+'T00:00:00').getDay()+6)%7;return addDays(today(),-k)};
+function renderWeek(){
+  const s=S(),wh=+s.weekHours||0,ph=phase(),from=monday(),t=today();
+  const logs=mine('l').filter(l=>l.date>=from&&l.date<=t),tot=logs.reduce((a,l)=>a+(+l.min||0),0);
+  const sumW=Object.values(W8).reduce((a,b)=>a+b,0);
+  const rows=SUBJ.map(sj=>{const tgt=Math.round(wh*60*W8[sj]/sumW),act=logs.filter(l=>l.subject===sj).reduce((a,l)=>a+(+l.min||0),0);
+    return {label:sj,v:Math.min(act,tgt),max:tgt,txt:`${(act/60).toFixed(1)}/${(tgt/60).toFixed(1)}h`}});
+  $('t-week').innerHTML=`<div class="spread"><h3>今週の学習プラン</h3><span class="chip">${ph.l}</span></div><p class="note">${ph.t}</p>
+    <div class="goal"><div class="spread"><span>今週の合計（月曜から）</span><span><b>${(tot/60).toFixed(1)}</b> / ${wh}時間</span></div><div class="meter"><i style="width:${wh?Math.min(100,tot/(wh*60)*100):0}%"></i></div></div>
+    ${wh?rateBars(rows,'wide'):''}<p class="note">科目ごとの目標は、本番の配点をもとにした目安です（民法を厚め）。</p>`;
+}
+
+/* ---------- 弱点分析・おすすめ ---------- */
+function subjStats(days){
+  const from=addDays(today(),-(days-1)),o={};SUBJ.forEach(s=>o[s]={qn:0,qo:0,cn:0,co:0,min:0,pt:0,ph:0});
+  mine('q').forEach(x=>(x.hist||[]).forEach(h=>{if(h.d>=from&&o[x.subject]){o[x.subject].qn++;if(h.g>0)o[x.subject].qo++}}));
+  mine('c').forEach(x=>(x.hist||[]).forEach(h=>{if(h.d>=from&&o[x.subject]){o[x.subject].cn++;if(h.g>0)o[x.subject].co++}}));
+  mine('l').forEach(l=>{if(l.date>=from&&o[l.subject])o[l.subject].min+=(+l.min||0)});
+  mine('a').forEach(a=>{if((a.date||'')>=from&&o[a.subject])(a.points||[]).forEach(p=>{o[a.subject].pt++;if(p.h)o[a.subject].ph++})});
+  return o;
+}
+const pct=(a,n)=>n?Math.round(a/n*100):null;
+function renderWeak(){
+  const o=subjStats(30),cell=(v,low)=>v==null?'<td class="na">—</td>':`<td class="${v<low?'low':''}">${v}%</td>`;
+  const any=SUBJ.some(s=>{const r=o[s];return r.qn||r.cn||r.min||r.pt});
+  $('l-weak').innerHTML=any?`<div class="tbl"><table><thead><tr><th>科目</th><th>短答</th><th>カード</th><th>答練</th><th>時間</th></tr></thead><tbody>${SUBJ.map(s=>{const r=o[s];
+      return `<tr><th>${s}</th>${cell(pct(r.qo,r.qn),70)}${cell(pct(r.co,r.cn),70)}${cell(pct(r.ph,r.pt),60)}<td>${r.min?(r.min<60?r.min+'分':(r.min/60).toFixed(1)+'h'):'<span class="low">0</span>'}</td></tr>`}).join('')}</tbody></table></div>
+    <p class="note">短答＝正答率、カード＝思い出せた率、答練＝論点を拾えた率。赤字は目安（7割、答練は6割）を下回っている科目です。</p>`
+    :'<div class="empty">復習や記録をすると、科目ごとの弱点がここに出ます。</div>';
+}
+let RECO=[];
+function renderReco(){
+  RECO=[];const o=subjStats(30);
+  const wq=SUBJ.map(s=>({s,p:pct(o[s].qo,o[s].qn),n:o[s].qn})).filter(r=>r.n>=5&&r.p<80).sort((a,b)=>a.p-b.p)[0];
+  if(wq)RECO.push({t:`短答の${wq.s}は正答率${wq.p}%で、いちばん低い科目です。`,b:`${wq.s}を10問`,f:()=>{const pool=list('q').filter(q=>q.subject===wq.s),pri=x=>x.last===false||x.flag;
+    startSession([...shuffle(pool.filter(pri)),...shuffle(pool.filter(x=>!pri(x)))].slice(0,10).map(q=>q.id),wq.s+'の短答')}});
+  const lap=[...mine('c'),...mine('q')].filter(x=>(srsOf(x)?.lapses||0)>=2).sort((a,b)=>srsOf(b).lapses-srsOf(a).lapses);
+  if(lap.length)RECO.push({t:`2回以上忘れた問題・カードが${lap.length}件あります。`,b:'よく忘れるものを復習',f:()=>startSession(lap.slice(0,15).map(x=>x.id),'よく忘れるもの')});
+  if(mine('l').length){const o14=subjStats(14),gap=SUBJ.filter(s=>s!=='選択'&&!o14[s].min);
+    if(gap.length&&gap.length<7)RECO.push({t:`${gap.slice(0,3).join('・')}${gap.length>3?'など':''}を2週間勉強していません。`,b:`${gap[0]}でタイマー開始`,f:()=>{tm.subj=gap[0];if(!tm.run){tm.start=Date.now();tm.run=true}saveTm();renderTimer();$('t-timer').scrollIntoView({behavior:'smooth',block:'center'});toast(gap[0]+'でタイマーを開始しました')}})}
+  const lastA=mine('a').map(a=>a.date||'').sort().pop()||'';
+  if(daysTo(exam().date)<=365&&(!lastA||daysTo(lastA)<-14))RECO.push({t:lastA?'2週間以上、論文の答案を書いていません。':'まだ論文の答練の記録がありません。',b:'本番タイマーで書く',f:()=>{location.hash='toren'}});
+  const fl=[...mine('q'),...mine('c')].filter(x=>x.flag);
+  if(fl.length&&RECO.length<3)RECO.push({t:`苦手★が${fl.length}件あります。`,b:'苦手★を復習',f:()=>startSession(shuffle(fl).slice(0,20).map(x=>x.id),'苦手★')});
+  if(!mine('q').length&&!mine('c').length)RECO.push({t:'まずは、覚えたい短答の知識や論証・判例を登録しましょう。',b:'カードを追加',f:()=>{location.hash='ronsho';setTimeout(()=>cForm(),60)}});
+  $('t-reco').innerHTML=`<h3>今日のおすすめ</h3>${RECO.length?RECO.slice(0,4).map((r,i)=>`<div class="reco"><span>${esc(r.t)}</span><button class="btn" data-reco="${i}">${esc(r.b)}</button></div>`).join(''):'<p class="note">いま目立つ弱点はありません。今日の復習を続けましょう。</p>'}`;
+}
+
+/* ---------- 実績 ---------- */
+function maxStreak(){
+  const ds=[...new Set([...mine('l').map(l=>l.date),...[...mine('q'),...mine('c')].flatMap(x=>(x.hist||[]).map(h=>h.d))])].sort();
+  let best=0,cur=0,prev='';ds.forEach(d=>{cur=prev&&addDays(prev,1)===d?cur+1:1;best=Math.max(best,cur);prev=d});return best;
+}
+function renderBadges(){
+  const st=items.get('stats')||{},rv=Math.max(+st.reviews||0,[...mine('q'),...mine('c')].reduce((a,x)=>a+(x.hist||[]).length,0));
+  const ms=maxStreak(),cards=mine('q').length+mine('c').length,hrs=mine('l').reduce((a,l)=>a+(+l.min||0),0)/60,mk=mine('m'),best=mk.reduce((a,m)=>Math.max(a,m.n>=10?m.ok/m.n:0),0),ar=mine('a').length;
+  const B=[['3日連続',ms>=3],['7日連続',ms>=7],['30日連続',ms>=30],['100日連続',ms>=100],['復習100回',rv>=100],['復習1000回',rv>=1000],['復習5000回',rv>=5000],['登録50件',cards>=50],['登録300件',cards>=300],
+    ['学習100時間',hrs>=100],['学習500時間',hrs>=500],['学習1000時間',hrs>=1000],['本番形式に挑戦',mk.length>0],['本番形式で8割',best>=0.8],['答練10通',ar>=10],['答練50通',ar>=50]];
+  $('l-badges').innerHTML=`<div class="spread"><h3>実績</h3><span class="meta">${B.filter(b=>b[1]).length} / ${B.length}</span></div>
+    <div class="badges">${B.map(([l,g])=>`<span class="badge2${g?' on':''}">${g?'✓ ':''}${l}</span>`).join('')}</div>
+    <p class="note">最長連続 ${ms}日・復習 ${rv}回・学習 ${hrs.toFixed(0)}時間</p>`;
+}
+
+/* ---------- 短答の本番形式 ---------- */
+let E=null;
+function startExam(){
+  const subj=$('m-subj').value,n=+$('m-num').value,per=+$('m-per').value;
+  const pool=list('q').filter(q=>!subj||q.subject===subj);
+  if(!pool.length){toast('この科目の問題がまだありません');return}
+  const ids=shuffle(pool).slice(0,n).map(q=>q.id);
+  closeSheet();P=null;
+  E={ids,ans:ids.map(()=>null),i:0,t0:Date.now(),limit:per?per*ids.length*1000:0,subj,res:null,ask:false};
+  $('player').hidden=false;document.body.style.overflow='hidden';renderExam();
+}
+const examLeft=()=>E.limit?Math.max(0,E.limit-(Date.now()-E.t0)):null;
+const examClock=()=>{const l=examLeft();return l!=null?'残り '+clock(l):'経過 '+clock(Date.now()-E.t0)};
+function renderExam(){
+  if(!E)return;const el=$('p-in');
+  if(E.res){el.innerHTML=examResultHtml();$('player').scrollTop=0;$('player').focus({preventScroll:true});return}
+  const n=E.ids.length,x=getItem(E.ids[E.i]),left=examLeft(),done=E.ans.filter(a=>a!=null).length;
+  let h=`<div class="p-top"><button class="btn ghost" data-e="quit">✕ 中断</button><span class="progress">${E.i+1} / ${n}</span><span class="e-time${left!=null&&left<60000?' warn':''}" id="e-time">${examClock()}</span></div>`;
+  h+=`<div class="p-card"><div class="row" style="gap:6px"><span class="chip">${esc(x.subject)}</span>${isEx(x)?'<span class="chip ex">例</span>':''}<span class="meta">本番形式</span></div><div class="p-body q">${esc(x.text)}</div></div>`;
+  h+=`<div class="ox"><button class="btn${E.ans[E.i]===true?' primary':''}" data-e="o" aria-pressed="${E.ans[E.i]===true}" aria-label="正しい">○</button><button class="btn${E.ans[E.i]===false?' primary':''}" data-e="x" aria-pressed="${E.ans[E.i]===false}" aria-label="誤り">×</button></div>`;
+  h+=`<div class="grid2"><button class="btn" data-e="prev"${E.i?'':' disabled'}>← 前へ</button><button class="btn" data-e="next"${E.i<n-1?'':' disabled'}>次へ →</button></div>`;
+  h+=`<div class="pal" aria-label="問題の一覧">${E.ids.map((_,k)=>`<button data-e="go" data-k="${k}" class="${k===E.i?'cur ':''}${E.ans[k]!=null?'done':''}" aria-label="${k+1}問目${E.ans[k]!=null?'（回答済み）':''}">${k+1}</button>`).join('')}</div>`;
+  h+=E.ask?`<div class="p-card"><p style="margin:0">未回答が ${n-done} 問あります。このまま提出しますか？</p><div class="row"><button class="btn wide" data-e="cancel">解き続ける</button><button class="btn primary wide" data-e="submit!">提出する</button></div></div>`
+    :`<button class="btn primary" data-e="submit">提出して採点する（${done} / ${n} 問回答）</button>`;
+  h+='<p class="keys">O／X で回答（自動で次へ）・← → で移動</p>';
+  el.innerHTML=h;$('player').focus({preventScroll:true});
+}
+function examAct(d){
+  if(!E)return;const n=E.ids.length;
+  switch(d.e){
+    case 'o':case 'x':E.ans[E.i]=d.e==='o';E.ask=false;if(E.i<n-1)E.i++;break;
+    case 'prev':if(E.i)E.i--;break;
+    case 'next':if(E.i<n-1)E.i++;break;
+    case 'go':E.i=+d.k;break;
+    case 'submit':if(E.ans.some(a=>a==null)){E.ask=true;break}submitExam();return;
+    case 'submit!':submitExam();return;
+    case 'cancel':E.ask=false;break;
+    case 'quit':case 'close':closeExam();return;
+    case 'review':{const w=E.res.wrong;closeExam();startSession(w,'本番形式でまちがえた問題');return}
+  }
+  renderExam();
+}
+function examKey(e){
+  const k=e.key;
+  if(E.res){if(k==='Escape'){e.preventDefault();closeExam()}return}
+  if(e.ctrlKey||e.metaKey||e.altKey)return;
+  if(/^[oO]$/.test(k)){e.preventDefault();examAct({e:'o'})}
+  else if(/^[xX]$/.test(k)){e.preventDefault();examAct({e:'x'})}
+  else if(k==='ArrowLeft'){e.preventDefault();examAct({e:'prev'})}
+  else if(k==='ArrowRight'){e.preventDefault();examAct({e:'next'})}
+}
+function submitExam(){
+  if(!E||E.res)return;
+  const secs=Math.round((Date.now()-E.t0)/1000),by={},wrong=[];let ok=0;
+  E.ids.forEach((id,k)=>{const x=getItem(id),a=E.ans[k],good=a!=null&&a===x.answer;if(good)ok++;else wrong.push(id);
+    const b=by[x.subject]||(by[x.subject]={n:0,ok:0});b.n++;if(good)b.ok++;grade(x,good?2:0,good)});
+  E.res={ok,n:E.ids.length,secs,by,wrong};
+  if(E.ids.some(id=>!isEx(getItem(id))))put({id:'m_'+uid(),kind:'m',date:today(),subj:E.subj||'',n:E.ids.length,ok,secs,by});
+  renderExam();
+}
+function examResultHtml(){
+  const r=E.res,p=Math.round(r.ok/r.n*100);
+  const rows=Object.entries(r.by).map(([s,b])=>{const q=Math.round(b.ok/b.n*100),core=['憲法','民法','刑法'].includes(s);
+    return `<tr><th>${esc(s)}</th><td>${b.ok}/${b.n}</td><td class="${core&&q<40?'low':''}">${q}%</td><td>${core?(q<40?'<span class="low">40%未満</span>':'40%以上'):'—'}</td></tr>`}).join('');
+  const wl=E.ids.map((id,k)=>({x:getItem(id),a:E.ans[k]})).filter(o=>o.a!==o.x.answer);
+  return `<div class="p-top"><span class="progress">本番形式の結果</span></div>
+   <div class="p-card"><div class="stats"><div class="stat"><b>${r.ok}/${r.n}</b><span>正解</span></div><div class="stat"><b>${p}%</b><span>正答率</span></div><div class="stat"><b>${Math.floor(r.secs/60)}分${pad(r.secs%60)}秒</b><span>かかった時間</span></div></div>
+   <div class="tbl"><table><thead><tr><th>科目</th><th>正解</th><th>正答率</th><th>足切り（40%）</th></tr></thead><tbody>${rows}</tbody></table></div>
+   <p class="note">参考：令和7年の短答式は、175点中81点（約46%）以上が合格に必要な成績でした。憲法・民法・刑法のどれか1科目でも満点の40%未満だと不合格です。ここでの数字は肢ごとの○×の正答率なので、本番の点数とは一致しません。</p></div>
+   ${wl.length?`<div class="p-card"><h3>まちがえた問題（${wl.length}）</h3><div class="list">${wl.map(o=>`<div class="item"><div class="body"><div>${esc(o.x.text)}</div><div class="meta">あなたの答え：${o.a==null?'未回答':o.a?'○':'×'}　正解：<b>${o.x.answer?'○':'×'}</b>${o.x.article?'・'+esc(o.x.article):''}</div>${o.x.explain?`<div class="note">${esc(o.x.explain)}</div>`:''}</div></div>`).join('')}</div></div>`:''}
+   <div class="row">${wl.length?`<button class="btn wide" data-e="review">まちがえた${wl.length}問を復習</button>`:''}<button class="btn primary wide" data-e="close">閉じる</button></div>`;
+}
+function closeExam(){E=null;$('player').hidden=true;document.body.style.overflow='';render()}
+function renderMock(){
+  const ms=mine('m').sort((a,b)=>(b.date||'').localeCompare(a.date||'')||String(b.id).localeCompare(String(a.id)));
+  $('m-hist').innerHTML=ms.length?'<h3>これまでの成績</h3>'+ms.slice(0,8).map(m=>{const p=Math.round(m.ok/m.n*100);
+    return `<div class="hbar wide"><span>${md(m.date)}</span><div class="track"><div class="fill" style="width:${p}%"></div></div><span class="v">${p}%（${m.ok}/${m.n}）</span></div>`}).join(''):'';
+}
+
+/* ---------- 論文の本番タイマー ---------- */
+const LS_W='shiho-gakushucho-ronbun';
+let Wt=loadJSON(LS_W);
+const saveW=()=>saveJSON(LS_W,Wt);
+const wEl=()=>Wt?Wt.acc+(Wt.run?Date.now()-Wt.start:0):0;
+const wSub=el2=>el2<Wt.plan*60000?`構成の目安まで あと${Math.ceil((Wt.plan*60000-el2)/60000)}分`:`経過 ${Math.floor(el2/60000)}分 / ${Wt.total}分`;
+function renderW(){
+  const el=$('w-panel');if(!el)return;
+  if(!Wt){const sj=ui.wSubj||'民法';
+    el.innerHTML=`<h3>本番タイマーで答案を書く</h3>
+     <div class="grid3"><label class="f">科目${subjSel('w-s',sj)}</label>
+     <label class="f">制限時間（分）<input type="number" id="w-t" min="10" max="300" inputmode="numeric" value="${sj==='選択'?180:120}"></label>
+     <label class="f">構成の目安（分）<input type="number" id="w-p" min="0" max="120" inputmode="numeric" value="${ui.wPlan??40}"></label></div>
+     <button class="btn primary" data-w="start">開始する</button>
+     <p class="note">本番は1問120分（選択科目は2問で180分）。構成の目安と残り10分で知らせます。書き終えると学習時間が記録され、答練の記録画面が開きます。</p>`;
+    $('w-s').onchange=e=>{$('w-t').value=e.target.value==='選択'?180:120};return}
+  const el2=wEl(),left=Wt.total*60000-el2,inPlan=el2<Wt.plan*60000;
+  el.innerHTML=`<div class="spread"><h3>本番タイマー：${esc(Wt.subj)}</h3><span class="chip${left<600000?' re':''}">${left<=0?'時間切れ':inPlan?'答案構成中':'答案作成中'}</span></div>
+    <div class="clock${Wt.run?' run':''}" id="w-clock">${left>=0?clock(left):'+'+clock(-left)}</div>
+    <p class="note" id="w-sub">${wSub(el2)}</p>
+    <div class="row"><button class="btn${Wt.run?'':' primary'} wide" data-w="toggle">${Wt.run?'一時停止':'再開'}</button><button class="btn wide" data-w="finish">書き終えた</button><button class="btn ghost" data-w="cancel">やめる</button></div>`;
+}
+function wAct(a){
+  if(a==='start'){const subj=$('w-s').value,tot=Math.max(10,+$('w-t').value||120),pl=Math.max(0,+$('w-p').value||0);ui.wSubj=subj;ui.wPlan=pl;saveUi();Wt={subj,total:tot,plan:pl,start:Date.now(),acc:0,run:true,alerted:{}};toast(`${subj}・${tot}分のタイマーを開始しました`)}
+  else if(a==='toggle'){if(Wt.run){Wt.acc=wEl();Wt.run=false}else{Wt.start=Date.now();Wt.run=true}}
+  else if(a==='cancel'){Wt=null}
+  else if(a==='finish'){const m=Math.max(1,Math.round(wEl()/60000)),sj=Wt.subj;Wt=null;saveW();
+    put({id:'l_'+uid(),kind:'l',date:today(),subject:sj,min:m,memo:'論文 本番タイマー'});
+    aForm({date:today(),subject:sj,title:`${sj} 答練（${m}分）`,score:'',points:[],memo:''});return}
+  saveW();renderW();doRender();
+}
+function wTick(){
+  if(!Wt||!Wt.run)return;
+  const el2=wEl(),left=Wt.total*60000-el2,al=Wt.alerted||(Wt.alerted={});
+  const c=$('w-clock');if(c)c.textContent=left>=0?clock(left):'+'+clock(-left);
+  const sb=$('w-sub');if(sb)sb.textContent=wSub(el2);
+  $('hd-count').textContent='論文 残り'+(left>=0?clock(left):'0:00:00');
+  const fire=(k,msg)=>{if(al[k])return;al[k]=1;saveW();toast(msg);try{navigator.vibrate&&navigator.vibrate(300)}catch(e){}if(current()==='toren')renderW()};
+  if(Wt.plan&&el2>=Wt.plan*60000)fire('plan','構成の目安時間です。答案を書き始めましょう');
+  if(left<=600000)fire('ten','残り10分です');
+  if(left<=0)fire('end','時間です。書き終えたら「書き終えた」を押してください');
+}
+setInterval(()=>{
+  if(E&&!E.res){const l=examLeft();if(l!=null&&l<=0){toast('時間切れです。採点します');submitExam()}
+    else{const el=$('e-time');if(el){el.textContent=examClock();el.classList.toggle('warn',l!=null&&l<60000)}}}
+  wTick();
+},1000);
+
 /* ---------- 画面切替 ---------- */
 const VIEWS=['today','tanto','ronsho','kiroku','toren'];
 const current=()=>{const h=location.hash.slice(1);return VIEWS.includes(h)?h:'today'};
@@ -1003,7 +1276,7 @@ let rq=0;
 function render(){if(rq)return;rq=requestAnimationFrame(()=>{rq=0;doRender()});setTimeout(()=>{if(rq){cancelAnimationFrame(rq);rq=0;doRender()}},120)}
 function doRender(){
   const v=current(),c=exam(),n=daysTo(c.date);
-  $('hd-count').textContent=n>0?`${c.label.replace(/^令和\d+年\s*/,'')}まであと${n}日`:'';
+  if(!(Wt&&Wt.run))$('hd-count').textContent=n>0?`${c.label.replace(/^令和\d+年\s*/,'')}まであと${n}日`:'';
   setStore();
   const due=[...list('q'),...list('c')].filter(isDue).length,b=$('badge');b.hidden=!due||!(mine('q').length+mine('c').length);b.textContent=due>99?'99+':due;
   VIEWS.forEach(x=>$('v-'+x).hidden=x!==v);
@@ -1021,6 +1294,7 @@ $('q-add').onclick=()=>qForm();$('q-start').onclick=startQ;
 $('c-add').onclick=()=>cForm();$('c-start').onclick=startC;
 $('c-mode').onchange=e=>{ui.cMode=e.target.value;saveUi()};
 $('a-add').onclick=()=>aForm();
+$('m-start').onclick=startExam;
 doRender();initStore();
 if('serviceWorker' in navigator&&/^https?:$/.test(location.protocol))navigator.serviceWorker.register('sw.js').catch(()=>{});
 })();
