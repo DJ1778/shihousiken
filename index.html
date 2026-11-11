@@ -283,6 +283,7 @@ details summary{cursor:pointer;font-size:.85rem;color:var(--muted)}
   <!-- 今日 -->
   <section id="v-today" class="view" hidden>
     <section class="count" id="count" aria-label="試験までの日数"></section>
+    <div class="panel" id="t-elective" hidden></div>
     <div class="panel" id="t-plan"></div>
     <div class="panel" id="t-review"></div>
     <div class="panel" id="t-reco"></div>
@@ -378,7 +379,8 @@ details summary{cursor:pointer;font-size:.85rem;color:var(--muted)}
       <div class="row" style="gap:8px"><div class="seg" id="k-ex" role="group" aria-label="試験"></div><div class="seg" id="k-ty" role="group" aria-label="形式"></div></div>
       <div class="stats" id="k-stats"></div>
       <div class="goal" id="k-goalbar"></div>
-      <label class="f" style="max-width:14em">目標の周回数<select id="k-goal"><option value="1">1周</option><option value="2">2周</option><option value="3">3周</option><option value="4">4周</option><option value="5">5周</option></select></label>
+      <div class="grid2"><label class="f">選択科目<select id="k-el" class="el-sel"></select></label>
+      <label class="f">目標の周回数<select id="k-goal"><option value="1">1周</option><option value="2">2周</option><option value="3">3周</option><option value="4">4周</option><option value="5">5周</option></select></label></div>
     </div>
     <div class="panel"><h3>次に解くおすすめ</h3><div id="k-next"></div></div>
     <div class="panel">
@@ -494,6 +496,8 @@ const isEx=x=>String(x.id).startsWith('ex-');
 const getItem=id=>items.get(id)||SAMPLES.find(s=>s.id===id);
 const S=()=>Object.assign({},DEF,items.get('settings')||{});
 const ELECTIVES=[['倒産法','倒産'],['租税法','租税'],['経済法','経済'],['知的財産法','知財'],['労働法','労働'],['環境法','環境'],['国際関係法（公法系）','国公'],['国際関係法（私法系）','国私']];
+const elOpts=()=>`<option value="">まだ決めていない</option>${ELECTIVES.map(([n])=>`<option${n===S().elective?' selected':''}>${n}</option>`).join('')}`;
+function setElective(v){put({...(items.get('settings')||{}),id:'settings',kind:'s',elective:v});refreshSubj();toast(v?`選択科目を${v}にしました`:'選択科目を未設定にしました')}
 const SL=s=>s==='選択'&&S().elective?S().elective:s;
 const SLS=s=>{if(s!=='選択')return s;const e=ELECTIVES.find(x=>x[0]===S().elective);return e?e[1]:'選択'};
 /* カードの種類と用途 */
@@ -916,7 +920,8 @@ function renderCount(){
     ${nx?`<div class="next">次の節目　<b>${nx[0]}</b> ${md(nx[1])}（あと${daysTo(nx[1])}日）</div>`:''}`;
 }
 function renderToday(){
-  renderCount();renderPlanToday();
+  renderCount();
+  {const el=$('t-elective');if(S().elective){el.hidden=true}else{el.hidden=false;el.innerHTML=`<h3>選択科目を選んでください</h3><label class="f">あなたの選択科目<select class="el-sel" aria-label="選択科目">${elOpts()}</select></label><p class="note">選ぶと、科目の一覧・過去問・学習プランなどに科目名が出ます。あとから「設定とデータ」で変えられます。</p>`}}renderPlanToday();
   const s=S(),t=today(),qs=list('q'),cs=list('c');
   const dq=qs.filter(isDue).length,dc=cs.filter(isDue).length,nn=Math.min(newLeft(),[...qs,...cs].filter(isNew).length),tot=dq+dc+nn;
   const r=histOn(t),mins=minutesOn(t)+(tm.run||tm.acc?Math.floor(tmElapsed()/60000):0);
@@ -1367,6 +1372,7 @@ const kN=(ex,ty,y,sj)=>(items.get(kid(ex,ty,y))?.cells?.[sj]?.n)||0;
 const kTotal=()=>mine('k').reduce((a,d)=>a+Object.values(d.cells||{}).reduce((b,c)=>b+(+c.n||0),0),0);
 function renderKako(){
   renderW();
+  if(document.activeElement!==$('k-el'))$('k-el').innerHTML=elOpts();
   const ex=KK[ui.kEx]?ui.kEx:'shiho',ty=ui.kTy==='ronbun'?'ronbun':'tanto',K=KK[ex],subs=K[ty],goal=+S().kakoGoal||3,years=[];
   for(let y=latestYear();y>=K.from;y--)years.push(y);
   $('k-ex').innerHTML=Object.entries(KK).map(([k,v])=>`<button data-kex="${k}" aria-pressed="${k===ex}">${v.l}</button>`).join('');
@@ -1416,6 +1422,7 @@ function kSheet(ex,ty,y,sj,opt){confirmArm=false;opt=opt||{};
     const kt=q('#k-timer');if(kt)kt.onclick=()=>{if(Wt&&!confirmArm){confirmArm=true;kt.textContent='別のタイマーが動いています。もう一度押すと置きかえます';return}confirmArm=false;closeSheet();wStart({ex,ty,y,sj})};
   });
 }
+document.addEventListener('change',e=>{if(e.target.classList&&e.target.classList.contains('el-sel'))setElective(e.target.value)});
 $('k-goal').onchange=e=>{put({...(items.get('settings')||{}),id:'settings',kind:'s',kakoGoal:+e.target.value});toast(`目標を${e.target.value}周にしました`)};
 
 /* ---------- 合格プラン ---------- */
