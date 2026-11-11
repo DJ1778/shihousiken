@@ -202,6 +202,31 @@ details.info .tbl+.note{margin-bottom:12px}
 .knext .btn small{font-size:.7rem;color:var(--muted)}
 .klegend{display:flex;gap:12px;flex-wrap:wrap;align-items:center;font-size:.75rem;color:var(--muted)}
 .klegend .kc{width:22px;height:18px;cursor:default;font-size:.65rem}
+/* 合格プラン */
+.pl-item{display:grid;grid-template-columns:auto 4.8em 1fr auto;gap:10px;align-items:start;padding-block:10px;border-top:1px solid var(--line)}
+.pl-item:first-child{border-top:0}
+.pl-item input[type=checkbox]{width:22px;height:22px;min-height:22px;margin:2px 0 0;accent-color:var(--accent)}
+.pl-time{font-family:var(--f-num);font-size:.85rem;font-variant-numeric:tabular-nums;display:flex;flex-direction:column;line-height:1.3;cursor:pointer}
+.pl-time small{font-family:var(--f-body);font-size:.7rem;color:var(--muted)}
+.pl-item .what{cursor:pointer;min-width:0;overflow-wrap:anywhere;font-size:.92rem}
+.pl-item.done .what{color:var(--muted);text-decoration:line-through}
+.pl-item .btn.ghost{min-height:30px;padding:2px 6px;font-size:.78rem;white-space:nowrap}
+.rm{display:flex;flex-direction:column}
+.rm-ph{display:grid;grid-template-columns:14px 1fr;gap:12px;position:relative;padding-bottom:16px}
+.rm-ph::before{content:"";position:absolute;left:6px;top:20px;bottom:0;width:2px;background:var(--line)}
+.rm-ph:last-child::before{display:none}
+.rm-dot{width:14px;height:14px;border-radius:50%;border:2px solid var(--line);background:var(--surface);margin-top:5px;box-sizing:border-box}
+.rm-ph.cur .rm-dot{background:var(--accent);border-color:var(--accent)}
+.rm-ph.past .rm-dot{background:var(--line)}
+.rm-ph.past .rm-body{color:var(--muted)}
+.rm-body{min-width:0;display:flex;flex-direction:column;gap:6px}
+.rm-body ul{margin:0;padding-left:1.2em;font-size:.88rem}
+.pe-row{display:grid;grid-template-columns:minmax(7em,1fr) 6.6em minmax(6.5em,1fr) auto;gap:6px;align-items:center;padding-block:10px;border-top:1px solid var(--line)}
+.pe-row:first-child{border-top:0}
+.pe-row .what{grid-column:1/-1}
+.ph-row{display:flex;flex-direction:column;gap:8px;padding-block:12px;border-top:1px solid var(--line)}
+.ph-row:first-child{border-top:0}
+.ph-row textarea{min-height:80px}
 /* player */
 .player{position:fixed;inset:0;z-index:60;background:var(--bg);overflow:auto;
   padding:calc(env(safe-area-inset-top,0px) + 12px) max(16px,env(safe-area-inset-right,0px)) calc(env(safe-area-inset-bottom,0px) + 28px) max(16px,env(safe-area-inset-left,0px))}
@@ -258,6 +283,7 @@ details summary{cursor:pointer;font-size:.85rem;color:var(--muted)}
   <!-- 今日 -->
   <section id="v-today" class="view" hidden>
     <section class="count" id="count" aria-label="試験までの日数"></section>
+    <div class="panel" id="t-plan"></div>
     <div class="panel" id="t-review"></div>
     <div class="panel" id="t-reco"></div>
     <div class="panel" id="t-goal"></div>
@@ -275,6 +301,14 @@ details summary{cursor:pointer;font-size:.85rem;color:var(--muted)}
     </details></div>
     <button class="btn" id="open-settings">設定とデータ</button>
     <p class="note" style="text-align:center">目標・試験日の変更、問題の一括取り込み、バックアップ</p>
+  </section>
+
+  <!-- 合格プラン -->
+  <section id="v-plan" class="view" hidden>
+    <div class="row"><a class="btn ghost" href="#today">← 今日に戻る</a></div>
+    <div class="panel" id="pv-road"></div>
+    <div class="panel" id="pv-day"></div>
+    <div class="panel" id="pv-phase"></div>
   </section>
 
   <!-- 短答 -->
@@ -591,6 +625,7 @@ document.addEventListener('click',e=>{
   const wb=e.target.closest('[data-w]');if(wb){wAct(wb.dataset.w);return}
   const kk=e.target.closest('[data-kk]');if(kk){const [y,sj]=kk.dataset.kk.split('|');kSheet(ui.kEx||'shiho',ui.kTy||'tanto',+y,sj);return}
   const kx=e.target.closest('[data-kex],[data-kty]');if(kx){if(kx.dataset.kex)ui.kEx=kx.dataset.kex;else ui.kTy=kx.dataset.kty;saveUi();renderKako();return}
+  if(e.target.closest('[data-plan="new"]')){planSheet();return}
   const more=e.target.closest('[data-more]');if(more){LF[more.dataset.more].limit+=60;more.dataset.more==='q'?renderQList():renderCList();return}
 });
 
@@ -878,7 +913,7 @@ function renderCount(){
     ${nx?`<div class="next">次の節目　<b>${nx[0]}</b> ${md(nx[1])}（あと${daysTo(nx[1])}日）</div>`:''}`;
 }
 function renderToday(){
-  renderCount();
+  renderCount();renderPlanToday();
   const s=S(),t=today(),qs=list('q'),cs=list('c');
   const dq=qs.filter(isDue).length,dc=cs.filter(isDue).length,nn=Math.min(newLeft(),[...qs,...cs].filter(isNew).length),tot=dq+dc+nn;
   const r=histOn(t),mins=minutesOn(t)+(tm.run||tm.acc?Math.floor(tmElapsed()/60000):0);
@@ -1070,7 +1105,7 @@ const parseAns=s=>{s=nz(s);if(['○','〇','o','◯','正','true','1','t','ま�
 function parseImport(type,text){
   const out=[];let bad=0;
   if(type==='json'){try{const j=JSON.parse(text),arr=Array.isArray(j)?j:j&&j.items;
-      (arr||[]).forEach(x=>{if(x&&typeof x==='object'&&['q','c','l','a','s','m','st','k'].includes(x.kind)&&/^[A-Za-z0-9_.~:@+-]{1,150}$/.test(String(x.id))&&!/^\.{1,2}$/.test(x.id)&&!isEx(x))out.push(x);else bad++})}
+      (arr||[]).forEach(x=>{if(x&&typeof x==='object'&&['q','c','l','a','s','m','st','k','p','pd'].includes(x.kind)&&/^[A-Za-z0-9_.~:@+-]{1,150}$/.test(String(x.id))&&!/^\.{1,2}$/.test(x.id)&&!isEx(x))out.push(x);else bad++})}
     catch(e){return {out,bad:-1}}return {out,bad}}
   let rows=parseTable(text);if(rows.length&&/^(科目|種類)/.test(rows[0][0]))rows=rows.slice(1);
   rows.forEach(r=>{const subj=normSubj(r[0]);
@@ -1109,7 +1144,7 @@ function importSheet(type){
 
 /* ---------- 時期と学習プラン ---------- */
 const W8={'憲法':1.3,'行政法':1,'民法':1.8,'商法':1,'民訴':1,'刑法':1.3,'刑訴':1,'選択':0.8};
-function phase(){const n=daysTo(exam().date);
+function phase(){const cp=curPhase(plan());if(cp&&!cp.over)return {l:cp.ph.name,t:(cp.ph.goals||[]).join('／')};const n=daysTo(exam().date);
   if(n<=0)return {l:'本番',t:'積み上げてきたものを信じて、体調と時間配分を最優先に。'};
   if(n<=60)return {l:'直前期',t:'新しいことより復習を優先。苦手★とよく忘れるカードを毎日回し、本番形式で時間配分を固めます。'};
   if(n<=150)return {l:'実戦期',t:'論文は本番タイマーで答案を書き、短答は本番形式で時間を計って解きます。'};
@@ -1367,8 +1402,124 @@ function kSheet(ex,ty,y,sj){
 }
 $('k-goal').onchange=e=>{put({...(items.get('settings')||{}),id:'settings',kind:'s',kakoGoal:+e.target.value});toast(`目標を${e.target.value}周にしました`)};
 
+/* ---------- 合格プラン ---------- */
+const PTAB={today:'今日',tanto:'短答',ronsho:'暗記',kakomon:'過去問',kiroku:'記録',toren:'答練'};
+const TPL=[
+  {r:.15,what:'今日の復習（短答・暗記カード）',tab:'today'},
+  {r:.30,what:'論文：本番タイマーで1通書く → 検討して、落とした論点をカードにする',tab:'toren'},
+  {r:.30,what:'短答の過去問を1年分解く → 過去問タブに記録',tab:'kakomon'},
+  {r:.15,what:'苦手科目のインプットと、論証・判例カード作り',tab:'ronsho'},
+  {r:.10,what:'本番形式20問、または苦手★・よく忘れるカード',tab:'tanto'}];
+const GAPS=[30,60,30,60,0];
+const PH_TPL=[
+  {name:'基礎固め期',goals:['主要論点の論証・判例カードを作る','短答の過去問を全科目1周','論文の過去問を各科目3年分、本番タイマーで書く']},
+  {name:'演習期',goals:['論文の過去問を全科目1周','短答の過去問を2周目','答練で落とした論点は、その日のうちにカードにする']},
+  {name:'実戦期',goals:['論文の過去問2周目と答練','短答は本番形式で週3回、時間を計る','弱点分析で赤字の科目を集中して補強']},
+  {name:'直前期',goals:['新しい教材には手を出さない','苦手★とよく忘れるカードを毎日回す','短答3周目と、論文の時間配分の最終確認']}];
+const toMin=v=>{const [h,m]=String(v||'0:00').split(':');return (+h||0)*60+(+m||0)};
+const fromMin=n=>{n=((Math.round(n)%1440)+1440)%1440;return pad(Math.floor(n/60))+':'+pad(n%60)};
+const plan=()=>items.get('plan')||null;
+function genBlocks(hours,start){
+  const total=Math.round(hours*60);let t=toMin(start),used=0;
+  return TPL.map((b,i)=>{const min=i===TPL.length-1?Math.max(15,total-used):Math.max(15,Math.round(total*b.r/15)*15);used+=min;const blk={t:fromMin(t),min,what:b.what,tab:b.tab};t+=min+GAPS[i];return blk});
+}
+function genPhases(){
+  const st=today(),ed=exam().date,N=Math.max(28,daysTo(ed)),fr=[.30,.60,.82];
+  return PH_TPL.map((ph,i)=>({name:ph.name,end:i===3?addDays(st,N-1):addDays(st,Math.round(N*fr[i])-1),goals:ph.goals.slice()}));
+}
+function curPhase(p){
+  if(!p||!(p.phases||[]).length)return null;const t=today();let start=p.start||t;
+  for(let i=0;i<p.phases.length;i++){const ph=p.phases[i];if(t<=ph.end)return {i,ph,start};start=addDays(ph.end,1)}
+  return {i:p.phases.length-1,ph:p.phases[p.phases.length-1],start,over:true};
+}
+function planSheet(){
+  const has=!!plan();
+  openSheet(`<h2>${has?'プランを作り直す':'合格プランを作る'}</h2>
+    <p class="note">1日の時間割と、${esc(exam().label)}（${md(exam().date)}）までのロードマップを作ります。できたあとは自由に書きかえられます。</p>
+    <div class="grid2"><label class="f">1日の勉強時間<select id="pn-h">${[4,6,8,10,12].map(h=>`<option value="${h}"${h===10?' selected':''}>${h}時間</option>`).join('')}</select></label>
+    <label class="f">勉強を始める時刻<input type="time" id="pn-s" value="07:30"></label></div>
+    <label class="check"><input type="checkbox" id="pn-g" checked>今日の目標（学習時間・週の目標）もこの時間に合わせる</label>
+    ${has?'<p class="note" style="color:var(--ng)">いまのプラン（時間割とロードマップ）は置きかわります。</p>':''}
+    <div class="row"><button class="btn wide" id="fx">キャンセル</button><button class="btn primary wide" id="fs">${has?'作り直す':'プランを作る'}</button></div>`,sh=>{
+    sh.querySelector('#fx').onclick=closeSheet;
+    sh.querySelector('#fs').onclick=()=>{
+      const h=+sh.querySelector('#pn-h').value,st=sh.querySelector('#pn-s').value||'07:30';
+      put({id:'plan',kind:'p',start:today(),hours:h,blocks:genBlocks(h,st),phases:genPhases()});
+      if(sh.querySelector('#pn-g').checked)put({...(items.get('settings')||{}),id:'settings',kind:'s',minGoal:h*60,weekHours:h*7});
+      planDirty={day:false,phase:false};closeSheet();toast('プランを作りました。「今日の予定」から始めましょう');
+    };
+  });
+}
+function renderPlanToday(){
+  const el=$('t-plan'),p=plan();
+  if(!p){el.innerHTML=`<h2>合格プラン</h2><p class="note">1日の時間割と、試験日までのロードマップを自動で作ります。あとから自由に変えられます。</p><button class="btn primary" data-plan="new">プランを作る</button>`;return}
+  const t=today(),bl=p.blocks||[],done=new Set((items.get('pd_'+t)?.done||[]).filter(i=>i<bl.length)),tot=bl.reduce((a,b)=>a+(+b.min||0),0),cp=curPhase(p);
+  el.innerHTML=`<div class="spread"><h2>今日の予定</h2><a class="btn ghost" href="#plan">プランを見る・編集</a></div>
+    ${cp?`<div class="spread"><span class="chip">${esc(cp.ph.name)}</span><span class="meta">${cp.over?'ロードマップの最後の段階です':`この段階は${md(cp.ph.end)}まで（あと${daysTo(cp.ph.end)}日）`}</span></div>`:''}
+    <div class="list">${bl.map((b,i)=>`<div class="pl-item${done.has(i)?' done':''}"><input type="checkbox" id="pl-${i}" data-pl="${i}"${done.has(i)?' checked':''}><label for="pl-${i}" class="pl-time">${esc(b.t)}<small>${hm(+b.min||0)}</small></label><label for="pl-${i}" class="what">${esc(b.what)}</label>${b.tab&&PTAB[b.tab]?`<a class="btn ghost" href="#${b.tab}">${PTAB[b.tab]}へ</a>`:'<span></span>'}</div>`).join('')}</div>
+    <div class="goal"><div class="spread"><span>今日の予定の完了</span><span><b>${done.size}</b> / ${bl.length}（合計 ${hm(tot)}）</span></div><div class="meter"><i style="width:${bl.length?done.size/bl.length*100:0}%"></i></div></div>`;
+  el.querySelectorAll('[data-pl]').forEach(cb=>cb.onchange=()=>{
+    const cur=new Set((items.get('pd_'+t)?.done||[]).filter(i=>i<bl.length));cb.checked?cur.add(+cb.dataset.pl):cur.delete(+cb.dataset.pl);
+    put({id:'pd_'+t,kind:'pd',date:t,done:[...cur].sort((a,b)=>a-b)});
+    if(cb.checked&&cur.size===bl.length)toast('今日の予定をすべて終えました。おつかれさまでした')});
+}
+let planDirty={day:false,phase:false},regenArm=false;
+const tabOpts=v=>`<option value="">（なし）</option>${Object.entries(PTAB).map(([k,l])=>`<option value="${k}"${k===v?' selected':''}>${l}タブ</option>`).join('')}`;
+const peRow=b=>`<div class="pe-row"><input type="time" class="pe-t" value="${esc(b.t)}" aria-label="開始時刻"><label class="row" style="gap:4px;flex-wrap:nowrap"><input type="number" class="pe-m" min="5" max="720" step="5" value="${+b.min||60}" aria-label="時間（分）"><span class="meta">分</span></label><select class="pe-tab" aria-label="開くタブ">${tabOpts(b.tab)}</select><button class="btn ghost" data-pe="del">削除</button><input type="text" class="pe-w what" value="${esc(b.what)}" placeholder="やること" aria-label="やること"></div>`;
+const phRow=ph=>`<div class="ph-row"><div class="grid2"><label class="f">段階の名前<input class="ph-n" value="${esc(ph.name)}"></label><label class="f">終わる日<input type="date" class="ph-e" value="${esc(ph.end)}"></label></div><label class="f">この段階の目標（1行に1つ）<textarea class="ph-g">${esc((ph.goals||[]).join('\n'))}</textarea></label><button class="btn ghost ng" data-ph="del" style="align-self:flex-start">この段階を削除</button></div>`;
+function roadHtml(p){
+  const cp=curPhase(p),ex=exam(),t=today();
+  return `<div class="spread"><h2>合格までのロードマップ</h2><span class="meta">${esc(ex.label)}まで あと${Math.max(0,daysTo(ex.date))}日</span></div>
+    <div class="rm">${(p.phases||[]).map((ph,i)=>{const st=i===0?(p.start||t):addDays(p.phases[i-1].end,1),cur=cp&&cp.i===i&&!cp.over,cls=cur?'cur':ph.end<t?'past':'';
+      const span=Math.max(1,daysTo(ph.end)-daysTo(st)+1),gone=Math.min(span,Math.max(0,1-daysTo(st)));
+      return `<div class="rm-ph ${cls}"><span class="rm-dot"></span><div class="rm-body"><div class="spread"><b>${esc(ph.name)}${cur?'（いまここ）':''}</b><span class="meta">${md(st)}〜${md(ph.end)}</span></div>${cur?`<div class="meter"><i style="width:${Math.round(gone/span*100)}%"></i></div>`:''}<ul>${(ph.goals||[]).map(g=>`<li>${esc(g)}</li>`).join('')}</ul></div></div>`}).join('')}</div>
+    <div class="row"><button class="btn" data-plan="new">時間を変えて作り直す</button></div>`;
+}
+function renderPlanView(){
+  const p=plan();
+  if(!p){$('pv-road').innerHTML=`<h2>合格プラン</h2><p class="note">まだプランがありません。1日の時間割と、試験日までのロードマップを自動で作ります。</p><button class="btn primary" data-plan="new">プランを作る</button>`;$('pv-day').hidden=true;$('pv-phase').hidden=true;return}
+  $('pv-day').hidden=false;$('pv-phase').hidden=false;
+  $('pv-road').innerHTML=roadHtml(p);
+  if(!planDirty.day){
+    $('pv-day').innerHTML=`<div class="spread"><h3>1日の時間割</h3><span class="meta" id="pe-tot"></span></div><div id="pe-rows">${(p.blocks||[]).map(peRow).join('')}</div>
+      <div class="row"><button class="btn" data-pe="add">＋ 行を追加</button><button class="btn primary wide" data-pe="save">時間割を保存</button></div>
+      <p class="note">保存すると時刻の順に並びます。合計時間は「今日の目標」の学習時間にも反映されます。</p>`;
+    peTotal();
+  }
+  if(!planDirty.phase){
+    $('pv-phase').innerHTML=`<h3>ロードマップの段階</h3><div id="ph-rows">${(p.phases||[]).map(phRow).join('')}</div>
+      <div class="row"><button class="btn" data-ph="add">＋ 段階を追加</button><button class="btn primary wide" data-ph="save">ロードマップを保存</button></div>
+      <div class="row"><button class="btn ghost" data-ph="regen">試験日から自動で作り直す</button></div>`;
+    regenArm=false;
+  }
+}
+function peTotal(){const t=[...document.querySelectorAll('#pe-rows .pe-m')].reduce((a,i)=>a+(+i.value||0),0),el=$('pe-tot');if(el)el.textContent='合計 '+hm(t)}
+$('v-plan').addEventListener('input',e=>{if(e.target.closest('#pv-day')){planDirty.day=true;peTotal()}if(e.target.closest('#pv-phase'))planDirty.phase=true});
+$('v-plan').addEventListener('change',e=>{if(e.target.closest('#pv-day'))planDirty.day=true;if(e.target.closest('#pv-phase'))planDirty.phase=true});
+$('v-plan').addEventListener('click',e=>{
+  const pe=e.target.closest('[data-pe]'),ph=e.target.closest('[data-ph]');
+  if(pe){const a=pe.dataset.pe,rows=$('pe-rows');
+    if(a==='del'){pe.closest('.pe-row').remove();planDirty.day=true;peTotal()}
+    else if(a==='add'){const last=[...rows.children].pop(),t=last?fromMin(toMin(last.querySelector('.pe-t').value)+(+last.querySelector('.pe-m').value||0)):'09:00';
+      rows.insertAdjacentHTML('beforeend',peRow({t,min:60,what:'',tab:''}));planDirty.day=true;peTotal();rows.lastElementChild.querySelector('.pe-w').focus()}
+    else if(a==='save'){const bl=[...rows.children].map(r=>({t:r.querySelector('.pe-t').value||'00:00',min:Math.max(5,Math.round(+r.querySelector('.pe-m').value||0)),tab:r.querySelector('.pe-tab').value,what:r.querySelector('.pe-w').value.trim()})).filter(b=>b.what).sort((a,b)=>a.t.localeCompare(b.t));
+      if(!bl.length){toast('やることを1つ以上入れてください');return}
+      planDirty.day=false;put({...plan(),blocks:bl});put({...(items.get('settings')||{}),id:'settings',kind:'s',minGoal:bl.reduce((a,b)=>a+b.min,0)});toast('時間割を保存しました')}
+    return}
+  if(ph){const a=ph.dataset.ph,rows=$('ph-rows');
+    if(a==='del'){ph.closest('.ph-row').remove();planDirty.phase=true}
+    else if(a==='add'){const ends=[...rows.querySelectorAll('.ph-e')].map(i=>i.value).filter(Boolean).sort(),base=ends.pop()||today();
+      rows.insertAdjacentHTML('beforeend',phRow({name:'',end:addDays(base,30),goals:[]}));planDirty.phase=true;rows.lastElementChild.querySelector('.ph-n').focus()}
+    else if(a==='save'){const list=[...rows.children].map(r=>({name:r.querySelector('.ph-n').value.trim(),end:r.querySelector('.ph-e').value,goals:r.querySelector('.ph-g').value.split('\n').map(x=>x.trim()).filter(Boolean)})).filter(x=>x.name&&x.end).sort((a,b)=>a.end.localeCompare(b.end));
+      if(!list.length){toast('段階の名前と終わる日を入れてください');return}
+      planDirty.phase=false;put({...plan(),phases:list});toast('ロードマップを保存しました')}
+    else if(a==='regen'){if(!regenArm){regenArm=true;ph.textContent='もう一度押すと、いまの段階を置きかえて作り直します';return}
+      planDirty.phase=false;put({...plan(),start:today(),phases:genPhases()});toast('ロードマップを作り直しました')}
+  }
+});
+
 /* ---------- 画面切替 ---------- */
-const VIEWS=['today','tanto','ronsho','kakomon','kiroku','toren'];
+const VIEWS=['today','tanto','ronsho','kakomon','kiroku','toren','plan'];
 const current=()=>{const h=location.hash.slice(1);return VIEWS.includes(h)?h:'today'};
 let rq=0;
 function render(){if(rq)return;rq=requestAnimationFrame(()=>{rq=0;doRender()});setTimeout(()=>{if(rq){cancelAnimationFrame(rq);rq=0;doRender()}},120)}
@@ -1379,7 +1530,7 @@ function doRender(){
   const due=[...list('q'),...list('c')].filter(isDue).length,b=$('badge');b.hidden=!due||!(mine('q').length+mine('c').length);b.textContent=due>99?'99+':due;
   VIEWS.forEach(x=>$('v-'+x).hidden=x!==v);
   document.querySelectorAll('.tab').forEach(t=>t.setAttribute('aria-current',t.dataset.v===v?'page':'false'));
-  ({today:renderToday,tanto:renderTanto,ronsho:renderRonsho,kakomon:renderKako,kiroku:renderKiroku,toren:renderToren})[v]();
+  ({today:renderToday,tanto:renderTanto,ronsho:renderRonsho,kakomon:renderKako,kiroku:renderKiroku,toren:renderToren,plan:renderPlanView})[v]();
 }
 window.addEventListener('hashchange',()=>{doRender();window.scrollTo(0,0)});
 subjOptions($('q-subj'),'全科目');subjOptions($('c-subj'),'全科目');subjOptions($('l-subj'));
