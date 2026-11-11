@@ -75,6 +75,12 @@ label.f>input,label.f>select,label.f>textarea{color:var(--ink);font-size:15px}
 .chip{display:inline-flex;align-items:center;font-size:.72rem;font-weight:700;letter-spacing:.04em;padding:1px 8px;border-radius:4px;background:var(--accent-soft);color:var(--accent);white-space:nowrap}
 .chip.ex{background:transparent;border:1px dashed var(--muted);color:var(--muted)}
 .chip.re{background:var(--ng-soft);color:var(--ng)}
+.chip.t{background:transparent;border:1px solid var(--accent);color:var(--accent)}
+.chip.u{background:transparent;color:var(--muted);border:1px solid var(--line);font-weight:500}
+.p-sub{font-family:var(--f-num);font-size:.85rem;color:var(--muted);margin-top:-8px}
+.p-issue{font-size:.95rem;background:var(--bg);border-radius:8px;padding:8px 12px;overflow-wrap:anywhere}
+.p-hr{border:0;border-top:1px dashed var(--line);margin:0;width:100%}
+.typeseg{display:flex;flex-wrap:wrap;gap:6px}
 .list{display:flex;flex-direction:column}
 .item{display:flex;gap:10px;align-items:flex-start;padding-block:12px;border-top:1px solid var(--line)}
 .item:first-child{border-top:0}
@@ -245,20 +251,24 @@ details summary{cursor:pointer;font-size:.85rem;color:var(--muted)}
   <!-- 論証 -->
   <section id="v-ronsho" class="view" hidden>
     <div class="panel">
-      <div class="spread"><h2>論証カード</h2><div class="row" style="gap:6px"><button class="btn" data-import="c">取り込み</button><button class="btn" id="c-add">＋ 論証</button></div></div>
+      <div class="spread"><h2>暗記カード</h2><div class="row" style="gap:6px"><button class="btn" data-import="c">取り込み</button><button class="btn" id="c-add">＋ カード</button></div></div>
       <div class="stats" id="c-stats"></div>
+      <p class="note" id="c-breakdown"></p>
       <div class="grid3">
+        <label class="f">種類<select id="c-type"><option value="">すべて</option><option value="ronsho">論証</option><option value="hanrei">判例の規範</option><option value="teigi">定義・要件</option><option value="qa">一問一答</option></select></label>
+        <label class="f">用途<select id="c-use"><option value="">短答・論文</option><option value="tanto">短答用</option><option value="ronbun">論文用</option></select></label>
         <label class="f">科目<select id="c-subj"></select></label>
         <label class="f">範囲<select id="c-scope">
           <option value="today">今日の復習</option><option value="all">すべて</option><option value="wrong">前回忘れた</option><option value="flag">苦手★</option><option value="new">未学習</option></select></label>
         <label class="f">覚え方<select id="c-mode"><option value="flip">めくる</option><option value="cloze">穴埋め</option><option value="write">書いて確認</option></select></label>
       </div>
       <button class="btn primary" id="c-start">復習を始める</button>
-      <p class="note">論証の中のキーワードを【】で囲むと、穴埋めと「書いて確認」の採点に使われます。</p>
+      <p class="note">裏面のキーワードを【】で囲むと、穴埋めと「書いて確認」の採点に使われます。判例は「規範→判例名」の逆向きでも復習できます。</p>
     </div>
     <div class="panel">
       <h3>カード一覧</h3>
-      <div class="searchrow"><input type="search" id="cl-q" placeholder="論点名・論証・タグで検索" aria-label="カードを検索"><select id="cl-s" aria-label="科目で絞り込み"></select></div>
+      <div class="searchrow"><input type="search" id="cl-q" placeholder="表面・裏面・判例名・タグで検索" aria-label="カードを検索"><select id="cl-s" aria-label="科目で絞り込み"></select></div>
+      <div class="filters" id="cl-t" aria-label="種類で絞り込み"></div>
       <div class="filters" id="cl-f"></div>
       <div class="list" id="c-list"></div>
     </div>
@@ -289,7 +299,7 @@ details summary{cursor:pointer;font-size:.85rem;color:var(--muted)}
     <div class="panel">
       <div class="spread"><h2>論文答練 自己採点</h2><button class="btn" id="a-add">＋ 答練</button></div>
       <div class="stats" id="a-stats"></div>
-      <p class="note">答案を書いたら、拾うべき論点を一行ずつ登録し、書けた論点にチェックします。落とした論点は論証カードにできます。</p>
+      <p class="note">答案を書いたら、拾うべき論点を一行ずつ登録し、書けた論点にチェックします。落とした論点は暗記カード（論証）にできます。</p>
     </div>
     <div class="panel"><h3>落とした論点（新しい順）</h3><div class="list" id="a-miss"></div></div>
     <div class="panel"><h3>答練一覧</h3><div class="list" id="a-list"></div></div>
@@ -300,7 +310,7 @@ details summary{cursor:pointer;font-size:.85rem;color:var(--muted)}
   <div class="in">
     <a class="tab" href="#today" data-v="today"><b>今</b>今日<span class="badge" id="badge" hidden></span></a>
     <a class="tab" href="#tanto" data-v="tanto"><b>短</b>短答</a>
-    <a class="tab" href="#ronsho" data-v="ronsho"><b>論</b>論証</a>
+    <a class="tab" href="#ronsho" data-v="ronsho"><b>暗</b>暗記</a>
     <a class="tab" href="#kiroku" data-v="kiroku"><b>録</b>記録</a>
     <a class="tab" href="#toren" data-v="toren"><b>答</b>答練</a>
   </div>
@@ -343,9 +353,15 @@ const SAMPLES=[
  {id:'ex-q3',kind:'q',subject:'刑法',text:'中止犯が成立する場合、刑は任意的に減軽される。',answer:false,explain:'刑を減軽し、又は免除する（必要的減免）。',article:'刑法43条ただし書',tags:''},
  {id:'ex-q4',kind:'q',subject:'商法',text:'公開会社でない株式会社を除き、取締役の任期は、選任後2年以内に終了する事業年度のうち最終のものに関する定時株主総会の終結の時までである。',answer:true,explain:'非公開会社（監査等委員会設置会社・指名委員会等設置会社を除く）は定款で10年まで伸長できる。',article:'会社法332条1項・2項',tags:''},
  {id:'ex-q5',kind:'q',subject:'刑訴',text:'被疑者の勾留期間は、やむを得ない事由があるときは、通じて20日を超えない範囲で延長することができる。',answer:false,explain:'延長は「通じて10日を超えることができない」。勾留期間の合計は原則最大20日。',article:'刑訴法208条2項',tags:''},
- {id:'ex-c1',kind:'c',subject:'民法',title:'177条の「第三者」の範囲',body:'177条の「第三者」とは、【当事者及びその包括承継人以外の者】であって、【登記の欠缺を主張する正当な利益】を有する者をいう。\n単なる【悪意者】は含まれるが、【背信的悪意者】は【信義則】上これに当たらない。',article:'民法177条',tags:'物権変動'},
- {id:'ex-c2',kind:'c',subject:'刑法',title:'共謀共同正犯の成立要件',body:'①【共謀】（【正犯意思】に基づく【意思連絡】）\n②共謀に基づく一部の者の【実行行為】\nがあれば、実行行為を分担しない者も【共同正犯】（60条）となる。',article:'刑法60条',tags:'共犯'},
- {id:'ex-c3',kind:'c',subject:'刑訴',title:'違法収集証拠排除法則',body:'証拠物の押収等の手続に、【令状主義の精神を没却するような重大な違法】があり、これを証拠として許容することが、【将来における違法な捜査の抑制】の見地からして相当でないと認められる場合には、その【証拠能力は否定される】。',article:'最判昭53.9.7',tags:'証拠'},
+ {id:'ex-c1',kind:'c',ctype:'ronsho',use:'ronbun',subject:'民法',title:'177条の「第三者」の範囲',body:'177条の「第三者」とは、【当事者及びその包括承継人以外の者】であって、【登記の欠缺を主張する正当な利益】を有する者をいう。\n単なる【悪意者】は含まれるが、【背信的悪意者】は【信義則】上これに当たらない。',article:'民法177条',tags:'物権変動'},
+ {id:'ex-c2',kind:'c',ctype:'ronsho',use:'ronbun',subject:'刑法',title:'共謀共同正犯の成立要件',body:'①【共謀】（【正犯意思】に基づく【意思連絡】）\n②共謀に基づく一部の者の【実行行為】\nがあれば、実行行為を分担しない者も【共同正犯】（60条）となる。',article:'刑法60条',tags:'共犯'},
+ {id:'ex-c3',kind:'c',ctype:'hanrei',use:'both',subject:'刑訴',title:'違法収集証拠排除法則',article:'最判昭53.9.7',issue:'違法な手続で収集された証拠物の証拠能力',body:'証拠物の押収等の手続に、【令状主義の精神を没却するような重大な違法】があり、これを証拠として許容することが、【将来における違法な捜査の抑制】の見地からして相当でないと認められる場合には、その【証拠能力は否定される】。',facts:'職務質問の際、承諾のないまま上着の内ポケットに手を入れて覚せい剤を取り出した。所持品検査は違法とされたが、違法の程度は重大でないとして証拠能力は肯定された。',tags:'証拠'},
+ {id:'ex-c4',kind:'c',ctype:'hanrei',use:'both',subject:'憲法',title:'薬事法距離制限事件',article:'最大判昭50.4.30',issue:'職業の許可制の合憲性の判断基準',body:'許可制は職業の自由に対する強力な制限であるから、その合憲性を肯定するには、原則として【重要な公共の利益】のために【必要かつ合理的な措置】であることを要する。\nまた、それが【消極的、警察的措置】である場合には、許可制に比べてよりゆるやかな制限である【職業活動の内容及び態様に対する規制】によっては目的を十分に達成できないと認められることを要する。',facts:'薬局開設の許可基準として設けられた適正配置規制（距離制限）が、職業選択の自由（22条1項）に反し違憲とされた。',tags:'経済的自由'},
+ {id:'ex-c5',kind:'c',ctype:'hanrei',use:'both',subject:'刑訴',title:'強制処分の意義',article:'最決昭51.3.16',issue:'197条1項ただし書の「強制の処分」の意義',body:'強制手段とは、有形力の行使を伴う手段を意味するものではなく、【個人の意思を制圧し】、【身体、住居、財産等に制約を加えて】強制的に捜査目的を実現する行為など、【特別の根拠規定がなければ許容することが相当でない手段】を意味する。',facts:'任意同行後、退室しようとした被疑者の左手首をつかんだ行為は、強制手段に当たらず、任意捜査として許容されるとした。',tags:'捜査'},
+ {id:'ex-c6',kind:'c',ctype:'hanrei',use:'both',subject:'民法',title:'背信的悪意者からの転得者',article:'最判平8.10.29',issue:'背信的悪意者からの転得者は177条の「第三者」に当たるか',body:'背信的悪意者からの転得者は、転得者自身が【第一譲受人に対する関係で背信的悪意者】と評価されるのでない限り、177条の【第三者】に当たる。',facts:'',tags:'物権変動'},
+ {id:'ex-c7',kind:'c',ctype:'teigi',use:'both',subject:'刑法',title:'正当防衛の要件',body:'①【急迫】不正の侵害\n②自己又は他人の権利を防衛するため（【防衛の意思】）\n③【やむを得ずにした】行為（防衛行為の【相当性】）',article:'刑法36条1項',tags:'違法性阻却'},
+ {id:'ex-c8',kind:'c',ctype:'qa',use:'tanto',subject:'民法',title:'制限行為能力者の相手方が法定代理人に催告し、期間内に確答がないときの効果は？',body:'【追認したもの】とみなされる。',article:'民法20条2項',tags:''},
+ {id:'ex-c9',kind:'c',ctype:'qa',use:'tanto',subject:'憲法',title:'衆議院が解散されたとき、総選挙と特別会の期限は？',body:'解散の日から【40日以内】に総選挙を行い、選挙の日から【30日以内】に国会（特別会）を召集する。',article:'憲法54条1項',tags:'統治'},
  {id:'ex-a1',kind:'a',date:'',subject:'民法',title:'答練第1回 設問1（例）',score:'',points:[{t:'94条2項類推適用の要件',h:true},{t:'帰責性の認定',h:false},{t:'第三者の善意無過失',h:true}],memo:'帰責性の当てはめが薄い'},
 ];
 [[1,'民法',120],[1,'刑法',60],[2,'憲法',90],[3,'民訴',75],[4,'民法',150],[5,'刑訴',60],[6,'行政法',90],[8,'商法',80],[9,'民法',100],[11,'刑法',120],[15,'民法',200],[18,'憲法',45],[22,'刑法',90]]
@@ -357,6 +373,19 @@ const list=kind=>{const m=mine(kind);return m.length?m:SAMPLES.filter(s=>s.kind=
 const isEx=x=>String(x.id).startsWith('ex-');
 const getItem=id=>items.get(id)||SAMPLES.find(s=>s.id===id);
 const S=()=>Object.assign({},DEF,items.get('settings')||{});
+/* カードの種類と用途 */
+const CT={
+  ronsho:{l:'論証',front:'論点名',back:'論証',src:'条文・判例（任意）',ask:'規範と理由付けを声に出すか、頭の中で再現してから答えを見ます。',ph:['例：取消前の第三者と取消後の第三者','規範や理由付けを書き、覚えるべき語句を【】で囲みます。']},
+  hanrei:{l:'判例',front:'判例名・事件名',back:'規範・判旨',src:'裁判所・年月日',ask:'この判例が示した規範は？',ph:['例：薬事法距離制限事件','判旨の規範部分を書き、キーワードを【】で囲みます。']},
+  teigi:{l:'定義・要件',front:'用語・制度',back:'定義・要件',src:'条文（任意）',ask:'定義・要件を言えますか？',ph:['例：正当防衛の要件','①【急迫】不正の侵害 …']},
+  qa:{l:'一問一答',front:'問い',back:'答え',src:'条文・判例（任意）',ask:'',ph:['例：勾留延長の上限は？','例：通じて【10日】を超えることができない。']},
+};
+const CT_BY_LABEL={'論証':'ronsho','判例':'hanrei','判例の規範':'hanrei','規範':'hanrei','定義':'teigi','要件':'teigi','定義・要件':'teigi','一問一答':'qa','qa':'qa','QA':'qa'};
+const USE={both:'短答・論文',tanto:'短答',ronbun:'論文'};
+const USE_BY_LABEL={'短答':'tanto','短答用':'tanto','論文':'ronbun','論文用':'ronbun','両方':'both','短答・論文':'both'};
+const ctOf=x=>CT[x.ctype]?x.ctype:'ronsho';
+const useOf=x=>USE[x.use]?x.use:'both';
+const cMatch=(x,ty,us)=>(!ty||ctOf(x)===ty)&&(!us||useOf(x)===us||useOf(x)==='both');
 
 /* ---------- 間隔反復（SM-2系・4段階） ---------- */
 function srsOf(x){
@@ -388,8 +417,8 @@ function grade(x,g,ok){
 }
 const newToday=()=>[...mine('q'),...mine('c')].filter(x=>x.srs&&x.srs.first===today()).length;
 const newLeft=()=>Math.max(0,(+S().newPerDay||0)-newToday());
-function todayIds(kinds,subj){
-  const pool=kinds.flatMap(list).filter(x=>!subj||x.subject===subj);
+function todayIds(kinds,subj,pred){
+  const pool=kinds.flatMap(list).filter(x=>(!subj||x.subject===subj)&&(!pred||pred(x)));
   const due=shuffle(pool.filter(isDue).sort((a,b)=>srsOf(a).due.localeCompare(srsOf(b).due))).map(x=>x.id);
   const nw=pool.filter(isNew).slice(0,newLeft()).map(x=>x.id);
   return [...due,...nw];
@@ -466,7 +495,7 @@ document.addEventListener('click',e=>{
   if(a){const x=getItem(a.dataset.id);if(!x)return;
     if(a.dataset.act==='flag')toggleFlag(x);
     else if(a.dataset.act==='edit'){if(x.kind==='q')qForm(x);else if(x.kind==='c')cForm(x);else if(x.kind==='a')aForm(x)}
-    else if(a.dataset.act==='card'){const p=(x.points||[])[+a.dataset.i];cForm({subject:x.subject,title:p?p.t:'',body:'',article:'',tags:'答練'})}
+    else if(a.dataset.act==='card'){const p=(x.points||[])[+a.dataset.i];cForm({ctype:'ronsho',use:'ronbun',subject:x.subject,title:p?p.t:'',body:'',article:'',tags:'答練'})}
     return}
   const im=e.target.closest('[data-import]');if(im){importSheet(im.dataset.import);return}
   const go=e.target.closest('[data-go]');if(go){const k=go.dataset.go;startSession(todayIds(k==='all'?['q','c']:[k],''),'今日の復習');return}
@@ -505,33 +534,45 @@ function qCard(x,e,chips){
   return h;
 }
 function cCard(x,e,chips){
-  const m=ui.cMode||'flip',nk=kwCount(x.body),back=P.phase==='back';
-  let h=`<div class="seg" role="group" aria-label="覚え方">${[['flip','めくる'],['cloze','穴埋め'],['write','書いて確認']].map(([k,l])=>`<button data-mode="${k}" aria-pressed="${m===k}">${l}</button>`).join('')}</div>`;
-  h+=`<div class="p-card">${chips}<div class="p-title">${esc(x.title)}</div>`;
-  if(m==='flip'){h+=back?`<div class="p-body">${fmt(x.body,'plain')}</div>`:'<p class="note">規範を声に出すか、頭の中で再現してから答えを見ます。</p>'}
-  else if(m==='cloze'){
-    if(!nk)h+=back?`<div class="p-body">${esc(x.body)}</div>`:'<p class="note">この論証にはキーワードの【】がありません。編集で語句を【】で囲むと穴埋めになります。</p>';
-    else h+=`<div class="p-body">${back?fmt(x.body,'plain'):fmt(x.body,'cloze',{revealed:P.revealed,hint:P.hint})}</div>`+(back?'':`<p class="note">空欄をタップすると1つずつ開きます。</p>`);
+  const t=ctOf(x),rev=t==='hanrei'&&!!ui.rev,m=rev?'flip':(ui.cMode||'flip'),nk=kwCount(x.body),back=P.phase==='back';
+  let h='<div class="row" style="gap:8px">';
+  if(!rev)h+=`<div class="seg" role="group" aria-label="覚え方">${[['flip','めくる'],['cloze','穴埋め'],['write','書いて確認']].map(([k,l])=>`<button data-mode="${k}" aria-pressed="${m===k}">${l}</button>`).join('')}</div>`;
+  if(t==='hanrei')h+=`<div class="seg" role="group" aria-label="出題の向き"><button data-p="rev" data-v="0" aria-pressed="${!rev}">判例→規範</button><button data-p="rev" data-v="1" aria-pressed="${rev}">規範→判例</button></div>`;
+  h+='</div>';
+  const head=`<div class="p-title">${esc(x.title)}</div>${t==='hanrei'&&x.article?`<div class="p-sub">${esc(x.article)}</div>`:''}${t==='hanrei'&&x.issue?`<div class="p-issue">争点：${esc(x.issue)}</div>`:''}`;
+  const facts=x.facts?`<details><summary>事案・ポイント</summary><div class="p-body mine">${esc(x.facts)}</div></details>`:'';
+  h+=`<div class="p-card">${chips}`;
+  if(rev){
+    h+=`<div class="p-body">${fmt(x.body,'plain')}</div>`;
+    h+=back?`<hr class="p-hr">${head}${facts}`:'<p class="note">この規範を示した判例は？（事件名・裁判所・年月日）</p>';
   }else{
-    if(!back)h+=`<textarea id="p-write" class="p-write" placeholder="論証を思い出して書きます" aria-label="論証を書く">${esc(P.typed)}</textarea>`;
-    else{
-      const norm=nz(P.typed),ks=parts(x.body).filter(p=>p.k),hit=ks.filter(p=>norm.includes(nz(p.k))).length;
-      h+=nk?`<div class="score-line">キーワード <b>${hit} / ${nk}</b> を再現（${Math.round(hit/nk*100)}%）　<span class="note">目安：8割以上で「覚えた」</span></div>`:'<p class="note">キーワードの【】が無いので、原文と見比べて自己評価してください。</p>';
-      h+=`<div class="p-body">${fmt(x.body,'check',{norm})}</div><details><summary>自分の答えを見る</summary><div class="p-body mine">${esc(P.typed)||'（未記入）'}</div></details>`;
+    h+=head;
+    if(m==='flip'){h+=back?`<div class="p-body">${fmt(x.body,'plain')}</div>`:(CT[t].ask?`<p class="note">${CT[t].ask}</p>`:'')}
+    else if(m==='cloze'){
+      if(!nk)h+=back?`<div class="p-body">${esc(x.body)}</div>`:'<p class="note">このカードにはキーワードの【】がありません。編集で語句を【】で囲むと穴埋めになります。</p>';
+      else h+=`<div class="p-body">${back?fmt(x.body,'plain'):fmt(x.body,'cloze',{revealed:P.revealed,hint:P.hint})}</div>`+(back?'':`<p class="note">空欄をタップすると1つずつ開きます。</p>`);
+    }else{
+      if(!back)h+=`<textarea id="p-write" class="p-write" placeholder="${esc(CT[t].back)}を思い出して書きます" aria-label="${esc(CT[t].back)}を書く">${esc(P.typed)}</textarea>`;
+      else{
+        const norm=nz(P.typed),ks=parts(x.body).filter(p=>p.k),hit=ks.filter(p=>norm.includes(nz(p.k))).length;
+        h+=nk?`<div class="score-line">キーワード <b>${hit} / ${nk}</b> を再現（${Math.round(hit/nk*100)}%）　<span class="note">目安：8割以上で「覚えた」</span></div>`:'<p class="note">キーワードの【】が無いので、原文と見比べて自己評価してください。</p>';
+        h+=`<div class="p-body">${fmt(x.body,'check',{norm})}</div><details><summary>自分の答えを見る</summary><div class="p-body mine">${esc(P.typed)||'（未記入）'}</div></details>`;
+      }
     }
+    if(back)h+=facts;
   }
   h+='</div>';
   if(!back)h+=`<div class="row">${m==='cloze'&&nk&&!P.hint?'<button class="btn" data-p="hint">ヒント（頭文字）</button>':''}<button class="btn primary wide" data-p="reveal">${m==='write'?'答え合わせ':'答えを見る'}</button></div>`;
   else{
     h+=`<div class="grades">${[['もう一度',0],['難しい',1],['覚えた',2],['簡単',3]].map(([l,g])=>`<button class="btn${g===2?' primary':''}${g===0?' ng':''}" data-g="${g}">${l}<small>${e.re?'—':g===0?'数問後':ivlLabel(sched(srsOf(x),g).ivl)}</small></button>`).join('')}</div>`;
-    if(canSpeak)h+='<button class="btn ghost" data-p="speak">論証を読み上げる</button>';
+    if(canSpeak)h+='<button class="btn ghost" data-p="speak">読み上げる</button>';
   }
   return h;
 }
 function keysHint(x){
   let k;
   if(x.kind==='q')k=P.phase==='front'?'O または ← で○、X または → で×':'Space 次へ・2 まぐれ';
-  else if(P.phase==='front')k=(ui.cMode==='write'?'Ctrl+Enter 答え合わせ':'Space 答えを見る')+(ui.cMode==='cloze'?'・H ヒント':'');
+  else if(P.phase==='front'){const fm=ctOf(x)==='hanrei'&&ui.rev?'flip':ui.cMode;k=(fm==='write'?'Ctrl+Enter 答え合わせ':'Space 答えを見る')+(fm==='cloze'?'・H ヒント':'')}
   else k='1 もう一度・2 難しい・3 覚えた・4 簡単（Space＝覚えた）';
   return k+'・F 苦手★・Esc 終了';
 }
@@ -549,7 +590,7 @@ function renderPlayer(){
   }
   const e=P.q[P.i],x=getItem(e.id);
   if(!x){P.i++;renderPlayer();return}
-  const chips=`<div class="row" style="gap:6px"><span class="chip">${esc(x.subject)}</span>${x.article?`<span class="meta">${esc(x.article)}</span>`:''}${isEx(x)?'<span class="chip ex">例</span>':''}${e.re?'<span class="chip re">再確認</span>':isNew(x)?'<span class="chip ex">初めて</span>':''}${tagsHtml(x)}</div>`;
+  const chips=`<div class="row" style="gap:6px"><span class="chip">${esc(x.subject)}</span>${x.kind==='c'?`<span class="chip t">${CT[ctOf(x)].l}</span><span class="chip u">${USE[useOf(x)]}</span>`:''}${x.article&&!(x.kind==='c'&&ctOf(x)==='hanrei')?`<span class="meta">${esc(x.article)}</span>`:''}${isEx(x)?'<span class="chip ex">例</span>':''}${e.re?'<span class="chip re">再確認</span>':isNew(x)?'<span class="chip ex">初めて</span>':''}${tagsHtml(x)}</div>`;
   let h=`<div class="p-top"><button class="btn ghost" data-p="close">✕ 終了</button><div class="p-bar"><i style="width:${Math.round(P.i/total*100)}%"></i></div><span class="progress">${P.i+1} / ${total}</span><button class="btn ghost star${x.flag?' on':''}" data-p="flag" aria-pressed="${!!x.flag}" aria-label="苦手に登録">${x.flag?'★':'☆'}</button></div>`;
   h+=x.kind==='q'?qCard(x,e,chips):cCard(x,e,chips);
   h+=`<p class="keys">${keysHint(x)}</p>`;
@@ -569,6 +610,7 @@ function pAct(d){
     case 'o':case 'x':P.ans=d.p==='o';P.phase='back';renderPlayer();break;
     case 'reveal':{const ta=$('p-write');if(ta)P.typed=ta.value;P.phase='back';renderPlayer();break}
     case 'hint':P.hint=true;renderPlayer();break;
+    case 'rev':ui.rev=d.v==='1';saveUi();resetCard();renderPlayer();break;
     case 'speak':speak(x.body);break;
     case 'retry':startSession(shuffle([...P.wrong]),'まちがえた問題');break;
   }
@@ -588,19 +630,20 @@ document.addEventListener('keydown',e=>{
     if(P.phase==='front'){if(/^[oO]$/.test(k)||k==='ArrowLeft')go({p:'o'});else if(/^[xX]$/.test(k)||k==='ArrowRight')go({p:'x'})}
     else{const ok=P.ans===x.answer,re=P.q[P.i].re;if(k===' '||k==='Enter'||k==='3')go({g:ok?'2':'0'});else if(k==='2'&&ok&&!re)go({g:'1'})}
   }else{
-    if(P.phase==='front'){if(k===' '||k==='Enter')go({p:'reveal'});else if((k==='h'||k==='H')&&ui.cMode==='cloze')go({p:'hint'})}
+    if(P.phase==='front'){if(k===' '||k==='Enter')go({p:'reveal'});else if((k==='h'||k==='H')&&ui.cMode==='cloze'&&!(ctOf(x)==='hanrei'&&ui.rev))go({p:'hint'});else if((k==='r'||k==='R')&&ctOf(x)==='hanrei')go({p:'rev',v:ui.rev?'0':'1'})}
     else{if(/^[1-4]$/.test(k))go({g:String(+k-1)});else if(k===' '||k==='Enter')go({g:'2'})}
   }
 });
 
 /* ---------- 一覧の絞り込み ---------- */
-const LF={q:{q:'',subj:'',f:'all',limit:60},c:{q:'',subj:'',f:'all',limit:60}};
+const LF={q:{q:'',subj:'',f:'all',limit:60},c:{q:'',subj:'',f:'all',t:'',limit:60}};
 const FILTERS=[['all','すべて'],['due','今日'],['flag','苦手★'],['wrong','前回×'],['new','未学習']];
 function filtered(kind){
   const f=LF[kind];let xs=list(kind);
   if(f.subj)xs=xs.filter(x=>x.subject===f.subj);
+  if(kind==='c'&&f.t)xs=xs.filter(x=>ctOf(x)===f.t);
   if(f.f==='due')xs=xs.filter(isDue);else if(f.f==='flag')xs=xs.filter(x=>x.flag);else if(f.f==='wrong')xs=xs.filter(x=>x.last===false);else if(f.f==='new')xs=xs.filter(isNew);
-  if(f.q){const w=nz(f.q);xs=xs.filter(x=>nz([x.text,x.title,x.body,x.explain,x.article,x.tags,x.subject].join(' ')).includes(w))}
+  if(f.q){const w=nz(f.q);xs=xs.filter(x=>nz([x.text,x.title,x.body,x.explain,x.article,x.tags,x.subject,x.issue,x.facts].join(' ')).includes(w))}
   return xs;
 }
 function setupFilters(kind,pre,renderFn){
@@ -663,55 +706,71 @@ function renderTanto(){
   renderQList();
 }
 
-/* ---------- 論証 ---------- */
+/* ---------- 暗記カード ---------- */
 function cForm(c,keep){
-  c=c||{subject:keep||$('c-subj').value||'民法',title:'',body:'',article:'',tags:''};
-  const editing=c.id&&!isEx(c);
-  openSheet(`<h2>${editing?'論証を編集':'論証を追加'}</h2>
-   <label class="f">科目${subjSel('fc-s',c.subject)}</label>
-   <label class="f">論点名（表面）<input id="fc-t" value="${esc(c.title)}" placeholder="例：取消前の第三者と取消後の第三者"></label>
-   <label class="f">論証・規範（裏面）<textarea id="fc-b" style="min-height:170px" placeholder="規範や理由付けを書き、覚えるべき語句を【】で囲みます。&#10;例：【登記の欠缺を主張する正当な利益】を有する者をいう。">${esc(c.body)}</textarea></label>
+  const defT=keep&&keep.t||ui.lastCt||$('c-type').value||'ronsho';
+  c=c||{ctype:defT,use:keep&&keep.u||(defT==='qa'?'tanto':defT==='ronsho'?'ronbun':'both'),subject:keep&&keep.s||$('c-subj').value||'民法',title:'',body:'',article:'',issue:'',facts:'',tags:''};
+  const editing=c.id&&!isEx(c),t0=ctOf(c);
+  openSheet(`<h2>${editing?'カードを編集':'カードを追加'}</h2>
+   <div class="grid3"><label class="f">種類<select id="fc-k">${Object.entries(CT).map(([k,v])=>`<option value="${k}"${k===t0?' selected':''}>${v.l}</option>`).join('')}</select></label>
+   <label class="f">用途<select id="fc-u">${Object.entries(USE).map(([k,v])=>`<option value="${k}"${k===useOf(c)?' selected':''}>${k==='both'?'短答・論文':v+'用'}</option>`).join('')}</select></label>
+   <label class="f">科目${subjSel('fc-s',c.subject)}</label></div>
+   <label class="f"><span id="fc-tl"></span><input id="fc-t" value="${esc(c.title)}"></label>
+   <div class="grid2" id="fc-hanrei"><label class="f">裁判所・年月日<input id="fc-r2" value="${esc(t0==='hanrei'?c.article:'')}" placeholder="例：最大判昭50.4.30"></label>
+   <label class="f">争点（任意）<input id="fc-i" value="${esc(c.issue)}" placeholder="例：職業の許可制の合憲性の判断基準"></label></div>
+   <label class="f"><span id="fc-bl"></span><textarea id="fc-b" style="min-height:160px">${esc(c.body)}</textarea></label>
    <div class="kwhelp"><button class="btn" id="fc-wrap" type="button">選んだ語句を【】で囲む</button><span id="fc-n"></span></div>
-   <div class="grid2"><label class="f">条文・判例（任意）<input id="fc-r" value="${esc(c.article)}" placeholder="例：民法177条"></label>
-   <label class="f">タグ（任意・空白区切り）<input id="fc-g" value="${esc(c.tags)}" placeholder="例：重要 物権"></label></div>
+   <label class="f" id="fc-fw">事案・ポイント（任意）<textarea id="fc-f" style="min-height:70px" placeholder="どんな事案で、結論はどうなったか">${esc(c.facts)}</textarea></label>
+   <div class="grid2"><label class="f" id="fc-rw"><span id="fc-rl"></span><input id="fc-r" value="${esc(t0==='hanrei'?'':c.article)}" placeholder="例：民法177条"></label>
+   <label class="f">タグ（任意・空白区切り）<input id="fc-g" value="${esc(c.tags)}" placeholder="例：重要 R6"></label></div>
    <div class="row">${editing?'<button class="btn wide" id="fx">キャンセル</button>':'<button class="btn wide" id="fn">保存して次へ</button>'}<button class="btn primary wide" id="fs">保存</button></div>`,s=>{
-    const ta=s.querySelector('#fc-b'),cnt=()=>{const n=kwCount(ta.value);s.querySelector('#fc-n').textContent=n?`キーワード ${n}個`:'キーワードなし（穴埋めにはなりません）'};
-    cnt();ta.addEventListener('input',cnt);
-    const wb=s.querySelector('#fc-wrap');
+    const q=id=>s.querySelector(id),ta=q('#fc-b');
+    const layout=()=>{const t=q('#fc-k').value,d=CT[t];q('#fc-tl').textContent=d.front+'（表面）';q('#fc-bl').textContent=d.back+'（裏面）';q('#fc-rl').textContent=d.src;
+      q('#fc-t').placeholder=d.ph[0];ta.placeholder=d.ph[1];const hr=t==='hanrei';q('#fc-hanrei').hidden=!hr;q('#fc-fw').hidden=!hr;q('#fc-rw').hidden=hr};
+    const cnt=()=>{const n=kwCount(ta.value);q('#fc-n').textContent=n?`キーワード ${n}個`:'キーワードなし（穴埋めにはなりません）'};
+    let useTouched=!!editing;q('#fc-u').onchange=()=>{useTouched=true};
+    layout();cnt();ta.addEventListener('input',cnt);
+    q('#fc-k').onchange=()=>{layout();const t=q('#fc-k').value;if(!useTouched)q('#fc-u').value=t==='qa'?'tanto':t==='ronsho'?'ronbun':'both'};
+    const wb=q('#fc-wrap');
     ['mousedown','pointerdown'].forEach(ev=>wb.addEventListener(ev,e=>e.preventDefault()));
     wb.onclick=()=>{const a=ta.selectionStart,b=ta.selectionEnd;if(a===b){toast('囲みたい語句を選んでから押してください');return}
       const sel=ta.value.slice(a,b).replace(/[【】]/g,'');ta.setRangeText('【'+sel+'】',a,b,'end');ta.focus();cnt()};
-    const save=()=>{const t=s.querySelector('#fc-t').value.trim(),b=ta.value.trim();if(!t||!b){toast('論点名と論証を入力してください');return null}
-      const subj=s.querySelector('#fc-s').value;
-      put({...(editing?c:{}),id:editing?c.id:'c_'+uid(),kind:'c',subject:subj,title:t,body:b,article:s.querySelector('#fc-r').value.trim(),tags:s.querySelector('#fc-g').value.trim()});
-      return subj};
-    const fx=s.querySelector('#fx');if(fx)fx.onclick=closeSheet;
-    const fn=s.querySelector('#fn');if(fn)fn.onclick=()=>{const subj=save();if(subj){toast('保存しました。続けて入力できます');cForm(null,subj)}};
-    s.querySelector('#fs').onclick=()=>{if(save()){closeSheet();toast('保存しました')}};
+    const save=()=>{const t=q('#fc-t').value.trim(),b=ta.value.trim(),k=q('#fc-k').value;if(!t||!b){toast(`${CT[k].front}と${CT[k].back}を入力してください`);return null}
+      const hr=k==='hanrei',out={...(editing?c:{}),id:editing?c.id:'c_'+uid(),kind:'c',ctype:k,use:q('#fc-u').value,subject:q('#fc-s').value,title:t,body:b,
+        article:(hr?q('#fc-r2'):q('#fc-r')).value.trim(),issue:hr?q('#fc-i').value.trim():'',facts:hr?q('#fc-f').value.trim():'',tags:q('#fc-g').value.trim()};
+      put(out);ui.lastCt=k;saveUi();return {t:k,u:out.use,s:out.subject}};
+    const fx=q('#fx');if(fx)fx.onclick=closeSheet;
+    const fn=q('#fn');if(fn)fn.onclick=()=>{const k=save();if(k){toast('保存しました。続けて入力できます');cForm(null,k)}};
+    q('#fs').onclick=()=>{if(save()){closeSheet();toast('保存しました')}};
   });
 }
 function startC(){
-  const subj=$('c-subj').value,scope=$('c-scope').value;
-  ui.cMode=$('c-mode').value;saveUi();
+  const subj=$('c-subj').value,scope=$('c-scope').value,ty=$('c-type').value,us=$('c-use').value;
+  ui.cMode=$('c-mode').value;ui.cType=ty;ui.cUse=us;saveUi();
+  const pred=x=>cMatch(x,ty,us);
   let ids;
-  if(scope==='today')ids=todayIds(['c'],subj);
-  else{let pool=list('c').filter(c=>!subj||c.subject===subj);
+  if(scope==='today')ids=todayIds(['c'],subj,pred);
+  else{let pool=list('c').filter(c=>(!subj||c.subject===subj)&&pred(c));
     if(scope==='wrong')pool=pool.filter(c=>c.last===false);else if(scope==='flag')pool=pool.filter(c=>c.flag);else if(scope==='new')pool=pool.filter(isNew);
     ids=shuffle(pool).map(c=>c.id)}
-  startSession(ids,'論証 '+(subj||'全科目'));
+  startSession(ids,(ty?CT[ty].l:'暗記カード')+' '+(subj||'全科目'));
 }
 function renderCList(){
   const xs=filtered('c').slice().sort((a,b)=>{const sa=srsOf(a),sb=srsOf(b);return (sa?sa.due:'9999').localeCompare(sb?sb.due:'9999')});
   $('c-list').innerHTML=exNote('c')+(xs.length?xs.slice(0,LF.c.limit).map(c=>`<div class="item"><div class="body">
-    <div class="row" style="gap:6px"><span class="chip">${esc(c.subject)}</span>${isEx(c)?'<span class="chip ex">例</span>':''}${lvHtml(c)}</div>
+    <div class="row" style="gap:6px"><span class="chip">${esc(c.subject)}</span><span class="chip t">${CT[ctOf(c)].l}</span><span class="chip u">${USE[useOf(c)]}</span>${isEx(c)?'<span class="chip ex">例</span>':''}${lvHtml(c)}</div>
     <div style="font-weight:700">${esc(c.title)}</div>
-    <div class="row" style="gap:8px"><span class="meta">キーワード ${kwCount(c.body)}</span>${c.article?`<span class="meta">${esc(c.article)}</span>`:''}${tagsHtml(c)}</div></div>
+    ${ctOf(c)==='hanrei'&&c.issue?`<div class="meta">争点：${esc(c.issue)}</div>`:''}
+    <div class="row" style="gap:8px">${c.article?`<span class="meta">${esc(c.article)}</span>`:''}<span class="meta">キーワード ${kwCount(c.body)}</span>${tagsHtml(c)}</div></div>
     ${actsHtml(c)}</div>`).join('')+moreBtn('c',xs.length):'<div class="empty">条件に合うカードはありません。</div>');
 }
 function renderRonsho(){
   const cs=list('c'),due=cs.filter(isDue).length,solid=cs.filter(c=>level(c)===3).length;
   $('c-stats').innerHTML=`<div class="stat"><b>${due}</b><span>今日の復習</span></div><div class="stat"><b>${cs.length}</b><span>登録カード</span></div><div class="stat"><b>${solid}</b><span>定着（3週以上）</span></div>`;
+  $('c-breakdown').textContent=Object.entries(CT).map(([k,v])=>`${v.l} ${cs.filter(c=>ctOf(c)===k).length}`).join('・');
   $('c-mode').value=ui.cMode||'flip';
+  if(document.activeElement!==$('c-type'))$('c-type').value=ui.cType||'';
+  if(document.activeElement!==$('c-use'))$('c-use').value=ui.cUse||'';
   renderCList();
 }
 
@@ -732,10 +791,10 @@ function renderToday(){
   const dq=qs.filter(isDue).length,dc=cs.filter(isDue).length,nn=Math.min(newLeft(),[...qs,...cs].filter(isNew).length),tot=dq+dc+nn;
   const r=histOn(t),mins=minutesOn(t)+(tm.run||tm.acc?Math.floor(tmElapsed()/60000):0);
   $('t-review').innerHTML=`<div class="spread"><h2>今日の復習</h2><span class="meta">新規は1日${s.newPerDay}枚まで</span></div>
-    <div class="stats"><div class="stat"><b>${dq}</b><span>短答</span></div><div class="stat"><b>${dc}</b><span>論証</span></div><div class="stat"><b>${nn}</b><span>新しく覚える</span></div></div>
-    ${tot?`<button class="btn primary" data-go="all">まとめて復習する（${tot}問）</button><div class="grid2"><button class="btn" data-go="q"${dq+nn?'':' disabled'}>短答だけ</button><button class="btn" data-go="c">論証だけ</button></div>`
+    <div class="stats"><div class="stat"><b>${dq}</b><span>短答</span></div><div class="stat"><b>${dc}</b><span>暗記カード</span></div><div class="stat"><b>${nn}</b><span>新しく覚える</span></div></div>
+    ${tot?`<button class="btn primary" data-go="all">まとめて復習する（${tot}問）</button><div class="grid2"><button class="btn" data-go="q"${dq+nn?'':' disabled'}>短答だけ</button><button class="btn" data-go="c">暗記カードだけ</button></div>`
       :`<p class="note">今日の復習はすべて終わりました。苦手★や未学習は各タブから演習できます。</p>`}
-    ${!mine('q').length&&!mine('c').length?'<p class="note">いまは見本で試せます。自分の問題・論証を登録すると、忘れかけた頃に自動で出題されます。</p>':''}`;
+    ${!mine('q').length&&!mine('c').length?'<p class="note">いまは見本で試せます。自分の問題やカードを登録すると、忘れかけた頃に自動で出題されます。</p>':''}`;
   const rg=+s.reviewGoal||0,mg=+s.minGoal||0,st=streak();
   $('t-goal').innerHTML=`<div class="spread"><h3>今日の目標</h3><span class="meta">連続 <b style="color:var(--ink)">${st}日</b></span></div>
     <div class="goal"><div class="spread"><span>復習</span><span><b>${r.n}</b> / ${rg}問${r.n?`（正答 ${Math.round(r.ok/r.n*100)}%）`:''}</span></div><div class="meter"><i style="width:${rg?Math.min(100,r.n/rg*100):0}%"></i></div></div>
@@ -867,7 +926,7 @@ function settingsSheet(){
    <p class="note">新しく覚える数を増やすと、数日後の復習量も増えます。まずは1日20前後がおすすめです。</p>
    <div class="row"><button class="btn wide" id="fx">閉じる</button><button class="btn primary wide" id="fs">設定を保存</button></div>
    <hr><h3>データ</h3>
-   <div class="row"><button class="btn wide" id="im-q">短答を取り込む</button><button class="btn wide" id="im-c">論証を取り込む</button></div>
+   <div class="row"><button class="btn wide" id="im-q">短答を取り込む</button><button class="btn wide" id="im-c">暗記カードを取り込む</button></div>
    <div class="row"><button class="btn wide" id="bk-save">バックアップを保存</button><button class="btn wide" id="bk-copy">バックアップをコピー</button><button class="btn wide" id="im-j">バックアップから復元</button></div>
    <div id="bk-out"></div>
    <p class="note">データはこのブラウザの中に保存されます。別の端末へ移すときや念のための保管には、バックアップと復元を使ってください。</p>`,sh=>{
@@ -902,20 +961,24 @@ function parseImport(type,text){
   if(type==='json'){try{const j=JSON.parse(text),arr=Array.isArray(j)?j:j&&j.items;
       (arr||[]).forEach(x=>{if(x&&typeof x==='object'&&['q','c','l','a','s'].includes(x.kind)&&/^[A-Za-z0-9_.~:@+-]{1,150}$/.test(String(x.id))&&!/^\.{1,2}$/.test(x.id)&&!isEx(x))out.push(x);else bad++})}
     catch(e){return {out,bad:-1}}return {out,bad}}
-  let rows=parseTable(text);if(rows.length&&/^科目/.test(rows[0][0]))rows=rows.slice(1);
+  let rows=parseTable(text);if(rows.length&&/^(科目|種類)/.test(rows[0][0]))rows=rows.slice(1);
   rows.forEach(r=>{const subj=normSubj(r[0]);
     if(type==='q'){const ans=parseAns(r[2]);if(!r[1]||ans==null){bad++;return}
       out.push({id:'q_'+uid(),kind:'q',subject:subj,text:r[1],answer:ans,explain:r[3]||'',article:r[4]||'',tags:r[5]||'',stats:{c:0,w:0}})}
-    else{if(!r[1]||!r[2]){bad++;return}
-      out.push({id:'c_'+uid(),kind:'c',subject:subj,title:r[1],body:r[2].replace(/\\n/g,'\n'),article:r[3]||'',tags:r[4]||''})}});
+    else{const ty=CT_BY_LABEL[r[0]];
+      if(!ty){if(!r[1]||!r[2]){bad++;return}
+        out.push({id:'c_'+uid(),kind:'c',ctype:'ronsho',use:'ronbun',subject:subj,title:r[1],body:r[2].replace(/\\n/g,'\n'),article:r[3]||'',tags:r[4]||''});return}
+      const rr=r.slice(1);if(!rr[1]||!rr[2]){bad++;return}
+      out.push({id:'c_'+uid(),kind:'c',ctype:ty,use:USE_BY_LABEL[rr[6]]||(ty==='qa'?'tanto':ty==='ronsho'?'ronbun':'both'),subject:normSubj(rr[0]),title:rr[1],body:rr[2].replace(/\\n/g,'\n'),article:rr[3]||'',
+        issue:ty==='hanrei'?(rr[4]||''):'',facts:'',tags:rr[5]||''})}});
   return {out,bad};
 }
 function importSheet(type){
   const help={q:'1行に1問。列の順番は「科目、問題文、正誤（○か×）、解説、条文、タグ」です。解説から後ろは省略できます。Excelやスプレッドシートからそのまま貼り付けられます。',
-    c:'1行に1枚。列の順番は「科目、論点名、論証、条文、タグ」です。論証の中の【】はキーワードになります。セル内の改行もそのまま取り込めます。',
+    c:'1行に1枚。列の順番は「種類、科目、表面、裏面、出典、争点、タグ、用途」です。種類は 論証・判例・定義・一問一答 のどれか、用途は 短答・論文・両方 のどれか（省略可）。出典は条文や「最大判昭50.4.30」、争点は判例のときだけ使います。裏面の【】はキーワードになり、セル内の改行もそのまま取り込めます。',
     json:'「バックアップをコピー」または「バックアップを保存」で作ったデータを貼り付けるか、ファイルを選びます。同じ項目は上書きされます。'}[type];
-  const ph={q:'民法\t詐欺による取消しは善意無過失の第三者に対抗できない。\t○\t96条3項',c:'刑法\t共謀共同正犯の成立要件\t①【共謀】②共謀に基づく【実行行為】',json:'{"app":"司法試験 学習帳", ...}'}[type];
-  openSheet(`<h2>${{q:'短答の問題を取り込む',c:'論証カードを取り込む',json:'バックアップから復元'}[type]}</h2>
+  const ph={q:'民法\t詐欺による取消しは善意無過失の第三者に対抗できない。\t○\t96条3項',c:'判例\t憲法\t薬事法距離制限事件\t【重要な公共の利益】のために【必要かつ合理的な措置】…\t最大判昭50.4.30\t職業の許可制の判断基準',json:'{"app":"司法試験 学習帳", ...}'}[type];
+  openSheet(`<h2>${{q:'短答の問題を取り込む',c:'暗記カードを取り込む',json:'バックアップから復元'}[type]}</h2>
    <p class="note">${help}</p>
    <label class="f">ここに貼り付け<textarea id="im-t" style="min-height:150px" placeholder="${esc(ph)}"></textarea></label>
    <label class="f">またはファイルを選ぶ<input type="file" id="im-f" accept=".csv,.tsv,.txt,.json,text/plain,text/csv,application/json"></label>
@@ -950,6 +1013,9 @@ function doRender(){
 window.addEventListener('hashchange',()=>{doRender();window.scrollTo(0,0)});
 subjOptions($('q-subj'),'全科目');subjOptions($('c-subj'),'全科目');subjOptions($('l-subj'));
 setupFilters('q','ql',renderQList);setupFilters('c','cl',renderCList);
+(function(){const el=$('cl-t'),draw=()=>{el.innerHTML=[['','全種類'],...Object.entries(CT).map(([k,v])=>[k,v.l])].map(([k,l])=>`<button class="fchip" data-t="${k}" aria-pressed="${LF.c.t===k}">${l}</button>`).join('')};
+  draw();el.addEventListener('click',e=>{const b=e.target.closest('[data-t]');if(!b)return;LF.c.t=b.dataset.t;LF.c.limit=60;draw();renderCList()})})();
+$('c-type').onchange=e=>{ui.cType=e.target.value;saveUi()};$('c-use').onchange=e=>{ui.cUse=e.target.value;saveUi()};
 $('l-date').value=today();
 $('q-add').onclick=()=>qForm();$('q-start').onclick=startQ;
 $('c-add').onclick=()=>cForm();$('c-start').onclick=startC;
