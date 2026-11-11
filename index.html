@@ -493,6 +493,9 @@ const list=kind=>{const m=mine(kind);return m.length?m:SAMPLES.filter(s=>s.kind=
 const isEx=x=>String(x.id).startsWith('ex-');
 const getItem=id=>items.get(id)||SAMPLES.find(s=>s.id===id);
 const S=()=>Object.assign({},DEF,items.get('settings')||{});
+const ELECTIVES=[['倒産法','倒産'],['租税法','租税'],['経済法','経済'],['知的財産法','知財'],['労働法','労働'],['環境法','環境'],['国際関係法（公法系）','国公'],['国際関係法（私法系）','国私']];
+const SL=s=>s==='選択'&&S().elective?S().elective:s;
+const SLS=s=>{if(s!=='選択')return s;const e=ELECTIVES.find(x=>x[0]===S().elective);return e?e[1]:'選択'};
 /* カードの種類と用途 */
 const CT={
   ronsho:{l:'論証',front:'論点名',back:'論証',src:'条文・判例（任意）',ask:'規範と理由付けを声に出すか、頭の中で再現してから答えを見ます。',ph:['例：取消前の第三者と取消後の第三者','規範や理由付けを書き、覚えるべき語句を【】で囲みます。']},
@@ -594,12 +597,12 @@ function initStore(){mode='local';loadLocal();try{navigator.storage&&navigator.s
 /* ---------- 共通UI ---------- */
 let toastT;
 function toast(msg){const t=$('toast');t.textContent=msg;t.hidden=false;clearTimeout(toastT);toastT=setTimeout(()=>t.hidden=true,2800)}
-function subjOptions(sel,allLabel){sel.innerHTML=(allLabel?`<option value="">${allLabel}</option>`:'')+SUBJ.map(s=>`<option>${s}</option>`).join('')}
+function subjOptions(sel,allLabel){sel.innerHTML=(allLabel?`<option value="">${allLabel}</option>`:'')+SUBJ.map(s=>`<option value="${s}">${esc(SL(s))}</option>`).join('')}
 let lastFocus=null;
 function openSheet(html,bind){lastFocus=document.activeElement;$('sheet').innerHTML=html;$('scrim').hidden=false;bind($('sheet'));const f=$('sheet').querySelector('input:not([type=checkbox]):not([type=file]),textarea,select');if(f)f.focus()}
 function closeSheet(){$('scrim').hidden=true;$('sheet').innerHTML='';if(lastFocus&&lastFocus.focus)try{lastFocus.focus()}catch(e){}}
 $('scrim').addEventListener('click',e=>{if(e.target.id==='scrim')closeSheet()});
-const subjSel=(id,v)=>`<select id="${id}">${SUBJ.map(s=>`<option${s===v?' selected':''}>${s}</option>`).join('')}</select>`;
+const subjSel=(id,v)=>`<select id="${id}">${SUBJ.map(s=>`<option value="${s}"${s===v?' selected':''}>${esc(SL(s))}</option>`).join('')}</select>`;
 const exNote=kind=>mine(kind).length?'':'<p class="note" style="padding-bottom:6px"><span class="chip ex">例</span> は見本です。自分の項目を追加すると表示されなくなります。</p>';
 const delBtn=id=>`<span class="confirm" data-del="${esc(id)}"><button class="btn ghost" data-ask>削除</button></span>`;
 const tagsHtml=x=>{const t=String(x.tags||'').split(/[\s,、]+/).filter(Boolean);return t.length?`<span class="tags">${t.map(s=>'#'+esc(s)).join(' ')}</span>`:''};
@@ -716,7 +719,7 @@ function renderPlayer(){
   }
   const e=P.q[P.i],x=getItem(e.id);
   if(!x){P.i++;renderPlayer();return}
-  const chips=`<div class="row" style="gap:6px"><span class="chip">${esc(x.subject)}</span>${x.kind==='c'?`<span class="chip t">${CT[ctOf(x)].l}</span><span class="chip u">${USE[useOf(x)]}</span>`:''}${x.article&&!(x.kind==='c'&&ctOf(x)==='hanrei')?`<span class="meta">${esc(x.article)}</span>`:''}${isEx(x)?'<span class="chip ex">例</span>':''}${e.re?'<span class="chip re">再確認</span>':isNew(x)?'<span class="chip ex">初めて</span>':''}${tagsHtml(x)}</div>`;
+  const chips=`<div class="row" style="gap:6px"><span class="chip">${esc(SL(x.subject))}</span>${x.kind==='c'?`<span class="chip t">${CT[ctOf(x)].l}</span><span class="chip u">${USE[useOf(x)]}</span>`:''}${x.article&&!(x.kind==='c'&&ctOf(x)==='hanrei')?`<span class="meta">${esc(x.article)}</span>`:''}${isEx(x)?'<span class="chip ex">例</span>':''}${e.re?'<span class="chip re">再確認</span>':isNew(x)?'<span class="chip ex">初めて</span>':''}${tagsHtml(x)}</div>`;
   let h=`<div class="p-top"><button class="btn ghost" data-p="close">✕ 終了</button><div class="p-bar"><i style="width:${Math.round(P.i/total*100)}%"></i></div><span class="progress">${P.i+1} / ${total}</span><button class="btn ghost star${x.flag?' on':''}" data-p="flag" aria-pressed="${!!x.flag}" aria-label="苦手に登録">${x.flag?'★':'☆'}</button></div>`;
   h+=x.kind==='q'?qCard(x,e,chips):cCard(x,e,chips);
   h+=`<p class="keys">${keysHint(x)}</p>`;
@@ -814,12 +817,12 @@ function startQ(){
     if(scope==='wrong')pool=pool.filter(q=>q.last===false);else if(scope==='flag')pool=pool.filter(q=>q.flag);else if(scope==='new')pool=pool.filter(isNew);
     ids=shuffle(pool).map(q=>q.id)}
   if(num)ids=ids.slice(0,num);
-  startSession(ids,'短答 '+(subj||'全科目'));
+  startSession(ids,'短答 '+(subj?SL(subj):'全科目'));
 }
 function renderQList(){
   const xs=filtered('q').slice().reverse();
   $('q-list').innerHTML=exNote('q')+(xs.length?xs.slice(0,LF.q.limit).map(q=>`<div class="item"><div class="body">
-     <div class="row" style="gap:6px"><span class="chip">${esc(q.subject)}</span>${isEx(q)?'<span class="chip ex">例</span>':''}${lvHtml(q)}</div>
+     <div class="row" style="gap:6px"><span class="chip">${esc(SL(q.subject))}</span>${isEx(q)?'<span class="chip ex">例</span>':''}${lvHtml(q)}</div>
      <div>${esc(q.text)}</div>
      <div class="row" style="gap:8px"><span class="meta">正解 ${q.answer?'○':'×'}・${q.stats?.c||0}正 ${q.stats?.w||0}誤${q.last===false?'・<span style="color:var(--ng)">前回×</span>':''}</span>${q.article?`<span class="meta">${esc(q.article)}</span>`:''}${tagsHtml(q)}</div></div>
      ${actsHtml(q)}</div>`).join('')+moreBtn('q',xs.length):'<div class="empty">条件に合う問題はありません。</div>');
@@ -828,7 +831,7 @@ function renderTanto(){
   const qs=list('q');let c=0,w=0;qs.forEach(q=>{c+=q.stats?.c||0;w+=q.stats?.w||0});
   const due=qs.filter(isDue).length;
   $('q-stats').innerHTML=`<div class="stat"><b>${due}</b><span>今日の復習</span></div><div class="stat"><b>${qs.length}</b><span>登録問題</span></div><div class="stat"><b>${c+w?Math.round(c/(c+w)*100)+'%':'—'}</b><span>通算正答率</span></div>`;
-  const rows=SUBJ.map(s=>{let c=0,w=0;qs.filter(q=>q.subject===s).forEach(q=>{c+=q.stats?.c||0;w+=q.stats?.w||0});return{label:s,v:c,max:c+w,txt:c+w?Math.round(c/(c+w)*100)+'%':'—'}}).filter(r=>r.max);
+  const rows=SUBJ.map(s=>{let c=0,w=0;qs.filter(q=>q.subject===s).forEach(q=>{c+=q.stats?.c||0;w+=q.stats?.w||0});return{label:SLS(s),v:c,max:c+w,txt:c+w?Math.round(c/(c+w)*100)+'%':'—'}}).filter(r=>r.max);
   $('q-rate').innerHTML=rows.length?rateBars(rows):'<div class="empty">演習するとここに科目別の正答率が出ます。</div>';
   renderQList();renderMock();
 }
@@ -880,12 +883,12 @@ function startC(){
   else{let pool=list('c').filter(c=>(!subj||c.subject===subj)&&pred(c));
     if(scope==='wrong')pool=pool.filter(c=>c.last===false);else if(scope==='flag')pool=pool.filter(c=>c.flag);else if(scope==='new')pool=pool.filter(isNew);
     ids=shuffle(pool).map(c=>c.id)}
-  startSession(ids,(ty?CT[ty].l:'暗記カード')+' '+(subj||'全科目'));
+  startSession(ids,(ty?CT[ty].l:'暗記カード')+' '+(subj?SL(subj):'全科目'));
 }
 function renderCList(){
   const xs=filtered('c').slice().sort((a,b)=>{const sa=srsOf(a),sb=srsOf(b);return (sa?sa.due:'9999').localeCompare(sb?sb.due:'9999')});
   $('c-list').innerHTML=exNote('c')+(xs.length?xs.slice(0,LF.c.limit).map(c=>`<div class="item"><div class="body">
-    <div class="row" style="gap:6px"><span class="chip">${esc(c.subject)}</span><span class="chip t">${CT[ctOf(c)].l}</span><span class="chip u">${USE[useOf(c)]}</span>${isEx(c)?'<span class="chip ex">例</span>':''}${lvHtml(c)}</div>
+    <div class="row" style="gap:6px"><span class="chip">${esc(SL(c.subject))}</span><span class="chip t">${CT[ctOf(c)].l}</span><span class="chip u">${USE[useOf(c)]}</span>${isEx(c)?'<span class="chip ex">例</span>':''}${lvHtml(c)}</div>
     <div style="font-weight:700">${esc(c.title)}</div>
     ${ctOf(c)==='hanrei'&&c.issue?`<div class="meta">争点：${esc(c.issue)}</div>`:''}
     <div class="row" style="gap:8px">${c.article?`<span class="meta">${esc(c.article)}</span>`:''}<span class="meta">キーワード ${kwCount(c.body)}</span>${tagsHtml(c)}</div></div>
@@ -943,7 +946,7 @@ const clock=ms=>{const s=Math.floor(ms/1000);return pad(Math.floor(s/3600))+':'+
 function renderTimer(){
   const el=$('t-timer');if(!el)return;
   el.innerHTML=`<div class="spread"><h3>学習タイマー</h3><label class="check"><input type="checkbox" id="tm-pomo"${tm.pomo?' checked':''}>25分ごとに休憩を知らせる</label></div>
-    <div class="spread"><span class="clock${tm.run?' run':''}" id="tm-clock">${clock(tmElapsed())}</span><select id="tm-subj" style="width:auto;min-width:7em" aria-label="タイマーの科目">${SUBJ.map(s=>`<option${s===tm.subj?' selected':''}>${s}</option>`).join('')}</select></div>
+    <div class="spread"><span class="clock${tm.run?' run':''}" id="tm-clock">${clock(tmElapsed())}</span><select id="tm-subj" style="width:auto;min-width:7em" aria-label="タイマーの科目">${SUBJ.map(s=>`<option value="${s}"${s===tm.subj?' selected':''}>${esc(SL(s))}</option>`).join('')}</select></div>
     <div class="row"><button class="btn${tm.run?'':' primary'} wide" data-tm="toggle">${tm.run?'一時停止':tmElapsed()?'再開':'開始'}</button><button class="btn wide" data-tm="stop"${tmElapsed()?'':' disabled'}>終了して記録</button>${tmElapsed()&&!tm.run?'<button class="btn ghost" data-tm="reset">リセット</button>':''}</div>`;
   $('tm-subj').onchange=e=>{tm.subj=e.target.value;saveTm()};
   $('tm-pomo').onchange=e=>{tm.pomo=e.target.checked;tm.lastPomo=Math.floor(tmElapsed()/1500000);saveTm()};
@@ -953,7 +956,7 @@ function timerAct(a){
   else if(a==='reset'){tm={...tm,run:false,acc:0,start:0,lastPomo:0}}
   else if(a==='stop'){const m=Math.round(tmElapsed()/60000);tm={...tm,run:false,acc:0,start:0,lastPomo:0};saveTm();
     if(m<1){toast('1分未満なので記録しませんでした');renderTimer();return}
-    put({id:'l_'+uid(),kind:'l',date:today(),subject:tm.subj,min:m,memo:'タイマー'});toast(`${tm.subj} ${hm(m)}を記録しました`)}
+    put({id:'l_'+uid(),kind:'l',date:today(),subject:tm.subj,min:m,memo:'タイマー'});toast(`${SL(tm.subj)} ${hm(m)}を記録しました`)}
   saveTm();renderTimer();
 }
 setInterval(()=>{
@@ -991,10 +994,10 @@ function renderKiroku(){
   const from=addDays(t,-29);let n=0,ok=0;const dset=new Set();
   [...mine('q'),...mine('c')].forEach(x=>(x.hist||[]).forEach(h=>{if(h.d>=from){n++;if(h.g>0)ok++;dset.add(h.d)}}));
   $('l-review').innerHTML=`<div class="stat"><b>${n}</b><span>復習した数</span></div><div class="stat"><b>${n?Math.round(ok/n*100)+'%':'—'}</b><span>想起できた率</span></div><div class="stat"><b>${dset.size}日</b><span>復習した日</span></div>`;
-  const sub=SUBJ.map(s=>({label:s,v:ls.filter(l=>l.subject===s&&l.date>=from).reduce((a,l)=>a+(+l.min||0),0)})).filter(r=>r.v),mx=Math.max(1,...sub.map(r=>r.v));
+  const sub=SUBJ.map(s=>({label:SLS(s),v:ls.filter(l=>l.subject===s&&l.date>=from).reduce((a,l)=>a+(+l.min||0),0)})).filter(r=>r.v),mx=Math.max(1,...sub.map(r=>r.v));
   $('l-subjbars').innerHTML=sub.length?rateBars(sub.sort((a,b)=>b.v-a.v).map(r=>({...r,max:mx,txt:(r.v/60).toFixed(1)+'h'}))):'<div class="empty">記録するとここに科目別の時間が出ます。</div>';
   $('l-list').innerHTML=exNote('l')+ls.slice().sort((a,b)=>b.date.localeCompare(a.date)).slice(0,30).map(l=>`<div class="item"><div class="body">
-    <div class="row" style="gap:6px"><span class="meta">${md(l.date)}</span><span class="chip">${esc(l.subject)}</span>${isEx(l)?'<span class="chip ex">例</span>':''}<span class="score">${hm(+l.min)}</span></div>
+    <div class="row" style="gap:6px"><span class="meta">${md(l.date)}</span><span class="chip">${esc(SL(l.subject))}</span>${isEx(l)?'<span class="chip ex">例</span>':''}<span class="score">${hm(+l.min)}</span></div>
     ${l.memo?`<div class="note">${esc(l.memo)}</div>`:''}</div>${isEx(l)?'':delBtn(l.id)}</div>`).join('');
 }
 $('l-form').addEventListener('submit',e=>{e.preventDefault();const m=Math.round(+$('l-min').value);if(!m||m<1){toast('時間を分で入力してください');return}
@@ -1026,11 +1029,11 @@ function renderToren(){
   let tot=0,hit=0;as.forEach(a=>(a.points||[]).forEach(p=>{tot++;if(p.h)hit++}));
   $('a-stats').innerHTML=`<div class="stat"><b>${as.length}</b><span>答練数</span></div><div class="stat"><b>${tot?Math.round(hit/tot*100)+'%':'—'}</b><span>論点の拾い率</span></div><div class="stat"><b>${tot-hit}</b><span>落とした論点</span></div>`;
   const miss=[];as.forEach(a=>(a.points||[]).forEach((p,i)=>{if(!p.h)miss.push({p,i,a})}));
-  $('a-miss').innerHTML=miss.length?miss.slice(0,15).map(({p,i,a})=>`<div class="item"><div class="body"><div class="row" style="gap:6px"><span class="chip">${esc(a.subject)}</span>${isEx(a)?'<span class="chip ex">例</span>':''}<span class="meta">${md(a.date)}・${esc(a.title)}</span></div><div style="color:var(--ng)">${esc(p.t)}</div></div>
+  $('a-miss').innerHTML=miss.length?miss.slice(0,15).map(({p,i,a})=>`<div class="item"><div class="body"><div class="row" style="gap:6px"><span class="chip">${esc(SL(a.subject))}</span>${isEx(a)?'<span class="chip ex">例</span>':''}<span class="meta">${md(a.date)}・${esc(a.title)}</span></div><div style="color:var(--ng)">${esc(p.t)}</div></div>
     <button class="btn ghost" data-act="card" data-id="${esc(a.id)}" data-i="${i}">カードにする</button></div>`).join(''):'<div class="empty">落とした論点はありません。</div>';
   $('a-list').innerHTML=exNote('a')+as.map(a=>{const n=(a.points||[]).length,h=(a.points||[]).filter(p=>p.h).length;
     return `<div class="item"><div class="body" style="gap:6px">
-     <div class="row" style="gap:6px"><span class="meta">${md(a.date)}</span><span class="chip">${esc(a.subject)}</span>${isEx(a)?'<span class="chip ex">例</span>':''}<span class="score meta">論点 ${h}/${n}${a.score?'・'+esc(a.score):''}</span></div>
+     <div class="row" style="gap:6px"><span class="meta">${md(a.date)}</span><span class="chip">${esc(SL(a.subject))}</span>${isEx(a)?'<span class="chip ex">例</span>':''}<span class="score meta">論点 ${h}/${n}${a.score?'・'+esc(a.score):''}</span></div>
      <div style="font-weight:700">${esc(a.title)}</div>
      ${(a.points||[]).map((p,i)=>`<label class="pt${p.h?'':' miss'}"><input type="checkbox" id="pt-${esc(a.id)}-${i}" data-a="${esc(a.id)}" data-i="${i}"${p.h?' checked':''}${isEx(a)?' disabled':''}><span>${esc(p.t)}</span></label>`).join('')}
      ${a.memo?`<div class="note">${esc(a.memo)}</div>`:''}</div>
@@ -1047,6 +1050,9 @@ function settingsSheet(){
    <div class="grid2"><label class="f">試験の名前<input id="st-l" value="${esc(s.date?s.label:'')}" placeholder="例：令和9年 予備試験 短答"></label>
    <label class="f">試験日<input type="date" id="st-d" value="${esc(s.date)}"></label></div>
    <p class="note">空のままなら令和9年司法試験（論文 7/14 開始）を表示します。</p>
+   <h3>選択科目</h3>
+   <label class="f">あなたの選択科目<select id="st-e"><option value="">まだ決めていない</option>${ELECTIVES.map(([n])=>`<option${n===s.elective?' selected':''}>${n}</option>`).join('')}</select></label>
+   <p class="note">選ぶと、「選択」と出ていた所がすべてこの科目名になります。これまでの記録はそのまま引き継がれます。</p>
    <h3>毎日の目標</h3>
    <div class="grid3"><label class="f">新しく覚える数／日<input type="number" id="st-n" min="0" max="500" inputmode="numeric" value="${s.newPerDay}"></label>
    <label class="f">復習の目標（問）<input type="number" id="st-r" min="0" max="2000" inputmode="numeric" value="${s.reviewGoal}"></label>
@@ -1064,7 +1070,7 @@ function settingsSheet(){
     sh.querySelector('#fx').onclick=closeSheet;
     sh.querySelector('#fs').onclick=()=>{const num=(id,d)=>{const v=parseInt(sh.querySelector(id).value,10);return isNaN(v)||v<0?d:v};
       put({...(items.get('settings')||{}),id:'settings',kind:'s',label:sh.querySelector('#st-l').value.trim(),date:sh.querySelector('#st-d').value,
-        newPerDay:num('#st-n',20),reviewGoal:num('#st-r',50),minGoal:num('#st-m',180),weekHours:num('#st-w',30)});closeSheet();toast('設定を保存しました')};
+        newPerDay:num('#st-n',20),reviewGoal:num('#st-r',50),minGoal:num('#st-m',180),weekHours:num('#st-w',30),elective:sh.querySelector('#st-e').value});closeSheet();refreshSubj();toast('設定を保存しました')};
     sh.querySelector('#im-q').onclick=()=>importSheet('q');sh.querySelector('#im-c').onclick=()=>importSheet('c');sh.querySelector('#im-j').onclick=()=>importSheet('json');
     const backup=()=>JSON.stringify({app:'司法試験 学習帳',version:2,exported:new Date().toISOString(),items:[...items.values()]});
     sh.querySelector('#bk-copy').onclick=()=>{const data=backup();
@@ -1157,7 +1163,7 @@ function renderWeek(){
   const logs=mine('l').filter(l=>l.date>=from&&l.date<=t),tot=logs.reduce((a,l)=>a+(+l.min||0),0);
   const sumW=Object.values(W8).reduce((a,b)=>a+b,0);
   const rows=SUBJ.map(sj=>{const tgt=Math.round(wh*60*W8[sj]/sumW),act=logs.filter(l=>l.subject===sj).reduce((a,l)=>a+(+l.min||0),0);
-    return {label:sj,v:Math.min(act,tgt),max:tgt,txt:`${(act/60).toFixed(1)}/${(tgt/60).toFixed(1)}h`}});
+    return {label:SLS(sj),v:Math.min(act,tgt),max:tgt,txt:`${(act/60).toFixed(1)}/${(tgt/60).toFixed(1)}h`}});
   $('t-week').innerHTML=`<div class="spread"><h3>今週の学習プラン</h3><span class="chip">${ph.l}</span></div><p class="note">${ph.t}</p>
     <div class="goal"><div class="spread"><span>今週の合計（月曜から）</span><span><b>${(tot/60).toFixed(1)}</b> / ${wh}時間</span></div><div class="meter"><i style="width:${wh?Math.min(100,tot/(wh*60)*100):0}%"></i></div></div>
     ${wh?rateBars(rows,'wide'):''}<p class="note">科目ごとの目標は、本番の配点をもとにした目安です（民法を厚め）。</p>`;
@@ -1177,7 +1183,7 @@ function renderWeak(){
   const o=subjStats(30),cell=(v,low)=>v==null?'<td class="na">—</td>':`<td class="${v<low?'low':''}">${v}%</td>`;
   const any=SUBJ.some(s=>{const r=o[s];return r.qn||r.cn||r.min||r.pt});
   $('l-weak').innerHTML=any?`<div class="tbl"><table><thead><tr><th>科目</th><th>短答</th><th>カード</th><th>答練</th><th>時間</th></tr></thead><tbody>${SUBJ.map(s=>{const r=o[s];
-      return `<tr><th>${s}</th>${cell(pct(r.qo,r.qn),70)}${cell(pct(r.co,r.cn),70)}${cell(pct(r.ph,r.pt),60)}<td>${r.min?(r.min<60?r.min+'分':(r.min/60).toFixed(1)+'h'):'<span class="low">0</span>'}</td></tr>`}).join('')}</tbody></table></div>
+      return `<tr><th>${esc(SL(s))}</th>${cell(pct(r.qo,r.qn),70)}${cell(pct(r.co,r.cn),70)}${cell(pct(r.ph,r.pt),60)}<td>${r.min?(r.min<60?r.min+'分':(r.min/60).toFixed(1)+'h'):'<span class="low">0</span>'}</td></tr>`}).join('')}</tbody></table></div>
     <p class="note">短答＝正答率、カード＝思い出せた率、答練＝論点を拾えた率。赤字は目安（7割、答練は6割）を下回っている科目です。</p>`
     :'<div class="empty">復習や記録をすると、科目ごとの弱点がここに出ます。</div>';
 }
@@ -1185,12 +1191,12 @@ let RECO=[];
 function renderReco(){
   RECO=[];const o=subjStats(30);
   const wq=SUBJ.map(s=>({s,p:pct(o[s].qo,o[s].qn),n:o[s].qn})).filter(r=>r.n>=5&&r.p<80).sort((a,b)=>a.p-b.p)[0];
-  if(wq)RECO.push({t:`短答の${wq.s}は正答率${wq.p}%で、いちばん低い科目です。`,b:`${wq.s}を10問`,f:()=>{const pool=list('q').filter(q=>q.subject===wq.s),pri=x=>x.last===false||x.flag;
-    startSession([...shuffle(pool.filter(pri)),...shuffle(pool.filter(x=>!pri(x)))].slice(0,10).map(q=>q.id),wq.s+'の短答')}});
+  if(wq)RECO.push({t:`短答の${SL(wq.s)}は正答率${wq.p}%で、いちばん低い科目です。`,b:`${SL(wq.s)}を10問`,f:()=>{const pool=list('q').filter(q=>q.subject===wq.s),pri=x=>x.last===false||x.flag;
+    startSession([...shuffle(pool.filter(pri)),...shuffle(pool.filter(x=>!pri(x)))].slice(0,10).map(q=>q.id),SL(wq.s)+'の短答')}});
   const lap=[...mine('c'),...mine('q')].filter(x=>(srsOf(x)?.lapses||0)>=2).sort((a,b)=>srsOf(b).lapses-srsOf(a).lapses);
   if(lap.length)RECO.push({t:`2回以上忘れた問題・カードが${lap.length}件あります。`,b:'よく忘れるものを復習',f:()=>startSession(lap.slice(0,15).map(x=>x.id),'よく忘れるもの')});
   if(mine('l').length){const o14=subjStats(14),gap=SUBJ.filter(s=>s!=='選択'&&!o14[s].min);
-    if(gap.length&&gap.length<7)RECO.push({t:`${gap.slice(0,3).join('・')}${gap.length>3?'など':''}を2週間勉強していません。`,b:`${gap[0]}でタイマー開始`,f:()=>{tm.subj=gap[0];if(!tm.run){tm.start=Date.now();tm.run=true}saveTm();renderTimer();$('t-timer').scrollIntoView({behavior:'smooth',block:'center'});toast(gap[0]+'でタイマーを開始しました')}})}
+    if(gap.length&&gap.length<7)RECO.push({t:`${gap.slice(0,3).map(SL).join('・')}${gap.length>3?'など':''}を2週間勉強していません。`,b:`${SL(gap[0])}でタイマー開始`,f:()=>{tm.subj=gap[0];if(!tm.run){tm.start=Date.now();tm.run=true}saveTm();renderTimer();$('t-timer').scrollIntoView({behavior:'smooth',block:'center'});toast(SL(gap[0])+'でタイマーを開始しました')}})}
   const lastA=mine('a').map(a=>a.date||'').sort().pop()||'';
   if(daysTo(exam().date)<=365&&(!lastA||daysTo(lastA)<-14))RECO.push({t:lastA?'2週間以上、論文の答案を書いていません。':'まだ論文の答練の記録がありません。',b:'本番タイマーで書く',f:()=>{location.hash='toren'}});
   const fl=[...mine('q'),...mine('c')].filter(x=>x.flag);
@@ -1232,7 +1238,7 @@ function renderExam(){
   if(E.res){el.innerHTML=examResultHtml();$('player').scrollTop=0;$('player').focus({preventScroll:true});return}
   const n=E.ids.length,x=getItem(E.ids[E.i]),left=examLeft(),done=E.ans.filter(a=>a!=null).length;
   let h=`<div class="p-top"><button class="btn ghost" data-e="quit">✕ 中断</button><span class="progress">${E.i+1} / ${n}</span><span class="e-time${left!=null&&left<60000?' warn':''}" id="e-time">${examClock()}</span></div>`;
-  h+=`<div class="p-card"><div class="row" style="gap:6px"><span class="chip">${esc(x.subject)}</span>${isEx(x)?'<span class="chip ex">例</span>':''}<span class="meta">本番形式</span></div><div class="p-body q">${esc(x.text)}</div></div>`;
+  h+=`<div class="p-card"><div class="row" style="gap:6px"><span class="chip">${esc(SL(x.subject))}</span>${isEx(x)?'<span class="chip ex">例</span>':''}<span class="meta">本番形式</span></div><div class="p-body q">${esc(x.text)}</div></div>`;
   h+=`<div class="ox"><button class="btn${E.ans[E.i]===true?' primary':''}" data-e="o" aria-pressed="${E.ans[E.i]===true}" aria-label="正しい">○</button><button class="btn${E.ans[E.i]===false?' primary':''}" data-e="x" aria-pressed="${E.ans[E.i]===false}" aria-label="誤り">×</button></div>`;
   h+=`<div class="grid2"><button class="btn" data-e="prev"${E.i?'':' disabled'}>← 前へ</button><button class="btn" data-e="next"${E.i<n-1?'':' disabled'}>次へ →</button></div>`;
   h+=`<div class="pal" aria-label="問題の一覧">${E.ids.map((_,k)=>`<button data-e="go" data-k="${k}" class="${k===E.i?'cur ':''}${E.ans[k]!=null?'done':''}" aria-label="${k+1}問目${E.ans[k]!=null?'（回答済み）':''}">${k+1}</button>`).join('')}</div>`;
@@ -1277,7 +1283,7 @@ function submitExam(){
 function examResultHtml(){
   const r=E.res,p=Math.round(r.ok/r.n*100);
   const rows=Object.entries(r.by).map(([s,b])=>{const q=Math.round(b.ok/b.n*100),core=['憲法','民法','刑法'].includes(s);
-    return `<tr><th>${esc(s)}</th><td>${b.ok}/${b.n}</td><td class="${core&&q<40?'low':''}">${q}%</td><td>${core?(q<40?'<span class="low">40%未満</span>':'40%以上'):'—'}</td></tr>`}).join('');
+    return `<tr><th>${esc(SL(s))}</th><td>${b.ok}/${b.n}</td><td class="${core&&q<40?'low':''}">${q}%</td><td>${core?(q<40?'<span class="low">40%未満</span>':'40%以上'):'—'}</td></tr>`}).join('');
   const wl=E.ids.map((id,k)=>({x:getItem(id),a:E.ans[k]})).filter(o=>o.a!==o.x.answer);
   return `<div class="p-top"><span class="progress">本番形式の結果</span></div>
    <div class="p-card"><div class="stats"><div class="stat"><b>${r.ok}/${r.n}</b><span>正解</span></div><div class="stat"><b>${p}%</b><span>正答率</span></div><div class="stat"><b>${Math.floor(r.secs/60)}分${pad(r.secs%60)}秒</b><span>かかった時間</span></div></div>
@@ -1310,18 +1316,18 @@ function renderW(){
      <p class="note">本番は1問120分（選択科目は2問で180分）。構成の目安と残り10分で知らせます。書き終えると学習時間が記録され、答練の記録画面が開きます。</p>`;
     $('w-s').onchange=e=>{$('w-t').value=e.target.value==='選択'?180:120};return}
   const el2=wEl(),left=Wt.total*60000-el2,inPlan=el2<Wt.plan*60000;
-  el.innerHTML=`<div class="spread"><h3>本番タイマー：${esc(Wt.subj)}</h3><span class="chip${left<600000?' re':''}">${left<=0?'時間切れ':inPlan?'答案構成中':'答案作成中'}</span></div>
+  el.innerHTML=`<div class="spread"><h3>本番タイマー：${esc(SL(Wt.subj))}</h3><span class="chip${left<600000?' re':''}">${left<=0?'時間切れ':inPlan?'答案構成中':'答案作成中'}</span></div>
     <div class="clock${Wt.run?' run':''}" id="w-clock">${left>=0?clock(left):'+'+clock(-left)}</div>
     <p class="note" id="w-sub">${wSub(el2)}</p>
     <div class="row"><button class="btn${Wt.run?'':' primary'} wide" data-w="toggle">${Wt.run?'一時停止':'再開'}</button><button class="btn wide" data-w="finish">書き終えた</button><button class="btn ghost" data-w="cancel">やめる</button></div>`;
 }
 function wAct(a){
-  if(a==='start'){const subj=$('w-s').value,tot=Math.max(10,+$('w-t').value||120),pl=Math.max(0,+$('w-p').value||0);ui.wSubj=subj;ui.wPlan=pl;saveUi();Wt={subj,total:tot,plan:pl,start:Date.now(),acc:0,run:true,alerted:{}};toast(`${subj}・${tot}分のタイマーを開始しました`)}
+  if(a==='start'){const subj=$('w-s').value,tot=Math.max(10,+$('w-t').value||120),pl=Math.max(0,+$('w-p').value||0);ui.wSubj=subj;ui.wPlan=pl;saveUi();Wt={subj,total:tot,plan:pl,start:Date.now(),acc:0,run:true,alerted:{}};toast(`${SL(subj)}・${tot}分のタイマーを開始しました`)}
   else if(a==='toggle'){if(Wt.run){Wt.acc=wEl();Wt.run=false}else{Wt.start=Date.now();Wt.run=true}}
   else if(a==='cancel'){Wt=null}
   else if(a==='finish'){const m=Math.max(1,Math.round(wEl()/60000)),sj=Wt.subj;Wt=null;saveW();
     put({id:'l_'+uid(),kind:'l',date:today(),subject:sj,min:m,memo:'論文 本番タイマー'});
-    aForm({date:today(),subject:sj,title:`${sj} 答練（${m}分）`,score:'',points:[],memo:''});return}
+    aForm({date:today(),subject:sj,title:`${SL(sj)} 答練（${m}分）`,score:'',points:[],memo:''});return}
   saveW();renderW();doRender();
 }
 function wTick(){
@@ -1364,21 +1370,21 @@ function renderKako(){
   const rp=cells?Math.round(rounds/(cells*goal)*100):0;
   $('k-stats').innerHTML=`<div class="stat"><b>${cells?Math.round(started/cells*100):0}%</b><span>1周目（${started}/${cells}）</span></div><div class="stat"><b>${rp}%</b><span>目標${goal}周の達成度</span></div><div class="stat"><b>${total}</b><span>解いた合計（回）</span></div>`;
   $('k-goalbar').innerHTML=`<div class="spread"><span>${K.l}・${ty==='tanto'?'短答':'論文'}（${ERA(years[years.length-1])}〜${ERA(years[0])}）</span><span><b>${rp}%</b></span></div><div class="meter"><i style="width:${rp}%"></i></div>`;
-  $('k-grid').innerHTML=`<table class="kgrid"><thead><tr><th>年度</th>${subs.map(sj=>`<th title="${sj}">${KSH[sj]||sj}</th>`).join('')}</tr></thead><tbody>${years.map(y=>`<tr><th>${ERA(y)}</th>${subs.map(sj=>{
+  $('k-grid').innerHTML=`<table class="kgrid"><thead><tr><th>年度</th>${subs.map(sj=>`<th title="${esc(SL(sj))}">${sj==='選択'?SLS(sj):(KSH[sj]||sj)}</th>`).join('')}</tr></thead><tbody>${years.map(y=>`<tr><th>${ERA(y)}</th>${subs.map(sj=>{
       if(!kAvail(ex,ty,y,sj))return '<td class="na">—</td>';const n=kN(ex,ty,y,sj),lv=!n?'':n>=goal?'k3':n>=2?'k2':'k1';
-      return `<td><button class="kc ${lv}" data-kk="${y}|${sj}" aria-label="${ERA(y)} ${sj} ${n}回">${n||''}</button></td>`}).join('')}</tr>`).join('')}</tbody></table>`;
+      return `<td><button class="kc ${lv}" data-kk="${y}|${sj}" aria-label="${ERA(y)} ${esc(SL(sj))} ${n}回">${n||''}</button></td>`}).join('')}</tr>`).join('')}</tbody></table>`;
   const nx=[];
   subs.forEach(sj=>{let pick=null;
     for(const y of years){if(kAvail(ex,ty,y,sj)&&!kN(ex,ty,y,sj)){pick={y,sj,t:'未着手'};break}}
     if(!pick){let mn=Infinity;years.forEach(y=>{if(!kAvail(ex,ty,y,sj))return;const n=kN(ex,ty,y,sj);if(n<goal&&n<mn){mn=n;pick={y,sj,t:(n+1)+'周目'}}})}
     if(pick)nx.push(pick)});
-  $('k-next').innerHTML=nx.length?`<div class="knext">${nx.map(o=>`<button class="btn" data-kk="${o.y}|${o.sj}">${o.sj} ${ERA(o.y)}<small>${o.t}</small></button>`).join('')}</div><p class="note">各科目で、まだ解いていない一番新しい年度です。1周したら、回数の少ない年度を出します。</p>`
+  $('k-next').innerHTML=nx.length?`<div class="knext">${nx.map(o=>`<button class="btn" data-kk="${o.y}|${o.sj}">${esc(SL(o.sj))} ${ERA(o.y)}<small>${o.t}</small></button>`).join('')}</div><p class="note">各科目で、まだ解いていない一番新しい年度です。1周したら、回数の少ない年度を出します。</p>`
     :`<p class="note">目標の${goal}周をすべて達成しました。目標の周回数を上げるか、もう一方の試験・形式に進みましょう。</p>`;
-  $('k-subj').innerHTML=rateBars(subs.map(sj=>({label:KSH[sj]||sj,v:per[sj].r,max:per[sj].c*goal,txt:`${per[sj].d}/${per[sj].c}年`})),'wide')+'<p class="note">棒は目標周回の達成度、右の数字は1回以上解いた年度の数です。</p>';
+  $('k-subj').innerHTML=rateBars(subs.map(sj=>({label:sj==='選択'?SLS(sj):(KSH[sj]||sj),v:per[sj].r,max:per[sj].c*goal,txt:`${per[sj].d}/${per[sj].c}年`})),'wide')+'<p class="note">棒は目標周回の達成度、右の数字は1回以上解いた年度の数です。</p>';
 }
 function kSheet(ex,ty,y,sj){
   const id=kid(ex,ty,y),doc=items.get(id)||{id,kind:'k',ex,ty,y,cells:{}},c={n:0,dates:[],score:'',memo:'',...((doc.cells||{})[sj]||{})};
-  openSheet(`<h2>${ERA(y)} ${KK[ex].l} ${ty==='tanto'?'短答':'論文'}・${esc(sj)}</h2>
+  openSheet(`<h2>${ERA(y)} ${KK[ex].l} ${ty==='tanto'?'短答':'論文'}・${esc(SL(sj))}</h2>
     <div class="spread"><span>解いた回数</span><div class="row" style="gap:8px"><button class="btn" id="k-minus" aria-label="1回減らす">−</button><b class="score" id="k-n" style="font-size:1.4rem;min-width:2ch;text-align:center">${c.n}</b><button class="btn" id="k-plus" aria-label="1回増やす">＋</button></div></div>
     <p class="note">${(c.dates||[]).length?'解いた日：'+c.dates.map(md).join('、'):'まだ記録がありません'}</p>
     <div class="grid2"><label class="f">点数・正答数（任意）<input id="k-sc" value="${esc(c.score)}" placeholder="${ty==='tanto'?'例：58/75':'例：B評価'}"></label>
@@ -1396,7 +1402,7 @@ function kSheet(ex,ty,y,sj){
       put({...cur,id,kind:'k',ex,ty,y,cells:{...(cur.cells||{}),[sj]:{n:nn,dates:dates.slice(-10),score:q('#k-sc').value.trim(),memo:q('#k-memo').value.trim()}}});
       const m=Math.round(+q('#k-min').value||0);
       if(m>0)put({id:'l_'+uid(),kind:'l',date:today(),subject:SUBJ.includes(sj)?sj:sj==='民事実務'?'民法':sj==='刑事実務'?'刑法':'選択',min:m,memo:`過去問 ${ERA(y)} ${ty==='tanto'?'短答':'論文'} ${sj}`});
-      closeSheet();toast(addToday?`${ERA(y)} ${sj}：${nn}回目を記録しました`:'保存しました')};
+      closeSheet();toast(addToday?`${ERA(y)} ${SL(sj)}：${nn}回目を記録しました`:'保存しました')};
     q('#fx').onclick=closeSheet;q('#fs').onclick=()=>save(false);q('#k-today').onclick=()=>save(true);
   });
 }
@@ -1523,7 +1529,9 @@ const VIEWS=['today','tanto','ronsho','kakomon','kiroku','toren','plan'];
 const current=()=>{const h=location.hash.slice(1);return VIEWS.includes(h)?h:'today'};
 let rq=0;
 function render(){if(rq)return;rq=requestAnimationFrame(()=>{rq=0;doRender()});setTimeout(()=>{if(rq){cancelAnimationFrame(rq);rq=0;doRender()}},120)}
+let lastEl=null;
 function doRender(){
+  if(S().elective!==lastEl){if(lastEl!==null)refreshSubj();lastEl=S().elective}
   const v=current(),c=exam(),n=daysTo(c.date);
   if(!(Wt&&Wt.run))$('hd-count').textContent=n>0?`${c.label.replace(/^令和\d+年\s*/,'')}まであと${n}日`:'';
   setStore();
@@ -1534,6 +1542,7 @@ function doRender(){
 }
 window.addEventListener('hashchange',()=>{doRender();window.scrollTo(0,0)});
 subjOptions($('q-subj'),'全科目');subjOptions($('c-subj'),'全科目');subjOptions($('l-subj'));
+function refreshSubj(){[['q-subj','全科目'],['c-subj','全科目'],['l-subj',''],['ql-s','全科目'],['cl-s','全科目']].forEach(([id,all])=>{const el=$(id),v=el.value;subjOptions(el,all);el.value=v})}
 setupFilters('q','ql',renderQList);setupFilters('c','cl',renderCList);
 (function(){const el=$('cl-t'),draw=()=>{el.innerHTML=[['','全種類'],...Object.entries(CT).map(([k,v])=>[k,v.l])].map(([k,l])=>`<button class="fchip" data-t="${k}" aria-pressed="${LF.c.t===k}">${l}</button>`).join('')};
   draw();el.addEventListener('click',e=>{const b=e.target.closest('[data-t]');if(!b)return;LF.c.t=b.dataset.t;LF.c.limit=60;draw();renderCList()})})();
