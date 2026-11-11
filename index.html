@@ -362,15 +362,21 @@ details summary{cursor:pointer;font-size:.85rem;color:var(--muted)}
   <!-- 短答 -->
   <section id="v-tanto" class="view" hidden>
     <div class="panel">
-      <div class="spread"><h2>短答 一問一答</h2><div class="row" style="gap:6px"><button class="btn" data-import="q">取り込み</button><button class="btn" id="q-add">＋ 問題</button></div></div>
+      <div class="spread"><h2>短答</h2><div class="row" style="gap:6px"><button class="btn" data-import="q">取り込み</button><button class="btn" id="q-add">＋ 問題</button></div></div>
       <div class="stats" id="q-stats"></div>
       <div class="grid3">
         <label class="f">科目<select id="q-subj"></select></label>
-        <label class="f">出題範囲<select id="q-scope">
+        <label class="f">範囲<select id="q-scope">
           <option value="today">今日の復習</option><option value="all">すべて</option><option value="wrong">前回まちがえた</option><option value="flag">苦手★</option><option value="new">未学習</option></select></label>
         <label class="f">問題数<select id="q-num"><option value="10">10問</option><option value="20" selected>20問</option><option value="50">50問</option><option value="0">すべて</option></select></label>
       </div>
-      <button class="btn primary" id="q-start">演習を始める</button>
+      <button class="btn primary" id="q-start">復習を始める</button>
+    </div>
+    <div class="panel">
+      <h3>問題一覧</h3>
+      <div class="searchrow"><input type="search" id="ql-q" placeholder="問題文・条文・タグで検索" aria-label="問題を検索"><select id="ql-s" aria-label="科目で絞り込み"></select></div>
+      <div class="filters" id="ql-f"></div>
+      <div class="list" id="q-list"></div>
     </div>
     <div class="panel" id="m-panel">
       <h3>本番形式（時間を計って解く）</h3>
@@ -383,12 +389,6 @@ details summary{cursor:pointer;font-size:.85rem;color:var(--muted)}
       <div id="m-hist" class="list" style="gap:8px"></div>
     </div>
     <div class="panel gone"><h3>科目別の正答率</h3><div id="q-rate" class="list" style="gap:8px"></div></div>
-    <div class="panel gone">
-      <h3>問題一覧</h3>
-      <div class="searchrow"><input type="search" id="ql-q" placeholder="問題文・条文・タグで検索" aria-label="問題を検索"><select id="ql-s" aria-label="科目で絞り込み"></select></div>
-      <div class="filters" id="ql-f"></div>
-      <div class="list" id="q-list"></div>
-    </div>
   </section>
 
   <!-- 論証 -->
