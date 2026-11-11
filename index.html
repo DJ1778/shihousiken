@@ -332,7 +332,6 @@ details summary{cursor:pointer;font-size:.85rem;color:var(--muted)}
   <!-- 今日 -->
   <section id="v-today" class="view" hidden>
     <section class="count" id="count" aria-label="試験までの日数"></section>
-    <div class="panel" id="t-timer"></div>
     <div class="panel gone" id="t-elective" hidden></div>
     <div class="panel" id="t-plan"></div>
     <div class="panel" id="t-review"></div>
@@ -440,6 +439,7 @@ details summary{cursor:pointer;font-size:.85rem;color:var(--muted)}
 
   <!-- 記録 -->
   <section id="v-kiroku" class="view" hidden>
+    <div class="panel" id="t-timer"></div>
     <div class="panel">
       <div class="spread"><h2>勉強時間</h2><div class="seg" id="tb-p" role="group" aria-label="期間"></div></div>
       <div id="tb-chart"></div>
@@ -1007,9 +1007,9 @@ const tmElapsed=()=>tm.acc+(tm.run?Date.now()-tm.start:0);
 const clock=ms=>{const s=Math.floor(ms/1000);return pad(Math.floor(s/3600))+':'+pad(Math.floor(s/60)%60)+':'+pad(s%60)};
 function renderTimer(){
   const el=$('t-timer');if(!el)return;
-  el.innerHTML=`<div class="spread"><h3>学習タイマー</h3><label class="check"><input type="checkbox" id="tm-pomo"${tm.pomo?' checked':''}>25分ごとに休憩を知らせる</label></div>
+  el.innerHTML=`<div class="spread"><h2>学習タイマー</h2><label class="check"><input type="checkbox" id="tm-pomo"${tm.pomo?' checked':''}>25分ごとに休憩を知らせる</label></div>
     <div class="spread"><span class="clock${tm.run?' run':''}" id="tm-clock">${clock(tmElapsed())}</span><select id="tm-subj" style="width:auto;min-width:7em" aria-label="タイマーの科目">${SUBJ.map(s=>`<option value="${s}"${s===tm.subj?' selected':''}>${esc(SL(s))}</option>`).join('')}</select></div>
-    <div class="row"><button class="btn${tm.run?'':' primary'} wide" data-tm="toggle">${tm.run?'一時停止':tmElapsed()?'再開':'開始'}</button><button class="btn wide" data-tm="stop"${tmElapsed()?'':' disabled'}>終了して記録</button>${tmElapsed()&&!tm.run?'<button class="btn ghost" data-tm="reset">リセット</button>':''}</div>`;
+    <div class="row"><button class="btn${tm.run?'':' primary'} wide" data-tm="toggle">${tm.run?'一時停止':tmElapsed()?'再開':'開始'}</button><button class="btn wide" data-tm="stop"${tmElapsed()?'':' disabled'}>止めて記録</button>${tmElapsed()&&!tm.run?'<button class="btn ghost" data-tm="reset">リセット</button>':''}</div>`;
   $('tm-subj').onchange=e=>{tm.subj=e.target.value;saveTm()};
   $('tm-pomo').onchange=e=>{tm.pomo=e.target.checked;tm.lastPomo=Math.floor(tmElapsed()/1500000);saveTm()};
 }
@@ -1018,11 +1018,12 @@ function timerAct(a){
   else if(a==='reset'){tm={...tm,run:false,acc:0,start:0,lastPomo:0}}
   else if(a==='stop'){const m=Math.round(tmElapsed()/60000);tm={...tm,run:false,acc:0,start:0,lastPomo:0};saveTm();
     if(m<1){toast('1分未満なので記録しませんでした');renderTimer();return}
-    put({id:'l_'+uid(),kind:'l',date:today(),subject:tm.subj,min:m,memo:'タイマー'});toast(`${SL(tm.subj)} ${hm(m)}を記録しました`)}
+    put({id:'l_'+uid(),kind:'l',date:today(),subject:tm.subj,min:m,memo:'タイマー'});toast(`${SL(tm.subj)} ${hm(m)}を記録しました`);if(current()==='kiroku'){ui.tb=ui.tb||'week';doRender()}}
   saveTm();renderTimer();
 }
 setInterval(()=>{
   if(!tm.run)return;const c=$('tm-clock');if(c)c.textContent=clock(tmElapsed());
+  if(!(Wt&&Wt.run))$('hd-count').textContent='勉強中 '+clock(tmElapsed());
   if(tm.pomo){const n=Math.floor(tmElapsed()/1500000);if(n>(tm.lastPomo||0)){tm.lastPomo=n;saveTm();toast(`${n*25}分たちました。5分休憩しましょう`)}}
 },1000);
 
@@ -1043,6 +1044,7 @@ function heatmap(logs){
   return `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="18週間の学習カレンダー">${g}</svg><p class="note">1時間未満・2時間未満・4時間未満・4時間以上の4段階</p>`;
 }
 function renderKiroku(){
+  renderTimer();
   {const P={week:'今週',month:'今月',all:'全部'},per=P[ui.tb]?ui.tb:'week',t=today();
     $('tb-p').innerHTML=Object.entries(P).map(([k,l])=>`<button data-tb="${k}" aria-pressed="${k===per}">${l}</button>`).join('');
     const from=per==='week'?monday():per==='month'?t.slice(0,8)+'01':'0000';
@@ -1739,7 +1741,7 @@ let lastEl=null;
 function doRender(){
   if(S().elective!==lastEl){if(lastEl!==null)refreshSubj();lastEl=S().elective}
   const v=current(),c=exam(),n=daysTo(c.date);
-  if(!(Wt&&Wt.run))$('hd-count').textContent=n>0?`${c.label.replace(/^令和\d+年\s*/,'')}まであと${n}日`:'';
+  if(!(Wt&&Wt.run)&&!tm.run)$('hd-count').textContent=n>0?`${c.label.replace(/^令和\d+年\s*/,'')}まであと${n}日`:'';
   setStore();
   const due=[...list('q'),...list('c')].filter(isDue).length,b=$('badge');b.hidden=!due||!(mine('q').length+mine('c').length);b.textContent=due>99?'99+':due;
   $('nav-back').hidden=v==='today';applyFold();
