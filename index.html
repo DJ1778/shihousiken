@@ -264,6 +264,17 @@ details.info .tbl+.note{margin-bottom:12px}
 .hs.s3{background:var(--ng);color:var(--surface)}
 .hs:focus-visible{outline:2px solid var(--ink);outline-offset:2px}
 .hs-top{display:grid;grid-template-columns:1fr 6.5em;gap:8px}
+/* 勉強時間グラフ */
+.tb{display:flex;flex-direction:column;gap:10px}
+.tb-row{display:grid;grid-template-columns:4.6em 1fr 4.4em;gap:10px;align-items:center;font-size:.9rem}
+.tb-row .lb{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.tb-row .tr{height:22px;background:var(--accent-soft);border-radius:4px;overflow:hidden}
+.tb-row .fl{height:100%;background:var(--accent);border-radius:4px;min-width:2px}
+.tb-row .vl{text-align:right;font-family:var(--f-num);font-variant-numeric:tabular-nums;font-size:.85rem}
+.tb-row.zero .vl,.tb-row.zero .lb{color:var(--muted)}
+.tb-row.zero .fl{min-width:0}
+.tb-total{display:flex;align-items:baseline;gap:8px}
+.tb-total b{font-family:var(--f-num);font-size:1.8rem;font-variant-numeric:tabular-nums;line-height:1.1}
 /* player */
 .player{position:fixed;inset:0;z-index:60;background:var(--bg);overflow:auto;
   padding:calc(env(safe-area-inset-top,0px) + 12px) max(16px,env(safe-area-inset-right,0px)) calc(env(safe-area-inset-bottom,0px) + 28px) max(16px,env(safe-area-inset-left,0px))}
@@ -430,24 +441,22 @@ details summary{cursor:pointer;font-size:.85rem;color:var(--muted)}
   <!-- 記録 -->
   <section id="v-kiroku" class="view" hidden>
     <div class="panel">
-      <h2>学習記録</h2>
-      <div class="stats" id="l-stats"></div>
+      <div class="spread"><h2>勉強時間</h2><div class="seg" id="tb-p" role="group" aria-label="期間"></div></div>
+      <div id="tb-chart"></div>
+    </div>
+    <div class="panel">
+      <h3>時間を記録する</h3>
       <form id="l-form" class="grid2">
         <label class="f">日付<input type="date" id="l-date" required></label>
         <label class="f">科目<select id="l-subj"></select></label>
         <label class="f">時間（分）<input type="number" id="l-min" min="1" max="1440" inputmode="numeric" placeholder="90" required></label>
-        <label class="f">メモ<input type="text" id="l-memo" placeholder="例：債権総論 過去問3年分"></label>
+        <label class="f">メモ（任意）<input type="text" id="l-memo" placeholder="例：債権総論"></label>
         <button class="btn primary" style="grid-column:1/-1">記録する</button>
       </form>
+      <details><summary>記録したものを直す・消す</summary><div class="list" id="l-list"></div></details>
     </div>
     <div class="panel" id="hs-panel"></div>
-    <div class="panel" data-fold="heat"><h3>学習カレンダー（18週）</h3><div class="chart" id="l-heat"></div></div>
-    <div class="panel gone"><h3>直近14日の学習時間</h3><div class="chart" id="l-chart"></div></div>
-    <div class="panel" data-fold="weak"><h3>弱点分析（直近30日）</h3><div id="l-weak"></div></div>
-    <div class="panel gone"><h3>復習の成績（直近30日）</h3><div class="stats" id="l-review"></div></div>
-    <div class="panel gone"><h3>科目別（直近30日）</h3><div id="l-subjbars" class="list" style="gap:8px"></div></div>
-    <div class="panel gone" id="l-badges"></div>
-    <div class="panel"><h3>最近の記録</h3><div class="list" id="l-list"></div></div>
+    <div class="gone"><div id="l-stats"></div><div id="l-heat"></div><div id="l-chart"></div><div id="l-weak"></div><div id="l-review"></div><div id="l-subjbars"></div><div id="l-badges"></div></div>
   </section>
 
   <!-- 答練 -->
@@ -681,6 +690,7 @@ document.addEventListener('click',e=>{
   const kk=e.target.closest('[data-kk]');if(kk){const [y,sj]=kk.dataset.kk.split('|');kSheet(ui.kEx||'shiho',ui.kTy||'tanto',+y,sj);return}
   const kx=e.target.closest('[data-kex],[data-kty]');if(kx){if(kx.dataset.kex)ui.kEx=kx.dataset.kex;else ui.kTy=kx.dataset.kty;saveUi();renderKako();return}
   if(e.target.closest('[data-plan="new"]')){planSheet();return}
+  const tb=e.target.closest('[data-tb]');if(tb){ui.tb=tb.dataset.tb;saveUi();renderKiroku();return}
   const more=e.target.closest('[data-more]');if(more){LF[more.dataset.more].limit+=60;more.dataset.more==='q'?renderQList():renderCList();return}
 });
 
@@ -1033,6 +1043,14 @@ function heatmap(logs){
   return `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="18週間の学習カレンダー">${g}</svg><p class="note">1時間未満・2時間未満・4時間未満・4時間以上の4段階</p>`;
 }
 function renderKiroku(){
+  {const P={week:'今週',month:'今月',all:'全部'},per=P[ui.tb]?ui.tb:'week',t=today();
+    $('tb-p').innerHTML=Object.entries(P).map(([k,l])=>`<button data-tb="${k}" aria-pressed="${k===per}">${l}</button>`).join('');
+    const from=per==='week'?monday():per==='month'?t.slice(0,8)+'01':'0000';
+    const logs=mine('l').filter(l=>l.date>=from&&l.date<=t),tot=logs.reduce((a,l)=>a+(+l.min||0),0);
+    const rows=SUBJ.map(sj=>({sj,m:logs.filter(l=>l.subject===sj).reduce((a,l)=>a+(+l.min||0),0)})),mx=Math.max(1,...rows.map(r=>r.m));
+    $('tb-chart').innerHTML=`<div class="tb-total"><b>${(tot/60).toFixed(1)}</b><span>時間（${P[per]}の合計）</span></div>
+      <div class="tb">${rows.map(r=>`<div class="tb-row${r.m?'':' zero'}"><span class="lb">${esc(SL(r.sj))}</span><div class="tr"><div class="fl" style="width:${r.m?Math.max(1,r.m/mx*100):0}%"></div></div><span class="vl">${r.m?(r.m/60).toFixed(1)+'h':'0'}</span></div>`).join('')}</div>
+      ${tot?'':'<p class="note">学習タイマーを使うか、下で時間を記録すると、ここに科目ごとの時間が出ます。</p>'}`;}
   const ls=list('l'),t=today();
   const sum=from=>ls.filter(l=>l.date>=from&&l.date<=t).reduce((a,l)=>a+(+l.min||0),0);
   $('l-stats').innerHTML=`<div class="stat"><b>${hm(sum(t))}</b><span>今日</span></div><div class="stat"><b>${hm(sum(addDays(t,-6)))}</b><span>直近7日</span></div><div class="stat"><b>${hm(sum(addDays(t,-29)))}</b><span>直近30日</span></div>`;
@@ -1049,7 +1067,7 @@ function renderKiroku(){
   $('l-review').innerHTML=`<div class="stat"><b>${n}</b><span>復習した数</span></div><div class="stat"><b>${n?Math.round(ok/n*100)+'%':'—'}</b><span>想起できた率</span></div><div class="stat"><b>${dset.size}日</b><span>復習した日</span></div>`;
   const sub=SUBJ.map(s=>({label:SLS(s),v:ls.filter(l=>l.subject===s&&l.date>=from).reduce((a,l)=>a+(+l.min||0),0)})).filter(r=>r.v),mx=Math.max(1,...sub.map(r=>r.v));
   $('l-subjbars').innerHTML=sub.length?rateBars(sub.sort((a,b)=>b.v-a.v).map(r=>({...r,max:mx,txt:(r.v/60).toFixed(1)+'h'}))):'<div class="empty">記録するとここに科目別の時間が出ます。</div>';
-  $('l-list').innerHTML=exNote('l')+ls.slice().sort((a,b)=>b.date.localeCompare(a.date)).slice(0,30).map(l=>`<div class="item"><div class="body">
+  $('l-list').innerHTML=mine('l').slice().sort((a,b)=>b.date.localeCompare(a.date)).slice(0,30).map(l=>`<div class="item"><div class="body">
     <div class="row" style="gap:6px"><span class="meta">${md(l.date)}</span><span class="chip">${esc(SL(l.subject))}</span>${isEx(l)?'<span class="chip ex">例</span>':''}<span class="score">${hm(+l.min)}</span></div>
     ${l.memo?`<div class="note">${esc(l.memo)}</div>`:''}</div>${isEx(l)?'':delBtn(l.id)}</div>`).join('');
 }
