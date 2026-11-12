@@ -275,6 +275,19 @@ details.info .tbl+.note{margin-bottom:12px}
 .tb-row.zero .fl{min-width:0}
 .tb-total{display:flex;align-items:baseline;gap:8px}
 .tb-total b{font-family:var(--f-num);font-size:1.8rem;font-variant-numeric:tabular-nums;line-height:1.1}
+/* 短答パーフェクト */
+.pf-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(44px,1fr));gap:6px}
+.pf{position:relative;min-height:44px;border-radius:8px;border:1px solid var(--line);background:var(--surface);color:var(--muted);font-family:var(--f-num);font-size:.72rem;cursor:pointer;padding:2px 0 0;display:flex;flex-direction:column;align-items:center;justify-content:center;line-height:1.1}
+.pf b{font-family:var(--f-display);font-size:1.1rem;line-height:1}
+.pf.o{border-color:var(--ok);color:var(--ok);background:var(--accent-soft)}
+.pf.t{border-color:var(--warn);color:var(--warn)}
+.pf.x{border-color:var(--ng);color:var(--ng);background:var(--ng-soft)}
+.pf.prev::after{content:"";position:absolute;top:4px;right:4px;width:6px;height:6px;border-radius:50%;background:var(--ng)}
+.pf:focus-visible{outline:2px solid var(--ink);outline-offset:2px}
+.pf-stats{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;text-align:center}
+.pf-stats div{display:flex;flex-direction:column}
+.pf-stats b{font-family:var(--f-num);font-size:1.2rem;font-variant-numeric:tabular-nums}
+.pf-stats span{font-size:.72rem;color:var(--muted)}
 /* player */
 .player{position:fixed;inset:0;z-index:60;background:var(--bg);overflow:auto;
   padding:calc(env(safe-area-inset-top,0px) + 12px) max(16px,env(safe-area-inset-right,0px)) calc(env(safe-area-inset-bottom,0px) + 28px) max(16px,env(safe-area-inset-left,0px))}
@@ -361,6 +374,7 @@ details summary{cursor:pointer;font-size:.85rem;color:var(--muted)}
 
   <!-- 短答 -->
   <section id="v-tanto" class="view" hidden>
+    <div class="panel" id="pf-panel"></div>
     <div class="panel">
       <div class="spread"><h2>短答</h2><div class="row" style="gap:6px"><button class="btn" data-import="q">取り込み</button><button class="btn" id="q-add">＋ 問題</button></div></div>
       <div class="stats" id="q-stats"></div>
@@ -890,6 +904,7 @@ function renderQList(){
      ${actsHtml(q)}</div>`).join('')+moreBtn('q',xs.length):'<div class="empty">条件に合う問題はありません。</div>');
 }
 function renderTanto(){
+  renderPF();
   const qs=list('q');let c=0,w=0;qs.forEach(q=>{c+=q.stats?.c||0;w+=q.stats?.w||0});
   const due=qs.filter(isDue).length;
   $('q-stats').innerHTML=`<div class="stat"><b>${due}</b><span>今日の復習</span></div><div class="stat"><b>${qs.length}</b><span>登録問題</span></div><div class="stat"><b>${c+w?Math.round(c/(c+w)*100)+'%':'—'}</b><span>通算正答率</span></div>`;
@@ -1187,7 +1202,7 @@ const parseAns=s=>{s=nz(s);if(['○','〇','o','◯','正','true','1','t','ま�
 function parseImport(type,text){
   const out=[];let bad=0;
   if(type==='json'){try{const j=JSON.parse(text),arr=Array.isArray(j)?j:j&&j.items;
-      (arr||[]).forEach(x=>{if(x&&typeof x==='object'&&['q','c','l','a','s','m','st','k','p','pd','h'].includes(x.kind)&&/^[A-Za-z0-9_.~:@+-]{1,150}$/.test(String(x.id))&&!/^\.{1,2}$/.test(x.id)&&!isEx(x))out.push(x);else bad++})}
+      (arr||[]).forEach(x=>{if(x&&typeof x==='object'&&['q','c','l','a','s','m','st','k','p','pd','h','pf'].includes(x.kind)&&/^[A-Za-z0-9_.~:@+-]{1,150}$/.test(String(x.id))&&!/^\.{1,2}$/.test(x.id)&&!isEx(x))out.push(x);else bad++})}
     catch(e){return {out,bad:-1}}return {out,bad}}
   let rows=parseTable(text);if(rows.length&&/^(科目|種類)/.test(rows[0][0]))rows=rows.slice(1);
   rows.forEach(r=>{const subj=normSubj(r[0]);
@@ -1776,6 +1791,41 @@ document.addEventListener('click',e=>{const t=e.target.closest('[data-hs]');if(!
 document.addEventListener('change',e=>{
   if(e.target.id==='hs-b'){ui.hs=e.target.value;saveUi();renderHS()}
   if(e.target.id==='hs-n'){const n=Math.max(1,Math.min(400,Math.round(+e.target.value||100))),k=HS_BOOKS.some(b=>b[0]===ui.hs)?ui.hs:'kenpo1';hsSave(k,b=>{b.n=n});toast(`件数を${n}件にしました`)}
+});
+
+/* ---------- 短答過去問パーフェクト（辰已）の記録 ---------- */
+const PF_BOOKS=[['kenpo','憲法'],['minpo1','民法Ⅰ'],['minpo2','民法Ⅱ'],['keiho','刑法'],['gyosei','行政法'],['shoho','商法'],['minso','民事訴訟法'],['keiso','刑事訴訟法']];
+const PF_MARK={o:'○',t:'△',x:'×'},PF_NEXT={'':'o',o:'t',t:'x',x:''};
+const pfDoc=()=>items.get('perfect')||{id:'perfect',kind:'pf',books:{}};
+const pfKey=()=>PF_BOOKS.some(b=>b[0]===ui.pfb)?ui.pfb:'kenpo';
+const pfBook=k=>{const b=(pfDoc().books||{})[k]||{};return {n:+b.n||100,r:b.r||{}}};
+const pfRound=()=>[1,2,3].includes(ui.pfr)?ui.pfr:1;
+function renderPF(){
+  const el=$('pf-panel');if(!el)return;
+  const k=pfKey(),b=pfBook(k),rd=pfRound(),f=ui.pff||'all';
+  const mk=i=>(b.r[i]||{})[rd]||'',prevBad=i=>{for(let r=rd-1;r>=1;r--){const m=(b.r[i]||{})[r];if(m)return m!=='o'}return false};
+  let o=0,t=0,x=0;for(let i=1;i<=b.n;i++){const m=mk(i);if(m==='o')o++;else if(m==='t')t++;else if(m==='x')x++}
+  const done=o+t+x;
+  const nums=Array.from({length:b.n},(_,i)=>i+1).filter(i=>f==='all'?true:f==='redo'?(rd===1?['t','x'].includes(mk(i)):prevBad(i)||['t','x'].includes(mk(i))):!mk(i));
+  el.innerHTML=`<div class="spread"><h2>短答過去問パーフェクト</h2><span class="meta">${done} / ${b.n}問</span></div>
+    <div class="hs-top"><label class="f">本<select id="pf-b">${PF_BOOKS.map(([key,l])=>{const bb=pfBook(key);let d=0;for(const v of Object.values(bb.r))if(v&&v[rd])d++;return `<option value="${key}"${key===k?' selected':''}>${l}${d?`（${d}/${bb.n}）`:''}</option>`}).join('')}</select></label>
+    <label class="f">問題数<input type="number" id="pf-n" min="1" max="999" inputmode="numeric" value="${b.n}"></label></div>
+    <div class="seg" role="group" aria-label="周回">${[1,2,3].map(r=>`<button data-pfr="${r}" aria-pressed="${r===rd}">${r}周目</button>`).join('')}</div>
+    <div class="meter"><i style="width:${Math.round(done/b.n*100)}%"></i></div>
+    <div class="pf-stats"><div><b>${done}</b><span>解いた</span></div><div><b style="color:var(--ok)">${o}</b><span>○ 正解</span></div><div><b style="color:var(--warn)">${t}</b><span>△ あやふや</span></div><div><b style="color:var(--ng)">${x}</b><span>× まちがい</span></div></div>
+    <div class="filters">${[['all','すべて'],['redo','×と△だけ'],['todo','まだ解いていない']].map(([v,l])=>`<button class="fchip" data-pff="${v}" aria-pressed="${f===v}">${l}</button>`).join('')}</div>
+    <div class="pf-grid">${nums.map(i=>{const m=mk(i);return `<button class="pf${m?' '+m:''}${!m&&prevBad(i)?' prev':''}" data-pf="${i}" aria-label="No.${i} ${m?PF_MARK[m]:'未記入'}">${i}${m?`<b>${PF_MARK[m]}</b>`:''}</button>`}).join('')||'<p class="note">該当する問題はありません。</p>'}</div>
+    <p class="note">番号を押すたびに ○→△→×→消す。赤い点は、前の周で×か△だった問題です。</p>`;
+}
+function pfSave(fn){const k=pfKey(),d=pfDoc(),books={...(d.books||{})},b=pfBook(k),nb={n:b.n,r:JSON.parse(JSON.stringify(b.r))};fn(nb);books[k]=nb;put({...d,id:'perfect',kind:'pf',books})}
+document.addEventListener('click',e=>{
+  const c=e.target.closest('[data-pf]');if(c){const i=c.dataset.pf,rd=pfRound();pfSave(b=>{const cur=(b.r[i]||{})[rd]||'',nx=PF_NEXT[cur];b.r[i]={...(b.r[i]||{})};if(nx)b.r[i][rd]=nx;else delete b.r[i][rd];if(!Object.keys(b.r[i]).length)delete b.r[i]});return}
+  const r=e.target.closest('[data-pfr]');if(r){ui.pfr=+r.dataset.pfr;saveUi();renderPF();return}
+  const f=e.target.closest('[data-pff]');if(f){ui.pff=f.dataset.pff;saveUi();renderPF();return}
+});
+document.addEventListener('change',e=>{
+  if(e.target.id==='pf-b'){ui.pfb=e.target.value;saveUi();renderPF()}
+  if(e.target.id==='pf-n'){const n=Math.max(1,Math.min(999,Math.round(+e.target.value||100)));pfSave(b=>{b.n=n});toast(`問題数を${n}問にしました`)}
 });
 
 /* ---------- 画面切替 ---------- */
