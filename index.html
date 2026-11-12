@@ -1700,7 +1700,8 @@ ${d.ref||'（なし）'}
 - 良い点と改善点は具体的に、改善点は次の答案ですぐ直せる形で書く。
 
 次の形のJSONだけを返してください（説明文は不要）：
-{"grade":"B","score":62,"summary":"総評を3文程度","points":[{"t":"論点名","hit":true,"comment":"一言の講評"}],"good":["良い点"],"improve":["改善点"],"outline":"答案構成の例（論点の順に、改行で区切る）"}`;
+{"grade":"B","score":62,"summary":"総評を3文程度","points":[{"t":"論点名","hit":true,"comment":"一言の講評"}],"good":["良い点"],"improve":["改善点"],"outline":"答案構成の例（論点の順に、改行で区切る）","cards":[{"t":"落とした論点の名前","body":"その論点の論証（問題提起は不要。規範と理由付けを2〜5文で。覚えるべき重要語句は【】で囲む）","src":"根拠条文や判例（例：民法177条、最判昭53.9.7）"}]}
+cardsには、hitがfalseの論点だけを入れる。判例・通説に沿った正確な内容に限り、自信がない論点は入れない。`;
 }
 function aiResultHtml(r){
   if(!r)return '';
@@ -1753,16 +1754,21 @@ async function gradeSheet(pre){
         const r=await sample.json(aiPrompt(d,nQ,nA),{signal:ctl.signal,modelTier:'complex',images:[...imgs.q,...imgs.a],cache:false});
         if(!r||typeof r!=='object')throw {code:'invalid_json'};
         result=r;
+        const cards=(Array.isArray(r.cards)?r.cards:[]).filter(c=>c&&c.t&&c.body).slice(0,10);
         out.innerHTML=`<div class="panel">${aiResultHtml(r)}
           ${pre.k?`<label class="check"><input type="checkbox" id="ai-k" checked>過去問（${esc(pre.title)}）の回数も＋1する</label>`:''}
-          <div class="row"><button class="btn primary wide" id="ai-save">答練の記録に保存</button></div></div>`;
+          ${cards.length?`<div><h3>論証カードにする（落とした論点）</h3>${cards.map((c,i)=>`<label class="pt"><input type="checkbox" id="ai-c${i}" checked><span><b>${esc(c.t)}</b><small style="display:block;color:var(--muted)">${esc(String(c.body).replace(/[【】]/g,'').slice(0,60))}…</small></span></label>`).join('')}<p class="note">AIが作った下書きです。暗記タブでいつでも直せます。</p></div>`:''}
+          <div class="row"><button class="btn primary wide" id="ai-save">保存する${cards.length?'（カードも作る）':''}</button></div></div>`;
         q('#ai-save').onclick=()=>{
           const pts=(Array.isArray(r.points)?r.points:[]).map(p=>({t:String(p.t||'').slice(0,200),h:!!p.hit})).filter(p=>p.t);
           const memo=[r.summary,...(r.improve||[]).map(x=>'・'+x)].filter(Boolean).join('\n').slice(0,2000);
+          let made=0;cards.forEach((c,i)=>{if(!q('#ai-c'+i)?.checked)return;const t=String(c.t).slice(0,120);
+            if(mine('c').some(x=>x.subject===d.subjKey&&nz(x.title)===nz(t)))return;
+            put({id:'c_'+uid(),kind:'c',ctype:'ronsho',use:'ronbun',subject:d.subjKey,title:t,body:String(c.body).slice(0,2000),article:String(c.src||'').slice(0,120),tags:'答練 AI作成'});made++});
           put({id:'a_'+uid(),kind:'a',date:today(),subject:d.subjKey,title:d.title||`${d.subject} 答案`,score:`AI ${r.grade||''}（推定${r.score??'—'}点）`,points:pts,memo,ai:r});
           if(pre.k&&q('#ai-k')?.checked){const k=pre.k,id=kid(k.ex,k.ty,k.y),cur=items.get(id)||{id,kind:'k',ex:k.ex,ty:k.ty,y:k.y,cells:{}},c=(cur.cells||{})[k.sj]||{n:0,dates:[]};
             put({...cur,cells:{...(cur.cells||{}),[k.sj]:{...c,n:(+c.n||0)+1,dates:[...(c.dates||[]),today()].slice(-10),score:`AI ${r.grade||''}`}}})}
-          closeSheet();toast('採点結果を答練に保存しました。落とした論点はカードにできます');
+          closeSheet();toast(made?`保存しました。論証カードを${made}枚作りました（暗記タブ）`:'採点結果を答練に保存しました');
           if(current()!=='toren')location.hash='toren';
         };
       }catch(e){
@@ -1801,6 +1807,7 @@ const PF_MARK={o:'○',t:'△',x:'×'},PF_NEXT={'':'o',o:'t',t:'x',x:''};
 const pfDoc=()=>items.get('perfect')||{id:'perfect',kind:'pf',books:{}};
 const pfKey=()=>PF_BOOKS.some(b=>b[0]===ui.pfb)?ui.pfb:'kenpo';
 const pfBook=k=>{const b=(pfDoc().books||{})[k]||{};return {n:+b.n||100,r:b.r||{}}};
+let pfLast=null;
 const pfRound=()=>[1,2,3].includes(ui.pfr)?ui.pfr:1;
 function renderPF(){
   const el=$('pf-panel');if(!el)return;
@@ -1816,12 +1823,18 @@ function renderPF(){
     <div class="meter"><i style="width:${Math.round(done/b.n*100)}%"></i></div>
     <div class="pf-stats"><div><b>${done}</b><span>解いた</span></div><div><b style="color:var(--ok)">${o}</b><span>○ 正解</span></div><div><b style="color:var(--warn)">${t}</b><span>△ あやふや</span></div><div><b style="color:var(--ng)">${x}</b><span>× まちがい</span></div></div>
     <div class="filters">${[['all','すべて'],['redo','×と△だけ'],['todo','まだ解いていない']].map(([v,l])=>`<button class="fchip" data-pff="${v}" aria-pressed="${f===v}">${l}</button>`).join('')}</div>
+    ${pfLast?`<div class="reco" style="background:var(--ng-soft);border-radius:8px;padding:10px 12px;border:0"><span>No.${pfLast.i} を${PF_MARK[pfLast.m]}にしました。まちがえたポイントをカードにしますか？</span><div class="row" style="gap:6px"><button class="btn primary" data-pf-card>カードにする</button><button class="btn ghost" data-pf-skip>しない</button></div></div>`:''}
     <div class="pf-grid">${nums.map(i=>{const m=mk(i);return `<button class="pf${m?' '+m:''}${!m&&prevBad(i)?' prev':''}" data-pf="${i}" aria-label="No.${i} ${m?PF_MARK[m]:'未記入'}">${i}${m?`<b>${PF_MARK[m]}</b>`:''}</button>`}).join('')||'<p class="note">該当する問題はありません。</p>'}</div>
     <p class="note">番号を押すたびに ○→△→×→消す。赤い点は、前の周で×か△だった問題です。</p>`;
 }
 function pfSave(fn){const k=pfKey(),d=pfDoc(),books={...(d.books||{})},b=pfBook(k),nb={n:b.n,r:JSON.parse(JSON.stringify(b.r))};fn(nb);books[k]=nb;put({...d,id:'perfect',kind:'pf',books})}
 document.addEventListener('click',e=>{
-  const c=e.target.closest('[data-pf]');if(c){const i=c.dataset.pf,rd=pfRound();pfSave(b=>{const cur=(b.r[i]||{})[rd]||'',nx=PF_NEXT[cur];b.r[i]={...(b.r[i]||{})};if(nx)b.r[i][rd]=nx;else delete b.r[i][rd];if(!Object.keys(b.r[i]).length)delete b.r[i]});return}
+  const c=e.target.closest('[data-pf]');if(c){const i=c.dataset.pf,rd=pfRound();let nx='';pfSave(b=>{const cur=(b.r[i]||{})[rd]||'';nx=PF_NEXT[cur];b.r[i]={...(b.r[i]||{})};if(nx)b.r[i][rd]=nx;else delete b.r[i][rd];if(!Object.keys(b.r[i]).length)delete b.r[i]});
+    pfLast=(nx==='x'||nx==='t')?{i,m:nx}:null;renderPF();return}
+  if(e.target.closest('[data-pf-card]')&&pfLast){const k=pfKey(),bk=PF_BOOKS.find(b=>b[0]===k),subj={kenpo:'憲法',minpo1:'民法',minpo2:'民法',keiho:'刑法',gyosei:'行政法',shoho:'商法',minso:'民訴',keiso:'刑訴'}[k]||'民法',tag=`パーフェクト${bk[1]}No.${pfLast.i}`;
+    pfLast=null;renderPF();cForm({ctype:'qa',use:'tanto',subject:subj,title:'',body:'',article:'',tags:tag});
+    setTimeout(()=>{const t=$('fc-t');if(t)t.placeholder='まちがえたポイントを問いの形で（例：中止犯の刑は？）';const b=$('fc-b');if(b)b.placeholder='正しい答えを自分の言葉で（例：必要的に減軽又は免除）'},0);return}
+  if(e.target.closest('[data-pf-skip]')){pfLast=null;renderPF();return}
   const r=e.target.closest('[data-pfr]');if(r){ui.pfr=+r.dataset.pfr;saveUi();renderPF();return}
   const f=e.target.closest('[data-pff]');if(f){ui.pff=f.dataset.pff;saveUi();renderPF();return}
 });
