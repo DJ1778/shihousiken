@@ -918,7 +918,7 @@ function renderTanto(){
 /* ---------- 暗記カード ---------- */
 function cForm(c,keep){
   const defT=keep&&keep.t||ui.lastCt||$('c-type').value||'ronsho';
-  c=c||{ctype:defT,use:keep&&keep.u||(defT==='qa'?'tanto':defT==='ronsho'?'ronbun':'both'),subject:keep&&keep.s||$('c-subj').value||'民法',title:'',body:'',article:'',issue:'',facts:'',tags:''};
+  c=c||{ctype:defT,use:keep&&keep.u||(defT==='qa'?'tanto':defT==='ronsho'?'ronbun':'both'),subject:keep&&keep.s||$('c-subj').value||'民法',title:'',body:'',article:'',issue:'',facts:'',tags:keep&&keep.g||''};
   const editing=c.id&&!isEx(c),t0=ctOf(c);
   openSheet(`<h2>${editing?'カードを編集':'カードを追加'}</h2>
    <div class="grid3"><label class="f">種類<select id="fc-k">${Object.entries(CT).map(([k,v])=>`<option value="${k}"${k===t0?' selected':''}>${v.l}</option>`).join('')}</select></label>
@@ -947,7 +947,7 @@ function cForm(c,keep){
     const save=()=>{const t=q('#fc-t').value.trim(),b=ta.value.trim(),k=q('#fc-k').value;if(!t||!b){toast(`${CT[k].front}と${CT[k].back}を入力してください`);return null}
       const hr=k==='hanrei',out={...(editing?c:{}),id:editing?c.id:'c_'+uid(),kind:'c',ctype:k,use:q('#fc-u').value,subject:q('#fc-s').value,title:t,body:b,
         article:(hr?q('#fc-r2'):q('#fc-r')).value.trim(),issue:hr?q('#fc-i').value.trim():'',facts:hr?q('#fc-f').value.trim():'',tags:q('#fc-g').value.trim()};
-      put(out);ui.lastCt=k;saveUi();return {t:k,u:out.use,s:out.subject}};
+      put(out);ui.lastCt=k;saveUi();return {t:k,u:out.use,s:out.subject,g:out.tags}};
     const fx=q('#fx');if(fx)fx.onclick=closeSheet;
     const fn=q('#fn');if(fn)fn.onclick=()=>{const k=save();if(k){toast('保存しました。続けて入力できます');cForm(null,k)}};
     q('#fs').onclick=()=>{if(save()){closeSheet();toast('保存しました')}};
