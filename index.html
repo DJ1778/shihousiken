@@ -21,7 +21,7 @@
 :root{
   --bg:#f3f4f0; --surface:#ffffff; --ink:#1b2420; --muted:#5f6b65; --line:#d9ddd6;
   --accent:#2d6a4f; --accent-soft:#e1ece5; --on-accent:#ffffff;
-  --ok:#2d6a4f; --ng:#b8432f; --ng-soft:#f6e3df; --warn:#9a6a12; --scrim:rgba(10,16,13,.45);
+  --ok:#2d6a4f; --ng:#b8432f; --ng-soft:#f6e3df; --warn:#9a6a12; --scrim:rgba(10,16,13,.45); --red:#c62828; --blue:#1f5fa8;
   --f-display:"Shippori Mincho","Hiragino Mincho ProN","Yu Mincho",serif;
   --f-body:"Zen Kaku Gothic New","Hiragino Sans","Yu Gothic",system-ui,sans-serif;
   --f-num:"IBM Plex Mono",ui-monospace,monospace;
@@ -30,11 +30,11 @@
 @media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
   --bg:#121815; --surface:#1a221e; --ink:#e7ece8; --muted:#9aa7a0; --line:#2c3732;
   --accent:#6fbf94; --accent-soft:#1f3329; --on-accent:#0d1511;
-  --ok:#6fbf94; --ng:#e8836f; --ng-soft:#3a2420; --warn:#d9a948; --scrim:rgba(0,0,0,.6); color-scheme:dark}}
+  --ok:#6fbf94; --ng:#e8836f; --ng-soft:#3a2420; --warn:#d9a948; --scrim:rgba(0,0,0,.6); --red:#ff7a6e; --blue:#86b8ff; color-scheme:dark}}
 :root[data-theme="dark"]{
   --bg:#121815; --surface:#1a221e; --ink:#e7ece8; --muted:#9aa7a0; --line:#2c3732;
   --accent:#6fbf94; --accent-soft:#1f3329; --on-accent:#0d1511;
-  --ok:#6fbf94; --ng:#e8836f; --ng-soft:#3a2420; --warn:#d9a948; --scrim:rgba(0,0,0,.6); color-scheme:dark}
+  --ok:#6fbf94; --ng:#e8836f; --ng-soft:#3a2420; --warn:#d9a948; --scrim:rgba(0,0,0,.6); --red:#ff7a6e; --blue:#86b8ff; color-scheme:dark}
 
 *{box-sizing:border-box}
 [hidden],.gone{display:none!important}
@@ -288,6 +288,10 @@ details.info .tbl+.note{margin-bottom:12px}
 .pf-stats div{display:flex;flex-direction:column}
 .pf-stats b{font-family:var(--f-num);font-size:1.2rem;font-variant-numeric:tabular-nums}
 .pf-stats span{font-size:.72rem;color:var(--muted)}
+.cr{color:var(--red);font-weight:700}
+.cb{color:var(--blue);font-weight:700}
+.kwhelp .btn.red{color:var(--red);font-weight:700}
+.kwhelp .btn.blue{color:var(--blue);font-weight:700}
 /* player */
 .player{position:fixed;inset:0;z-index:60;background:var(--bg);overflow:auto;
   padding:calc(env(safe-area-inset-top,0px) + 12px) max(16px,env(safe-area-inset-right,0px)) calc(env(safe-area-inset-bottom,0px) + 28px) max(16px,env(safe-area-inset-left,0px))}
@@ -520,7 +524,9 @@ const daysTo=s=>Math.round((new Date(s+'T00:00:00')-new Date(today()+'T00:00:00'
 const uid=()=>Date.now().toString(36)+Math.random().toString(36).slice(2,8);
 const md=s=>{if(!s)return '';const p=s.split('-');return (+p[1])+'/'+(+p[2])};
 const hm=m=>m>=60?Math.floor(m/60)+'時間'+(m%60?m%60+'分':''):m+'分';
-const nz=s=>String(s??'').normalize('NFKC').replace(/\s+/g,'').toLowerCase();
+const nz=s=>String(s??'').replace(/[《》〔〕]/g,'').normalize('NFKC').replace(/\s+/g,'').toLowerCase();
+const tint=h=>h.replace(/《([^《》]*)》/g,'<span class="cr">$1</span>').replace(/〔([^〔〕]*)〕/g,'<span class="cb">$1</span>');
+const stripC=t=>String(t??'').replace(/[《》〔〕]/g,'');
 const shuffle=a=>{a=a.slice();for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]]}return a};
 const loadJSON=k=>{try{return JSON.parse(localStorage.getItem(k)||'null')}catch(e){return null}};
 const saveJSON=(k,v)=>{try{localStorage.setItem(k,JSON.stringify(v))}catch(e){}};
@@ -632,12 +638,12 @@ const kwCount=b=>parts(b).filter(p=>p.k).length;
 function fmt(body,how,o){
   let i=-1;
   return parts(body).map(p=>{
-    if(p.k==null)return esc(p.t);
+    if(p.k==null)return tint(esc(p.t));
     i++;
-    if(how==='plain')return `<mark class="kw">${esc(p.k)}</mark>`;
-    if(how==='check')return `<mark class="kw ${o.norm.includes(nz(p.k))?'hit':'miss'}">${esc(p.k)}</mark>`;
-    if(o.revealed.has(i))return `<mark class="kw">${esc(p.k)}</mark>`;
-    const ch=[...p.k],L=ch.length;
+    if(how==='plain')return `<mark class="kw">${tint(esc(p.k))}</mark>`;
+    if(how==='check')return `<mark class="kw ${o.norm.includes(nz(p.k))?'hit':'miss'}">${tint(esc(p.k))}</mark>`;
+    if(o.revealed.has(i))return `<mark class="kw">${tint(esc(p.k))}</mark>`;
+    const ch=[...stripC(p.k)],L=ch.length;
     const txt=o.hint?esc(ch[0])+'＿'.repeat(Math.min(Math.max(L-1,1),9)):'＿'.repeat(Math.min(Math.max(L,2),10));
     return `<button class="blank" data-b="${i}" aria-label="空欄${i+1}を表示">${txt}</button>`;
   }).join('');
@@ -727,9 +733,26 @@ function advance(g){
   try{speechSynthesis.cancel()}catch(err){}
   P.i++;resetCard();$('player').scrollTop=0;renderPlayer();
 }
+const YOMI=[['背信的悪意者','はいしんてきあくいしゃ'],['欠缺','けんけつ'],['瑕疵','かし'],['遺言','いごん'],['競売','けいばい'],['相殺','そうさい'],['心裡留保','しんりりゅうほ'],['詐害','さがい'],['追完','ついかん'],['留置権','りゅうちけん'],['先取特権','さきどりとっけん'],['物上代位','ぶつじょうだいい'],['物上保証','ぶつじょうほしょう'],['附合','ふごう'],['遡及','そきゅう'],['嫡出','ちゃくしゅつ'],['遺留分','いりゅうぶん'],['懈怠','けたい'],['帰責','きせき'],['斟酌','しんしゃく'],['擬制','ぎせい'],['羈束','きそく'],['承継','しょうけい'],['頒布','はんぷ'],['勾留','こうりゅう'],['勾引','こういん'],['欺罔','ぎもう'],['教唆','きょうさ'],['幇助','ほうじょ'],['牽連','けんれん'],['毀損','きそん'],['窃取','せっしゅ'],['騙取','へんしゅ'],['阻却','そきゃく'],['既判力','きはんりょく'],['罪証隠滅','ざいしょういんめつ'],['科料','とがりょう'],['過料','あやまちりょう'],['図利','とり'],['定款','ていかん'],['剰余金','じょうよきん'],['為替','かわせ'],['手形','てがた'],['所轄','しょかつ'],['不作為','ふさくい'],['作為','さくい'],['供述','きょうじゅつ'],['訴因','そいん'],['伝聞','でんぶん'],['押収','おうしゅう'],['被疑者','ひぎしゃ'],['被告人','ひこくにん'],['原告適格','げんこくてきかく'],['処分性','しょぶんせい'],['善管注意義務','ぜんかんちゅういぎむ'],['債務不履行','さいむふりこう'],['履行','りこう'],['寄託','きたく'],['賃借','ちんしゃく'],['賃貸','ちんたい'],['借地借家','しゃくちしゃっか'],['相続人','そうぞくにん'],['即時取得','そくじしゅとく'],['占有','せんゆう'],['錯誤','さくご'],['債権者代位','さいけんしゃだいい'],['弁済','べんさい'],['供託','きょうたく'],['謀議','ぼうぎ'],['共謀','きょうぼう'],['正犯','せいはん'],['未遂','みすい'],['既遂','きすい'],['緊急避難','きんきゅうひなん'],['過剰防衛','かじょうぼうえい'],['誤想防衛','ごそうぼうえい'],['令状','れいじょう'],['捜索','そうさく'],['差押え','さしおさえ'],['差押','さしおさえ'],['公訴','こうそ'],['控訴','こうそ'],['上告','じょうこく'],['抗告','こうこく'],['訴訟物','そしょうぶつ'],['反訴','はんそ'],['自白','じはく'],['弁論主義','べんろんしゅぎ'],['釈明','しゃくめい'],['最大判','さいこうさいだいほうていはんけつ'],['最判','さいこうさいはんけつ'],['最決','さいこうさいけってい']];
+let voices=[];
+const loadVoices=()=>{try{voices=speechSynthesis.getVoices().filter(v=>/^ja/i.test(v.lang))}catch(e){voices=[]}};
+if(canSpeak){loadVoices();try{speechSynthesis.addEventListener('voiceschanged',loadVoices)}catch(e){}}
+function bestVoice(){
+  if(ui.voice){const v=voices.find(v=>v.name===ui.voice);if(v)return v}
+  const rank=v=>{const n=v.name;let r=0;if(/Enhanced|Premium|拡張|プレミアム/i.test(n))r+=50;if(/Natural|Online|Neural/i.test(n))r+=40;if(/Google/i.test(n))r+=30;if(/Kyoko|O-ren|Nanami|Hattori/i.test(n))r+=20;if(v.localService)r+=1;return r};
+  return voices.slice().sort((a,b)=>rank(b)-rank(a))[0]||null;
+}
+function yomi(t){
+  t=String(t).replace(/[【】《》〔〕]/g,'');
+  for(const [k,v] of YOMI)t=t.split(k).join(v);
+  return t.replace(/([0-9０-９]+)条/g,'$1じょう').replace(/([0-9０-９]+)項/g,'$1こう').replace(/([0-9０-９]+)号/g,'$1ごう').replace(/[①-⑳]/g,c=>(c.charCodeAt(0)-0x245f)+'、').replace(/\n+/g,'。');
+}
 function speak(text){
-  try{speechSynthesis.cancel();const u=new SpeechSynthesisUtterance(String(text).replace(/[【】]/g,''));u.lang='ja-JP';u.rate=1;speechSynthesis.speak(u)}
-  catch(e){toast('この環境では読み上げが使えません')}
+  try{
+    speechSynthesis.cancel();const v=bestVoice();
+    yomi(text).split(/(?<=[。！？])/).map(x=>x.trim()).filter(Boolean).forEach(seg=>{
+      const u=new SpeechSynthesisUtterance(seg);u.lang='ja-JP';if(v)u.voice=v;u.rate=+ui.rate||0.95;u.pitch=1;speechSynthesis.speak(u)});
+  }catch(e){toast('この環境では読み上げが使えません')}
 }
 function qCard(x,e,chips){
   let h=`<div class="p-card">${chips}<div class="p-body q">${esc(x.text)}</div>`;
@@ -746,7 +769,7 @@ function cCard(x,e,chips){
   if(!rev)h+=`<div class="seg" role="group" aria-label="覚え方">${[['flip','めくる'],['cloze','穴埋め'],['write','書いて確認']].map(([k,l])=>`<button data-mode="${k}" aria-pressed="${m===k}">${l}</button>`).join('')}</div>`;
   if(t==='hanrei')h+=`<div class="seg" role="group" aria-label="出題の向き"><button data-p="rev" data-v="0" aria-pressed="${!rev}">判例→規範</button><button data-p="rev" data-v="1" aria-pressed="${rev}">規範→判例</button></div>`;
   h+='</div>';
-  const head=`<div class="p-title">${esc(x.title)}</div>${t==='hanrei'&&x.article?`<div class="p-sub">${esc(x.article)}</div>`:''}${t==='hanrei'&&x.issue?`<div class="p-issue">争点：${esc(x.issue)}</div>`:''}`;
+  const head=`<div class="p-title">${tint(esc(x.title))}</div>${t==='hanrei'&&x.article?`<div class="p-sub">${esc(x.article)}</div>`:''}${t==='hanrei'&&x.issue?`<div class="p-issue">争点：${esc(x.issue)}</div>`:''}`;
   const facts=x.facts?`<details><summary>事案・ポイント</summary><div class="p-body mine">${esc(x.facts)}</div></details>`:'';
   h+=`<div class="p-card">${chips}`;
   if(rev){
@@ -756,7 +779,7 @@ function cCard(x,e,chips){
     h+=head;
     if(m==='flip'){h+=back?`<div class="p-body">${fmt(x.body,'plain')}</div>`:(CT[t].ask?`<p class="note">${CT[t].ask}</p>`:'')}
     else if(m==='cloze'){
-      if(!nk)h+=back?`<div class="p-body">${esc(x.body)}</div>`:'<p class="note">このカードにはキーワードの【】がありません。編集で語句を【】で囲むと穴埋めになります。</p>';
+      if(!nk)h+=back?`<div class="p-body">${tint(esc(x.body))}</div>`:'<p class="note">このカードにはキーワードの【】がありません。編集で語句を【】で囲むと穴埋めになります。</p>';
       else h+=`<div class="p-body">${back?fmt(x.body,'plain'):fmt(x.body,'cloze',{revealed:P.revealed,hint:P.hint})}</div>`+(back?'':`<p class="note">空欄をタップすると1つずつ開きます。</p>`);
     }else{
       if(!back)h+=`<textarea id="p-write" class="p-write" placeholder="${esc(CT[t].back)}を思い出して書きます" aria-label="${esc(CT[t].back)}を書く">${esc(P.typed)}</textarea>`;
@@ -928,7 +951,7 @@ function cForm(c,keep){
    <div class="grid2" id="fc-hanrei"><label class="f">裁判所・年月日<input id="fc-r2" value="${esc(t0==='hanrei'?c.article:'')}" placeholder="例：最大判昭50.4.30"></label>
    <label class="f">争点（任意）<input id="fc-i" value="${esc(c.issue)}" placeholder="例：職業の許可制の合憲性の判断基準"></label></div>
    <label class="f"><span id="fc-bl"></span><textarea id="fc-b" style="min-height:160px">${esc(c.body)}</textarea></label>
-   <div class="kwhelp"><button class="btn" id="fc-wrap" type="button">選んだ語句を【】で囲む</button><span id="fc-n"></span></div>
+   <div class="kwhelp"><button class="btn" id="fc-wrap" type="button">【】穴埋め</button><button class="btn red" id="fc-red" type="button">赤字</button><button class="btn blue" id="fc-blue" type="button">青字</button><span id="fc-n"></span></div><p class="note" style="margin-top:-6px">語句を選んでからボタンを押します。赤字は《》、青字は〔〕で囲まれます。</p>
    <label class="f" id="fc-fw">事案・ポイント（任意）<textarea id="fc-f" style="min-height:70px" placeholder="どんな事案で、結論はどうなったか">${esc(c.facts)}</textarea></label>
    <div class="grid2"><label class="f" id="fc-rw"><span id="fc-rl"></span><input id="fc-r" value="${esc(t0==='hanrei'?'':c.article)}" placeholder="例：民法177条"></label>
    <label class="f">タグ（任意・空白区切り）<input id="fc-g" value="${esc(c.tags)}" placeholder="例：重要 R6"></label></div>
@@ -942,6 +965,9 @@ function cForm(c,keep){
     q('#fc-k').onchange=()=>{layout();const t=q('#fc-k').value;if(!useTouched)q('#fc-u').value=t==='qa'?'tanto':t==='ronsho'?'ronbun':'both'};
     const wb=q('#fc-wrap');
     ['mousedown','pointerdown'].forEach(ev=>wb.addEventListener(ev,e=>e.preventDefault()));
+    const wrapSel=(L,Rr)=>{const a=ta.selectionStart,b=ta.selectionEnd;if(a===b){toast('語句を選んでから押してください');return}
+      const sel=ta.value.slice(a,b);ta.setRangeText(L+sel.split(L).join('').split(Rr).join('')+Rr,a,b,'end');ta.focus();cnt()};
+    [['#fc-red','《','》'],['#fc-blue','〔','〕']].forEach(([id,L,Rr])=>{const bt=q(id);['mousedown','pointerdown'].forEach(ev=>bt.addEventListener(ev,e=>e.preventDefault()));bt.onclick=()=>wrapSel(L,Rr)});
     wb.onclick=()=>{const a=ta.selectionStart,b=ta.selectionEnd;if(a===b){toast('囲みたい語句を選んでから押してください');return}
       const sel=ta.value.slice(a,b).replace(/[【】]/g,'');ta.setRangeText('【'+sel+'】',a,b,'end');ta.focus();cnt()};
     const save=()=>{const t=q('#fc-t').value.trim(),b=ta.value.trim(),k=q('#fc-k').value;if(!t||!b){toast(`${CT[k].front}と${CT[k].back}を入力してください`);return null}
@@ -968,7 +994,7 @@ function renderCList(){
   const xs=filtered('c').slice().sort((a,b)=>{const sa=srsOf(a),sb=srsOf(b);return (sa?sa.due:'9999').localeCompare(sb?sb.due:'9999')});
   $('c-list').innerHTML=exNote('c')+(xs.length?xs.slice(0,LF.c.limit).map(c=>`<div class="item"><div class="body">
     <div class="row" style="gap:6px"><span class="chip">${esc(SL(c.subject))}</span><span class="chip t">${CT[ctOf(c)].l}</span><span class="chip u">${USE[useOf(c)]}</span>${isEx(c)?'<span class="chip ex">例</span>':''}${lvHtml(c)}</div>
-    <div style="font-weight:700">${esc(c.title)}</div>
+    <div style="font-weight:700">${tint(esc(c.title))}</div>
     ${ctOf(c)==='hanrei'&&c.issue?`<div class="meta">争点：${esc(c.issue)}</div>`:''}
     <div class="row" style="gap:8px">${c.article?`<span class="meta">${esc(c.article)}</span>`:''}<span class="meta">キーワード ${kwCount(c.body)}</span>${tagsHtml(c)}</div></div>
     ${actsHtml(c)}</div>`).join('')+moreBtn('c',xs.length):'<div class="empty">条件に合うカードはありません。</div>');
@@ -1142,6 +1168,9 @@ function settingsSheet(){
    <p class="note">空のままなら令和9年司法試験（論文 7/14 開始）を表示します。</p>
    <h3>文字の大きさ</h3>
    <div class="seg" role="group" aria-label="文字の大きさ">${[['m','標準'],['l','大きめ'],['xl','特大']].map(([k,l])=>`<button type="button" data-font="${k}" aria-pressed="${(ui.font||'m')===k}">${l}</button>`).join('')}</div>
+   ${canSpeak?`<h3>読み上げ</h3><div class="grid2"><label class="f">声<select id="st-v"><option value="">自動（いちばん自然な声）</option>${voices.map(v=>`<option${v.name===ui.voice?' selected':''}>${esc(v.name)}</option>`).join('')}</select></label>
+   <label class="f">速さ<select id="st-rate">${[['0.8','ゆっくり'],['0.95','ふつう'],['1.1','少し速い'],['1.3','速い']].map(([k,l])=>`<option value="${k}"${String(ui.rate||'0.95')===k?' selected':''}>${l}</option>`).join('')}</select></label></div>
+   <button type="button" class="btn" id="st-try">試しに聞く</button>`:''}
    <h3>選択科目</h3>
    <label class="f">あなたの選択科目<select id="st-e"><option value="">まだ決めていない</option>${ELECTIVES.map(([n])=>`<option${n===s.elective?' selected':''}>${n}</option>`).join('')}</select></label>
    <p class="note">選ぶと、「選択」と出ていた所がすべてこの科目名になります。これまでの記録はそのまま引き継がれます。</p>
@@ -1159,6 +1188,7 @@ function settingsSheet(){
    <div class="row"><button class="btn wide" id="bk-save" hidden>バックアップを保存</button><button class="btn wide" id="bk-copy">バックアップをコピー</button><button class="btn wide" id="im-j">バックアップから復元</button></div>
    <div id="bk-out"></div>
    <p class="note">データはこのブラウザの中に保存されます。別の端末へ移すときや念のための保管には、バックアップと復元を使ってください。</p>`,sh=>{
+    const sv=sh.querySelector('#st-v');if(sv){sv.onchange=()=>{ui.voice=sv.value;saveUi()};sh.querySelector('#st-rate').onchange=e=>{ui.rate=+e.target.value;saveUi()};sh.querySelector('#st-try').onclick=()=>speak('177条の第三者とは、登記の欠缺を主張する正当な利益を有する者をいう。背信的悪意者はこれに当たらない。')}
     sh.querySelectorAll('[data-font]').forEach(b=>b.onclick=()=>{ui.font=b.dataset.font;saveUi();applyFont();sh.querySelectorAll('[data-font]').forEach(x=>x.setAttribute('aria-pressed',x===b))});
     sh.querySelector('#fx').onclick=closeSheet;
     sh.querySelector('#fs').onclick=()=>{const num=(id,d)=>{const v=parseInt(sh.querySelector(id).value,10);return isNaN(v)||v<0?d:v};
