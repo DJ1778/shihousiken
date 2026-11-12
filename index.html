@@ -877,13 +877,13 @@ function qForm(q,keep){
    <label class="f">解説（任意）<textarea id="fq-e" style="min-height:80px" placeholder="なぜ○／×なのか、ひっかけのポイント">${esc(q.explain)}</textarea></label>
    <div class="grid2"><label class="f">条文・判例（任意）<input id="fq-r" value="${esc(q.article)}" placeholder="例：会社法362条2項3号"></label>
    <label class="f">タグ（任意・空白区切り）<input id="fq-g" value="${esc(q.tags)}" placeholder="例：R6 予備"></label></div>
-   <div class="row">${editing?'<button class="btn wide" id="fx">キャンセル</button>':'<button class="btn wide" id="fn">保存して次へ</button>'}<button class="btn primary wide" id="fs">保存</button></div>`,s=>{
+   <div class="row">${editing?'<button class="btn wide" id="fx">キャンセル</button>':'<button class="btn wide" id="fn">もう一枚作る</button>'}<button class="btn primary wide" id="fs">保存</button></div>`,s=>{
     const save=()=>{const t=s.querySelector('#fq-t').value.trim();if(!t){toast('問題文を入力してください');return null}
       const subj=s.querySelector('#fq-s').value;
       put({...(editing?q:{stats:{c:0,w:0}}),id:editing?q.id:'q_'+uid(),kind:'q',subject:subj,text:t,answer:s.querySelector('#fq-a').value==='1',explain:s.querySelector('#fq-e').value.trim(),article:s.querySelector('#fq-r').value.trim(),tags:s.querySelector('#fq-g').value.trim()});
       return subj};
     const fx=s.querySelector('#fx');if(fx)fx.onclick=closeSheet;
-    const fn=s.querySelector('#fn');if(fn)fn.onclick=()=>{const subj=save();if(subj){toast('保存しました。続けて入力できます');qForm(null,subj)}};
+    const fn=s.querySelector('#fn');if(fn)fn.onclick=()=>{const subj=save();if(subj){toast('保存しました。もう一枚どうぞ');qForm(null,subj)}};
     s.querySelector('#fs').onclick=()=>{if(save()){closeSheet();toast('保存しました')}};
   });
 }
@@ -932,7 +932,7 @@ function cForm(c,keep){
    <label class="f" id="fc-fw">事案・ポイント（任意）<textarea id="fc-f" style="min-height:70px" placeholder="どんな事案で、結論はどうなったか">${esc(c.facts)}</textarea></label>
    <div class="grid2"><label class="f" id="fc-rw"><span id="fc-rl"></span><input id="fc-r" value="${esc(t0==='hanrei'?'':c.article)}" placeholder="例：民法177条"></label>
    <label class="f">タグ（任意・空白区切り）<input id="fc-g" value="${esc(c.tags)}" placeholder="例：重要 R6"></label></div>
-   <div class="row">${editing?'<button class="btn wide" id="fx">キャンセル</button>':'<button class="btn wide" id="fn">保存して次へ</button>'}<button class="btn primary wide" id="fs">保存</button></div>`,s=>{
+   <div class="row">${editing?'<button class="btn wide" id="fx">キャンセル</button>':'<button class="btn wide" id="fn">もう一枚作る</button>'}<button class="btn primary wide" id="fs">保存</button></div>`,s=>{
     const q=id=>s.querySelector(id),ta=q('#fc-b');
     const layout=()=>{const t=q('#fc-k').value,d=CT[t];q('#fc-tl').textContent=d.front+'（表面）';q('#fc-bl').textContent=d.back+'（裏面）';q('#fc-rl').textContent=d.src;
       q('#fc-t').placeholder=d.ph[0];ta.placeholder=d.ph[1];const hr=t==='hanrei';q('#fc-hanrei').hidden=!hr;q('#fc-fw').hidden=!hr;q('#fc-rw').hidden=hr};
@@ -949,7 +949,7 @@ function cForm(c,keep){
         article:(hr?q('#fc-r2'):q('#fc-r')).value.trim(),issue:hr?q('#fc-i').value.trim():'',facts:hr?q('#fc-f').value.trim():'',tags:q('#fc-g').value.trim()};
       put(out);ui.lastCt=k;saveUi();return {t:k,u:out.use,s:out.subject,g:out.tags}};
     const fx=q('#fx');if(fx)fx.onclick=closeSheet;
-    const fn=q('#fn');if(fn)fn.onclick=()=>{const k=save();if(k){toast('保存しました。続けて入力できます');cForm(null,k)}};
+    const fn=q('#fn');if(fn)fn.onclick=()=>{const k=save();if(k){toast('保存しました。もう一枚どうぞ');cForm(null,k)}};
     q('#fs').onclick=()=>{if(save()){closeSheet();toast('保存しました')}};
   });
 }
