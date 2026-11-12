@@ -532,6 +532,7 @@ const loadJSON=k=>{try{return JSON.parse(localStorage.getItem(k)||'null')}catch(
 const saveJSON=(k,v)=>{try{localStorage.setItem(k,JSON.stringify(v))}catch(e){}};
 let ui=Object.assign({cMode:'flip'},loadJSON(LS_UI)||{});
 const saveUi=()=>saveJSON(LS_UI,ui);
+if(!ui.voiceV2){ui.voice='';ui.voiceV2=1;saveJSON(LS_UI,ui)}
 const FONTS={m:'100%',l:'112.5%',xl:'125%'};
 const applyFont=()=>{document.documentElement.style.fontSize=FONTS[ui.font]||'100%'};applyFont();
 const DFOLD={week:1,forecast:1,qrate:1,chart14:1,subj30:1,badges:1};
@@ -739,7 +740,7 @@ const loadVoices=()=>{try{voices=speechSynthesis.getVoices().filter(v=>/^ja/i.te
 if(canSpeak){loadVoices();try{speechSynthesis.addEventListener('voiceschanged',loadVoices)}catch(e){}}
 function bestVoice(){
   if(ui.voice){const v=voices.find(v=>v.voiceURI===ui.voice)||voices.find(v=>v.name===ui.voice);if(v)return v}
-  const rank=v=>{const n=v.name+' '+(v.voiceURI||'');let r=0;if(/premium|プレミアム/i.test(n))r+=60;if(/Enhanced|拡張/i.test(n))r+=50;if(/siri/i.test(n))r+=45;if(/Natural|Online|Neural/i.test(n))r+=40;if(/Google/i.test(n))r+=30;if(/Kyoko|O-ren|Nanami|Hattori/i.test(n))r+=20;if(v.localService)r+=1;return r};
+  const rank=v=>{const n=v.name+' '+(v.voiceURI||'');let r=0;if(/kyoko/i.test(n)&&/premium|プレミアム|enhanced|拡張/i.test(n))r+=200;if(/kyoko/i.test(n)&&/premium|プレミアム/i.test(n))r+=10;if(/premium|プレミアム/i.test(n))r+=60;if(/Enhanced|拡張/i.test(n))r+=50;if(/siri/i.test(n))r+=45;if(/Natural|Online|Neural/i.test(n))r+=40;if(/Google/i.test(n))r+=30;if(/Kyoko|O-ren|Nanami|Hattori/i.test(n))r+=20;if(v.localService)r+=1;return r};
   return voices.slice().sort((a,b)=>rank(b)-rank(a))[0]||null;
 }
 function yomi(t){
