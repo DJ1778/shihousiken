@@ -262,6 +262,7 @@ details.info .tbl+.note{margin-bottom:12px}
 .hs.s1,.hs.s2,.hs.s3{border:2px solid var(--ng);color:var(--ng);background:var(--ng-soft);font-weight:700;transform:rotate(-8deg)}
 .hs.s2{box-shadow:inset 0 0 0 3px var(--ng-soft),inset 0 0 0 4px var(--ng)}
 .hs.s3{background:var(--ng);color:var(--surface)}
+.hs.hc::after{content:"";position:absolute;right:2px;top:2px;width:7px;height:7px;border-radius:50%;background:var(--blue,#1f5fa8);border:1.5px solid var(--surface)}
 .hs:focus-visible{outline:2px solid var(--ink);outline-offset:2px}
 .hs-top{display:grid;grid-template-columns:1fr 6.5em;gap:8px}
 /* 勉強時間グラフ */
@@ -1890,6 +1891,10 @@ async function gradeSheet(pre){
 /* ---------- 判例百選スタンプラリー ---------- */
 const HS_BOOKS=[['kenpo1','憲法判例百選Ⅰ'],['kenpo2','憲法判例百選Ⅱ'],['gyosei1','行政判例百選Ⅰ'],['gyosei2','行政判例百選Ⅱ'],['minpo1','民法判例百選Ⅰ（総則・物権）'],['minpo2','民法判例百選Ⅱ（債権）'],['minpo3','民法判例百選Ⅲ（親族・相続）'],['kaisha','会社法判例百選'],['minso','民事訴訟法判例百選'],['keiho1','刑法判例百選Ⅰ（総論）'],['keiho2','刑法判例百選Ⅱ（各論）'],['keiso','刑事訴訟法判例百選']];
 const hsDoc=()=>items.get('hyakusen')||{id:'hyakusen',kind:'h',books:{}};
+const HS_SUBJ={kenpo1:'憲法',kenpo2:'憲法',gyosei1:'行政法',gyosei2:'行政法',minpo1:'民法',minpo2:'民法',minpo3:'民法',kaisha:'商法',minso:'民訴',keiho1:'刑法',keiho2:'刑法',keiso:'刑訴'};
+const hsTag=(k,i)=>HS_BOOKS.find(b=>b[0]===k)[1].replace(/判例百選/,'百選').replace(/（.*）/,'')+'-'+i;
+const hsHasCard=(k,i)=>{const t=hsTag(k,i);return [...items.values()].some(x=>x.kind==='c'&&(x.tags||'').split(/[\s,、]+/).includes(t))};
+let hsLast=null;
 const hsBook=k=>{const b=(hsDoc().books||{})[k]||{};return {n:+b.n||100,r:b.r||{}}};
 function renderHS(){
   const el=$('hs-panel');if(!el)return;
@@ -1898,12 +1903,18 @@ function renderHS(){
     <div class="hs-top"><label class="f">本<select id="hs-b">${HS_BOOKS.map(([key,l])=>{const bb=hsBook(key),rd=Object.values(bb.r).filter(v=>v>0).length;return `<option value="${key}"${key===k?' selected':''}>${l}${rd?`（${rd}/${bb.n}）`:''}</option>`}).join('')}</select></label>
     <label class="f">件数<input type="number" id="hs-n" min="1" max="400" inputmode="numeric" value="${b.n}"></label></div>
     <div class="meter"><i style="width:${Math.round(read/b.n*100)}%"></i></div>
-    <div class="hs-grid">${Array.from({length:b.n},(_,i)=>{const c=+b.r[i+1]||0;return `<button class="hs${c?' s'+Math.min(c,3):''}" data-hs="${i+1}" aria-label="${i+1}番 ${c?c+'回読んだ':'未読'}">${i+1}</button>`}).join('')}</div>
-    <p class="note">読んだ番号を押すとスタンプ。押すたびに 1回→2回→3回→消す。件数はお使いの版に合わせてください。</p>`;
+    ${hsLast&&hsLast.k===k?`<div class="reco" style="background:var(--accent-soft,var(--ng-soft));border-radius:8px;padding:10px 12px;border:0"><span>${hsLast.i}番を読みました。判例カードにしますか？</span><div class="row" style="gap:6px"><button class="btn primary" data-hs-card>カードにする</button><button class="btn ghost" data-hs-skip>しない</button></div></div>`:''}
+    <div class="hs-grid">${Array.from({length:b.n},(_,i)=>{const c=+b.r[i+1]||0,hc=hsHasCard(k,i+1);return `<button class="hs${c?' s'+Math.min(c,3):''}${hc?' hc':''}" data-hs="${i+1}" aria-label="${i+1}番 ${c?c+'回読んだ':'未読'}${hc?' カードあり':''}">${i+1}</button>`}).join('')}</div>
+    <p class="note">読んだ番号を押すとスタンプ。押すたびに 1回→2回→3回→消す。カードにした判例には小さな点がつきます。件数はお使いの版に合わせてください。</p>`;
 }
 function hsSave(k,fn){const d=hsDoc(),books={...(d.books||{})},b={n:hsBook(k).n,r:{...hsBook(k).r}};fn(b);books[k]=b;put({...d,id:'hyakusen',kind:'h',books})}
-document.addEventListener('click',e=>{const t=e.target.closest('[data-hs]');if(!t)return;const k=HS_BOOKS.some(b=>b[0]===ui.hs)?ui.hs:'kenpo1',i=t.dataset.hs;
-  hsSave(k,b=>{const c=((+b.r[i]||0)+1)%4;if(c)b.r[i]=c;else delete b.r[i]})});
+document.addEventListener('click',e=>{const k=HS_BOOKS.some(b=>b[0]===ui.hs)?ui.hs:'kenpo1';
+  if(e.target.closest('[data-hs-skip]')){hsLast=null;renderHS();return}
+  if(e.target.closest('[data-hs-card]')&&hsLast){const {i}=hsLast;hsLast=null;renderHS();
+    cForm({ctype:'hanrei',use:'both',subject:HS_SUBJ[k]||'民法',title:'',body:'',article:'',issue:'',tags:hsTag(k,i)});return}
+  const t=e.target.closest('[data-hs]');if(!t)return;const i=t.dataset.hs;let nc=0;
+  hsSave(k,b=>{const c=((+b.r[i]||0)+1)%4;nc=c;if(c)b.r[i]=c;else delete b.r[i]});
+  hsLast=(nc===1&&!hsHasCard(k,i))?{k,i}:null;renderHS()});
 document.addEventListener('change',e=>{
   if(e.target.id==='hs-b'){ui.hs=e.target.value;saveUi();renderHS()}
   if(e.target.id==='hs-n'){const n=Math.max(1,Math.min(400,Math.round(+e.target.value||100))),k=HS_BOOKS.some(b=>b[0]===ui.hs)?ui.hs:'kenpo1';hsSave(k,b=>{b.n=n});toast(`件数を${n}件にしました`)}
