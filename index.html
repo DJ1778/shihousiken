@@ -360,6 +360,7 @@ details summary{cursor:pointer;font-size:.85rem;color:var(--muted)}
   <!-- 今日 -->
   <section id="v-today" class="view" hidden>
     <section class="count" id="count" aria-label="試験までの日数"></section>
+    <div class="panel" id="t-backup" hidden></div>
     <div class="panel gone" id="t-elective" hidden></div>
     <div class="panel" id="t-plan"></div>
     <div class="panel gone" id="t-review"></div>
@@ -671,7 +672,7 @@ function saveLocal(){try{localStorage.setItem(LS,JSON.stringify([...items.values
 const chains={};
 function put(item){
   if(isEx(item))return Promise.resolve();
-  items.set(item.id,item);render();
+  items.set(item.id,item);render();schedSnap();
   if(mode==='cloud'){
     const {id,...rest}=item;const body=JSON.parse(JSON.stringify(rest));
     const p=(chains[id]||Promise.resolve()).then(()=>col.doc(id).set(body)).catch(e=>{toast(e&&e.code==='quota_exceeded'?'保存容量の上限です。古い記録を削除してください':'保存に失敗しました。通信状態を確認してください')});
@@ -1080,7 +1081,7 @@ function renderCount(){
 `;
 }
 function renderToday(){
-  renderCount();
+  renderCount();renderBackupBanner();
   {const el=$('t-elective');if(S().elective){el.hidden=true}else{el.hidden=false;el.innerHTML=`<h3>選択科目を選んでください</h3><label class="f">あなたの選択科目<select class="el-sel" aria-label="選択科目">${elOpts()}</select></label><p class="note">選ぶと、科目の一覧・過去問・学習プランなどに科目名が出ます。あとから「設定とデータ」で変えられます。</p>`}}renderPlanToday();
   const s=S(),t=today(),qs=list('q'),cs=list('c');
   const dq=qs.filter(isDue).length,dc=cs.filter(isDue).length,nn=Math.min(newLeft(),[...qs,...cs].filter(isNew).length),tot=dq+dc+nn;
@@ -1247,6 +1248,10 @@ function settingsSheet(){
    <div class="row"><button class="btn wide" id="im-q">短答を取り込む</button><button class="btn wide" id="im-c">暗記カードを取り込む</button></div>
    <div class="row"><button class="btn wide" id="bk-save" hidden>バックアップを保存</button><button class="btn wide" id="bk-copy">バックアップをコピー</button><button class="btn wide" id="im-j">バックアップから復元</button></div>
    <div id="bk-out"></div>
+   <p class="note" id="bk-last"></p>
+   <h3>この端末の自動の控え（毎日・14日分）</h3>
+   <div class="row"><select id="sn-k" style="flex:1;min-width:0" aria-label="控えの日付"><option value="">読み込み中…</option></select><button class="btn" id="sn-go">この日の状態に戻す</button></div>
+   <p class="note">うっかり消したときのための控えです。戻すと、その日にあったカードや記録が復活します（今あるものは消えません）。</p>
    <p class="note">データはこのブラウザの中に保存されます。別の端末へ移すときや念のための保管には、バックアップと復元を使ってください。</p>`,sh=>{
     const sv=sh.querySelector('#st-v');
     const fillV=()=>{if(!sv)return;loadVoices();const cur=bestVoice();
@@ -1264,10 +1269,17 @@ function settingsSheet(){
     const backup=()=>JSON.stringify({app:'司法試験 学習帳',version:2,exported:new Date().toISOString(),items:[...items.values()]});
     sh.querySelector('#bk-copy').onclick=()=>{const data=backup();
       const fallback=()=>{sh.querySelector('#bk-out').innerHTML='<label class="f">下の文字をすべて選んでコピーし、メモなどに保管してください<textarea id="bk-ta" readonly style="min-height:90px;font-family:var(--f-num);font-size:.75rem"></textarea></label>';const ta=sh.querySelector('#bk-ta');ta.value=data;ta.focus();ta.select()};
-      try{navigator.clipboard.writeText(data).then(()=>toast(`${items.size}件をコピーしました。メモなどに貼り付けて保管してください`),fallback)}catch(e){fallback()}};
+      try{navigator.clipboard.writeText(data).then(()=>{markBackup();toast(`${items.size}件をコピーしました。メモなどに貼り付けて保管してください`)},fallback)}catch(e){fallback()}};
     const bs=sh.querySelector('#bk-save');
     if(!inClaude)bs.hidden=false;else if(dlP)dlP.then(dl=>{if(dl&&bs.isConnected)bs.hidden=false});
-    bs.onclick=async()=>{if(await saveFile('shiho-backup-'+today().replace(/-/g,'')+'.json',backup(),'application/json'))toast('バックアップを保存しました')};
+    bs.onclick=async()=>{if(await saveFile('shiho-backup-'+today().replace(/-/g,'')+'.json',backup(),'application/json')){markBackup();toast('バックアップを保存しました');showLast()}};
+    const showLast=()=>{const el=sh.querySelector('#bk-last');if(el)el.textContent=ui.lastBackup?`最後のバックアップ：${md(ui.lastBackup)}（${-daysTo(ui.lastBackup)}日前）`:'まだバックアップしていません。'};showLast();
+    (async()=>{const sel=sh.querySelector('#sn-k');try{const ks=(await snapKeys()).sort().reverse();
+      sel.innerHTML=ks.length?(await Promise.all(ks.map(async k=>{const d=await snapGet(k);let n=0;try{n=JSON.parse(d).items.length}catch(e){}return `<option value="${k}">${md(k)}（${n}件）</option>`}))).join(''):'<option value="">まだ控えはありません</option>'}
+      catch(e){sel.innerHTML='<option value="">この端末では使えません</option>'}})();
+    {let arm=false;const go=sh.querySelector('#sn-go');go.onclick=async()=>{const k=sh.querySelector('#sn-k').value;if(!k)return;
+      if(!arm){arm=true;go.textContent='もう一度押すと戻します';return}
+      try{const d=JSON.parse(await snapGet(k));let n=0;for(const x of d.items||[]){if(x&&x.id&&!isEx(x)){await put(x);n++}}closeSheet();toast(`${md(k)}の状態から${n}件を戻しました`)}catch(e){toast('戻せませんでした')}}}
     const ics=sh.querySelector('#st-ics');
     if(ics)ics.onclick=async()=>{const tv=sh.querySelector('#st-time').value||'20:00';ui.remind=tv;saveUi();
       const [hh,mm]=tv.split(':'),d=today().replace(/-/g,''),now=new Date().toISOString().replace(/[-:]/g,'').replace(/\.\d+/,''),url=location.href.split('#')[0];
@@ -1938,6 +1950,36 @@ document.addEventListener('change',e=>{
   if(e.target.id==='pf-b'){ui.pfb=e.target.value;saveUi();renderPF()}
   if(e.target.id==='pf-n'){const n=Math.max(1,Math.min(999,Math.round(+e.target.value||100)));pfSave(b=>{b.n=n});toast(`問題数を${n}問にしました`)}
 });
+
+/* ---------- データを守る：自動の控え・バックアップのお知らせ ---------- */
+function idb(){return new Promise((res,rej)=>{try{const r=indexedDB.open('shiho-gakushucho',1);r.onupgradeneeded=()=>r.result.createObjectStore('snap');r.onsuccess=()=>res(r.result);r.onerror=()=>rej(r.error)}catch(e){rej(e)}})}
+async function idbDo(mode,fn){const db=await idb();return new Promise((res,rej)=>{const t=db.transaction('snap',mode),st=t.objectStore('snap'),rq=fn(st);t.oncomplete=()=>res(rq&&rq.result);t.onerror=()=>rej(t.error)})}
+const snapKeys=()=>idbDo('readonly',st=>st.getAllKeys());
+const snapGet=k=>idbDo('readonly',st=>st.get(k));
+let snapT=0;
+function schedSnap(){clearTimeout(snapT);snapT=setTimeout(takeSnap,4000)}
+async function takeSnap(){
+  try{
+    const all=[...items.values()];if(!all.some(x=>['q','c','a','l','k','pf','h'].includes(x.kind)))return; // 空のときは控えを上書きしない
+    const m=new Map();try{const old=await snapGet(today());if(old)JSON.parse(old).items.forEach(x=>x&&x.id&&m.set(x.id,x))}catch(e){}
+    all.forEach(x=>m.set(x.id,x));   // その日に一度でもあったものは控えに残す（消したものも戻せる）
+    await idbDo('readwrite',st=>st.put(JSON.stringify({exported:new Date().toISOString(),items:[...m.values()]}),today()));
+    const ks=(await snapKeys()).sort();for(const k of ks.slice(0,-14))await idbDo('readwrite',st=>st.delete(k));
+  }catch(e){}
+}
+function markBackup(){ui.lastBackup=today();saveUi();renderBackupBanner()}
+function renderBackupBanner(){
+  const el=$('t-backup');if(!el)return;
+  const has=[...items.values()].some(x=>['q','c','a','l','k','pf','h'].includes(x.kind)),ago=ui.lastBackup?-daysTo(ui.lastBackup):null;
+  const due=has&&mode!=='cloud'&&(ago==null||ago>=7);
+  el.hidden=!due;if(!due){el.innerHTML='';return}
+  el.innerHTML=`<div class="reco" style="border:0;padding:0"><span>${ago==null?'まだバックアップしていません。':`最後のバックアップから${ago}日たちました。`}万一に備えて保存しておきましょう。</span><button class="btn primary" data-bk-now>いま保存する</button></div>
+    <p class="note" style="margin:6px 0 0">iPhoneでは保存先に「iCloud Drive」を選ぶと、機種変更しても残ります。</p>`;
+}
+document.addEventListener('click',async e=>{if(!e.target.closest('[data-bk-now]'))return;
+  const data=JSON.stringify({app:'司法試験 学習帳',version:2,exported:new Date().toISOString(),items:[...items.values()]});
+  if(await saveFile('shiho-backup-'+today().replace(/-/g,'')+'.json',data,'application/json')){markBackup();toast('バックアップを保存しました')}});
+setTimeout(takeSnap,3000);
 
 /* ---------- 画面切替 ---------- */
 const VIEWS=['today','tanto','ronsho','kakomon','kiroku','toren','plan'];
