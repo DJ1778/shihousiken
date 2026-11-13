@@ -297,6 +297,12 @@ details.info .tbl+.note{margin-bottom:12px}
 .seg.pen button[aria-pressed="true"]{background:var(--ink);color:var(--bg)}
 .seg.pen button.red[aria-pressed="true"]{background:var(--red);color:#fff}
 .seg.pen button.blue[aria-pressed="true"]{background:var(--blue);color:#fff}
+.rich{min-height:160px;background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:8px 10px;line-height:1.85;white-space:pre-wrap;overflow-wrap:anywhere;color:var(--ink);font-size:1rem;outline:none;-webkit-user-select:text;user-select:text}
+.rich:focus{border-color:var(--accent);box-shadow:0 0 0 1px var(--accent)}
+.rich:empty::before{content:attr(data-ph);color:var(--muted)}
+.rich [style*="198, 40, 40"],.rich [style*="#c62828"],.rich font[color="#c62828"]{color:var(--red)!important;font-weight:700}
+.rich [style*="31, 95, 168"],.rich [style*="#1f5fa8"],.rich font[color="#1f5fa8"]{color:var(--blue)!important;font-weight:700}
+.rich [style*="27, 36, 32"],.rich font[color="#1b2420"]{color:var(--ink)!important}
 /* player */
 .player{position:fixed;inset:0;z-index:60;background:var(--bg);overflow:auto;
   padding:calc(env(safe-area-inset-top,0px) + 12px) max(16px,env(safe-area-inset-right,0px)) calc(env(safe-area-inset-bottom,0px) + 28px) max(16px,env(safe-area-inset-left,0px))}
@@ -947,6 +953,30 @@ function renderTanto(){
 }
 
 /* ---------- 暗記カード ---------- */
+/* カード本文のリッチ入力（色・穴埋めをカッコなしで表示） */
+const PENC={r:'#c62828',b:'#1f5fa8',k:'#1b2420'};
+const richCol=h=>h.replace(/《([^《》]*)》/g,'<span style="color:#c62828">$1</span>').replace(/〔([^〔〕]*)〕/g,'<span style="color:#1f5fa8">$1</span>');
+const toRich=body=>parts(body).map(p=>p.k==null?richCol(esc(p.t)):`<mark class="kw">${richCol(esc(p.k))}</mark>`).join('').replace(/\n/g,'<br>');
+function colorOf(el){
+  const c=(el.style&&el.style.color)||(el.getAttribute&&el.getAttribute('color'))||'';if(!c)return null;
+  const n=c.replace(/\s/g,'').toLowerCase();
+  if(n==='#c62828'||n==='rgb(198,40,40)')return 'r';if(n==='#1f5fa8'||n==='rgb(31,95,168)')return 'b';return 'k';
+}
+function fromRich(root){
+  let out='';
+  const walk=(node,col,kw)=>{
+    if(node.nodeType===3){const t=node.nodeValue.replace(/ /g,' ').replace(/[【】《》〔〕]/g,'');if(!t)return;out+=col==='r'?'《'+t+'》':col==='b'?'〔'+t+'〕':t;return}
+    if(node.nodeType!==1)return;
+    const tag=node.tagName;
+    if(tag==='BR'){out+='\n';return}
+    if(/^(DIV|P|LI)$/.test(tag)&&out&&!out.endsWith('\n'))out+='\n';
+    let c2=col;const cc=colorOf(node);if(cc)c2=cc==='k'?null:cc;
+    if((tag==='MARK'||node.classList.contains('kw'))&&!kw){const st=out.length;out+='【';[...node.childNodes].forEach(ch=>walk(ch,c2,true));if(out.length===st+1)out=out.slice(0,st);else out+='】';return}
+    [...node.childNodes].forEach(ch=>walk(ch,c2,kw));
+  };
+  [...root.childNodes].forEach(ch=>walk(ch,null,false));
+  return out.replace(/》《/g,'').replace(/〕〔/g,'').replace(/【】/g,'').replace(/\n{3,}/g,'\n\n').trim();
+}
 function cForm(c,keep){
   const defT=keep&&keep.t||ui.lastCt||$('c-type').value||'ronsho';
   c=c||{ctype:defT,use:keep&&keep.u||(defT==='qa'?'tanto':defT==='ronsho'?'ronbun':'both'),subject:keep&&keep.s||$('c-subj').value||'民法',title:'',body:'',article:'',issue:'',facts:'',tags:keep&&keep.g||''};
@@ -958,44 +988,48 @@ function cForm(c,keep){
    <label class="f"><span id="fc-tl"></span><input id="fc-t" value="${esc(c.title)}"></label>
    <div class="grid2" id="fc-hanrei"><label class="f">裁判所・年月日<input id="fc-r2" value="${esc(t0==='hanrei'?c.article:'')}" placeholder="例：最大判昭50.4.30"></label>
    <label class="f">争点（任意）<input id="fc-i" value="${esc(c.issue)}" placeholder="例：職業の許可制の合憲性の判断基準"></label></div>
-   <label class="f"><span id="fc-bl"></span><textarea id="fc-b" style="min-height:160px">${esc(c.body)}</textarea></label>
-   <div class="kwhelp"><span>ペンの色</span><div class="seg pen" role="group" aria-label="ペンの色"><button type="button" data-pen="k" aria-pressed="true">黒</button><button type="button" class="red" data-pen="r" aria-pressed="false">赤</button><button type="button" class="blue" data-pen="b" aria-pressed="false">青</button></div><button class="btn" id="fc-wrap" type="button">【】穴埋め</button><span id="fc-n"></span></div><p class="note" style="margin-top:-6px">色を選んでから書くと、その色で書けます。書いた語句を選んでから色を押すと、あとから色を変えられます。</p>
-   <div class="f" style="display:flex;flex-direction:column;gap:4px;font-size:.8rem;color:var(--muted)">見え方<div class="p-body" id="fc-pv" style="font-size:.95rem;line-height:1.9;color:var(--ink);background:var(--bg);border-radius:8px;padding:10px 12px;min-height:3em"></div></div>
+   <div class="f" style="display:flex;flex-direction:column;gap:4px;font-size:.8rem;color:var(--muted)"><span id="fc-bl"></span><div id="fc-b" class="rich" contenteditable="true" role="textbox" aria-multiline="true" aria-labelledby="fc-bl">${toRich(c.body)}</div></div>
+   <div class="kwhelp"><span>ペンの色</span><div class="seg pen" role="group" aria-label="ペンの色"><button type="button" data-pen="k" aria-pressed="true">黒</button><button type="button" class="red" data-pen="r" aria-pressed="false">赤</button><button type="button" class="blue" data-pen="b" aria-pressed="false">青</button></div><button class="btn" id="fc-wrap" type="button">穴埋め</button><span id="fc-n"></span></div>
+   <p class="note" style="margin-top:-6px">色を選んでから書くと、その色になります。書いた語句を選んで色や「穴埋め」を押すと、あとから変えられます。</p>
    <label class="f" id="fc-fw">事案・ポイント（任意）<textarea id="fc-f" style="min-height:70px" placeholder="どんな事案で、結論はどうなったか">${esc(c.facts)}</textarea></label>
    <div class="grid2"><label class="f" id="fc-rw"><span id="fc-rl"></span><input id="fc-r" value="${esc(t0==='hanrei'?'':c.article)}" placeholder="例：民法177条"></label>
    <label class="f">タグ（任意・空白区切り）<input id="fc-g" value="${esc(c.tags)}" placeholder="例：重要 R6"></label></div>
    <div class="row">${editing?'<button class="btn wide" id="fx">キャンセル</button>':'<button class="btn wide" id="fn">もう一枚作る</button>'}<button class="btn primary wide" id="fs">保存</button></div>`,s=>{
-    const q=id=>s.querySelector(id),ta=q('#fc-b');
+    const q=id=>s.querySelector(id),ed=q('#fc-b');
     const layout=()=>{const t=q('#fc-k').value,d=CT[t];q('#fc-tl').textContent=d.front+'（表面）';q('#fc-bl').textContent=d.back+'（裏面）';q('#fc-rl').textContent=d.src;
-      q('#fc-t').placeholder=d.ph[0];ta.placeholder=d.ph[1];const hr=t==='hanrei';q('#fc-hanrei').hidden=!hr;q('#fc-fw').hidden=!hr;q('#fc-rw').hidden=hr};
-    const cnt=()=>{const pv=q('#fc-pv');if(pv)pv.innerHTML=ta.value.trim()?fmt(ta.value,'plain'):'<span class="note">ここに表示されます</span>';const n=kwCount(ta.value);q('#fc-n').textContent=n?`キーワード ${n}個`:'キーワードなし（穴埋めにはなりません）'};
+      q('#fc-t').placeholder=d.ph[0];ed.dataset.ph=d.ph[1].replace(/[【】]/g,'').replace('、覚えるべき語句を囲みます','').replace('、キーワードを囲みます','');const hr=t==='hanrei';q('#fc-hanrei').hidden=!hr;q('#fc-fw').hidden=!hr;q('#fc-rw').hidden=hr};
+    const cnt=()=>{const n=kwCount(fromRich(ed));q('#fc-n').textContent=n?`穴埋め ${n}か所`:''};
     let useTouched=!!editing;q('#fc-u').onchange=()=>{useTouched=true};
-    layout();cnt();ta.addEventListener('input',cnt);
+    layout();cnt();
     q('#fc-k').onchange=()=>{layout();const t=q('#fc-k').value;if(!useTouched)q('#fc-u').value=t==='qa'?'tanto':t==='ronsho'?'ronbun':'both'};
-    const wb=q('#fc-wrap');
-    ['mousedown','pointerdown'].forEach(ev=>wb.addEventListener(ev,e=>e.preventDefault()));
-    let lastSel=[0,0];const remember=()=>{if(document.activeElement===ta&&ta.selectionStart!==ta.selectionEnd)lastSel=[ta.selectionStart,ta.selectionEnd]};
-    ['select','keyup','mouseup','touchend','input'].forEach(ev=>ta.addEventListener(ev,remember));document.addEventListener('selectionchange',remember);
-    const getSel=()=>{let a=ta.selectionStart,b=ta.selectionEnd;if(a===b){[a,b]=lastSel}return a<b&&b<=ta.value.length?[a,b]:[0,0]};
-    const wrapSel=(L,Rr)=>{const [a,b]=getSel();if(a===b){toast('語句を選んでから押してください');return}
-      const sel=ta.value.slice(a,b);ta.setRangeText(L+sel.split(L).join('').split(Rr).join('')+Rr,a,b,'end');lastSel=[0,0];cnt();toast(L==='《'?'赤字にしました':'青字にしました')};
-    const PEN={r:['《','》'],b:['〔','〕']};
-    const penAt=()=>{const pos=ta.selectionStart,before=ta.value.slice(0,pos);for(const k of ['r','b']){const [L,Rr]=PEN[k];if(before.lastIndexOf(L)>before.lastIndexOf(Rr))return k}return 'k'};
+    // 選択範囲の記憶（スマホでボタンを押すと選択が外れるため）
+    let saved=null,pending=null;
+    const inEd=n=>n&&ed.contains(n.nodeType===1?n:n.parentNode);
+    const saveRange=()=>{const sel=getSelection();if(sel.rangeCount&&inEd(sel.anchorNode))saved=sel.getRangeAt(0).cloneRange()};
+    const restore=()=>{ed.focus();if(saved){const sel=getSelection();sel.removeAllRanges();sel.addRange(saved)}};
+    const penAt=()=>{if(pending)return pending;const sel=getSelection();let n=sel.rangeCount&&inEd(sel.anchorNode)?sel.anchorNode:null;while(n&&n!==ed){if(n.nodeType===1){const cc=colorOf(n);if(cc)return cc}n=n.parentNode}return 'k'};
     const showPen=()=>{const k=penAt();s.querySelectorAll('[data-pen]').forEach(b=>b.setAttribute('aria-pressed',b.dataset.pen===k))};
-    const exitPen=()=>{const k=penAt();if(k==='k')return;const pos=ta.selectionStart,close=ta.value.indexOf(PEN[k][1],pos);
-      if(close<0){ta.setRangeText(PEN[k][1],pos,pos,'end')}else{const inner=ta.value.slice(ta.value.lastIndexOf(PEN[k][0],pos-1)+1,close);
-        if(!inner){const st=ta.value.lastIndexOf(PEN[k][0],pos-1);ta.setRangeText('',st,close+1,'end')}else ta.setSelectionRange(close+1,close+1)}};
-    s.querySelectorAll('[data-pen]').forEach(bt=>{['mousedown','pointerdown'].forEach(ev=>bt.addEventListener(ev,e=>e.preventDefault()));
-      bt.onclick=()=>{const k=bt.dataset.pen,[a,b]=getSel();
-        if(a!==b&&k!=='k'){wrapSel(...PEN[k]);showPen();return}
-        if(a!==b&&k==='k'){const t=ta.value.slice(a,b).replace(/[《》〔〕]/g,'');ta.setRangeText(t,a,b,'end');lastSel=[0,0];cnt();toast('色を外しました');showPen();return}
-        ta.focus();exitPen();
-        if(k!=='k'){const pos=ta.selectionStart;ta.setRangeText(PEN[k][0]+PEN[k][1],pos,pos,'start');ta.setSelectionRange(pos+1,pos+1)}
-        cnt();showPen()}});
-    ['click','keyup','input','focus'].forEach(ev=>ta.addEventListener(ev,showPen));
-    wb.onclick=()=>{const [a,b]=getSel();if(a===b){toast('囲みたい語句を選んでから押してください');return}
-      const sel=ta.value.slice(a,b).replace(/[【】]/g,'');ta.setRangeText('【'+sel+'】',a,b,'end');lastSel=[0,0];cnt();toast('穴埋めにしました')};
-    const save=()=>{ta.value=ta.value.replace(/《》|〔〕/g,'');const t=q('#fc-t').value.trim(),b=ta.value.trim(),k=q('#fc-k').value;if(!t||!b){toast(`${CT[k].front}と${CT[k].back}を入力してください`);return null}
+    const onSel=()=>{if(!ed.isConnected){document.removeEventListener('selectionchange',onSel);return}saveRange();showPen()};
+    document.addEventListener('selectionchange',onSel);
+    ed.addEventListener('input',()=>{pending=null;cnt();showPen()});
+    ed.addEventListener('pointerdown',()=>{pending=null});
+    ed.addEventListener('paste',e=>{e.preventDefault();const t=(e.clipboardData||window.clipboardData).getData('text/plain');document.execCommand('insertText',false,t)});
+    const keep=bt=>['mousedown','pointerdown'].forEach(ev=>bt.addEventListener(ev,e=>e.preventDefault()));
+    s.querySelectorAll('[data-pen]').forEach(bt=>{keep(bt);bt.onclick=()=>{
+      const k=bt.dataset.pen;restore();
+      try{document.execCommand('styleWithCSS',false,true)}catch(e){}
+      document.execCommand('foreColor',false,PENC[k]);
+      const sel=getSelection();pending=sel.rangeCount&&sel.getRangeAt(0).collapsed?k:null;
+      saveRange();cnt();showPen();
+      if(!pending)toast(k==='r'?'赤字にしました':k==='b'?'青字にしました':'黒に戻しました')}});
+    const wb=q('#fc-wrap');keep(wb);
+    wb.onclick=()=>{restore();const sel=getSelection();if(!sel.rangeCount){return}const r=sel.getRangeAt(0);
+      let m=r.commonAncestorContainer;while(m&&m!==ed&&!(m.nodeType===1&&m.tagName==='MARK'))m=m.parentNode;
+      if(m&&m!==ed){const f=document.createDocumentFragment();while(m.firstChild)f.appendChild(m.firstChild);m.replaceWith(f);cnt();toast('穴埋めを外しました');return}
+      if(r.collapsed){toast('穴埋めにしたい語句を選んでから押してください');return}
+      const mk=document.createElement('mark');mk.className='kw';mk.appendChild(r.extractContents());mk.querySelectorAll('mark').forEach(x=>{while(x.firstChild)x.parentNode.insertBefore(x.firstChild,x);x.remove()});
+      r.insertNode(mk);sel.removeAllRanges();const r2=document.createRange();r2.setStartAfter(mk);r2.collapse(true);sel.addRange(r2);saveRange();cnt();toast('穴埋めにしました')};
+    const save=()=>{const t=q('#fc-t').value.trim(),b=fromRich(ed),k=q('#fc-k').value;if(!t||!b){toast(`${CT[k].front}と${CT[k].back}を入力してください`);return null}
       const hr=k==='hanrei',out={...(editing?c:{}),id:editing?c.id:'c_'+uid(),kind:'c',ctype:k,use:q('#fc-u').value,subject:q('#fc-s').value,title:t,body:b,
         article:(hr?q('#fc-r2'):q('#fc-r')).value.trim(),issue:hr?q('#fc-i').value.trim():'',facts:hr?q('#fc-f').value.trim():'',tags:q('#fc-g').value.trim()};
       put(out);ui.lastCt=k;saveUi();return {t:k,u:out.use,s:out.subject,g:out.tags}};
