@@ -967,7 +967,7 @@ function colorOf(el){
 function fromRich(root){
   let out='';
   const walk=(node,col,kw)=>{
-    if(node.nodeType===3){const t=node.nodeValue.replace(/ /g,' ').replace(/[【】《》〔〕]/g,'');if(!t)return;out+=col==='r'?'《'+t+'》':col==='b'?'〔'+t+'〕':t;return}
+    if(node.nodeType===3){const t=node.nodeValue.replace(/\u200b/g,"").replace(/ /g,' ').replace(/[【】《》〔〕]/g,'');if(!t)return;out+=col==='r'?'《'+t+'》':col==='b'?'〔'+t+'〕':t;return}
     if(node.nodeType!==1)return;
     const tag=node.tagName;
     if(tag==='BR'){out+='\n';return}
@@ -1020,8 +1020,13 @@ function cForm(c,keep){
     s.querySelectorAll('[data-pen]').forEach(bt=>{keep(bt);bt.onclick=()=>{
       const k=bt.dataset.pen;restore();
       try{document.execCommand('styleWithCSS',false,true)}catch(e){}
-      document.execCommand('foreColor',false,PENC[k]);
-      const sel=getSelection();pending=sel.rangeCount&&sel.getRangeAt(0).collapsed?k:null;
+      const sel=getSelection(),rg=sel.rangeCount?sel.getRangeAt(0):null;
+      if(rg&&rg.collapsed){
+        let sp=rg.startContainer.nodeType===3?rg.startContainer.parentNode:null;
+        if(sp&&sp.dataset&&sp.dataset.pen0==='1'&&sp.textContent==='\u200b'){sp.style.color=PENC[k]}
+        else{sp=document.createElement('span');sp.dataset.pen0='1';sp.style.color=PENC[k];sp.textContent='\u200b';rg.insertNode(sp)}
+        const r2=document.createRange();r2.setStart(sp.firstChild,1);r2.collapse(true);sel.removeAllRanges();sel.addRange(r2);pending=k;
+      }else{document.execCommand('foreColor',false,PENC[k]);pending=null}
       saveRange();cnt();showPen();
       if(!pending)toast(k==='r'?'赤字にしました':k==='b'?'青字にしました':'黒に戻しました')}});
     const wb=q('#fc-wrap');keep(wb);
@@ -1073,12 +1078,14 @@ function renderRonsho(){
 /* ---------- 今日 ---------- */
 const OFFICIAL={label:'令和9年 司法試験',date:'2027-07-14',sub:'論文 7/14・15・17　短答 7/18',
   marks:[['出願受付開始','2027-03-08'],['出願締切','2027-04-01'],['論文式 初日','2027-07-14'],['短答式','2027-07-18'],['合格発表','2027-11-10']]};
-function exam(){const s=S();return s.date?{label:s.label||'試験',date:s.date,sub:'',marks:[]}:OFFICIAL}
+function exam(){return OFFICIAL}
+function goal(){const s=S();return s.date?{label:s.label||'目標',date:s.date}:{label:'3月の目標',date:'2027-03-01'}}
 function renderCount(){
-  const c=exam(),n=daysTo(c.date),nx=c.marks.find(m=>daysTo(m[1])>=0&&m[1]!==c.date);
+  const c=goal(),n=daysTo(c.date),o=OFFICIAL,on=daysTo(o.date);
   $('count').innerHTML=`<div class="days">${n>0?`<span>あと</span><b>${n}</b><span>日</span>`:n===0?'<b>当日</b>':`<b>${-n}</b><span>日経過</span>`}</div>
     <div class="lbl"><span>${esc(c.label)}</span><button class="btn ghost" data-open="settings">変更</button></div>
-    <div class="sub">${esc(c.sub||md(c.date))}${n>0?`<span class="meta">　約${Math.floor(n/7)}週</span>`:''}</div>
+    <div class="sub">${esc(md(c.date))}${n>0?`<span class="meta">　約${Math.floor(n/7)}週</span>`:''}</div>
+    ${c.date!==o.date?`<div class="next">${esc(o.label)}（${esc(md(o.date))}〜）まで あと<b>${on}</b>日</div>`:''}
 `;
 }
 function renderToday(){
@@ -1223,10 +1230,10 @@ function renderToren(){
 function settingsSheet(){
   const s=S();
   openSheet(`<h2>設定とデータ</h2>
-   <h3>カウントダウンする試験</h3>
-   <div class="grid2"><label class="f">試験の名前<input id="st-l" value="${esc(s.date?s.label:'')}" placeholder="例：令和9年 予備試験 短答"></label>
-   <label class="f">試験日<input type="date" id="st-d" value="${esc(s.date)}"></label></div>
-   <p class="note">空のままなら令和9年司法試験（論文 7/14 開始）を表示します。</p>
+   <h3>カウントダウン</h3>
+   <div class="grid2"><label class="f">目標の名前<input id="st-l" value="${esc(s.date?s.label:'')}" placeholder="3月の目標"></label>
+   <label class="f">日付<input type="date" id="st-d" value="${esc(s.date)}"></label></div>
+   <p class="note">空のままなら「3月の目標（2027年3月1日）」を大きく表示します。令和9年司法試験（7/14〜）はその下に小さく出ます。</p>
    <h3>文字の大きさ</h3>
    <div class="seg" role="group" aria-label="文字の大きさ">${[['m','標準'],['l','大きめ'],['xl','特大']].map(([k,l])=>`<button type="button" data-font="${k}" aria-pressed="${(ui.font||'m')===k}">${l}</button>`).join('')}</div>
    ${canSpeak?`<h3>読み上げ</h3><div class="grid2"><label class="f">声<select id="st-v"></select></label>
