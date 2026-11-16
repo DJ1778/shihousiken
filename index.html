@@ -324,6 +324,9 @@ details.info .tbl+.note{margin-bottom:12px}
 .p-body.mine{font-size:.92rem;line-height:1.8;color:var(--muted)}
 .p-write{min-height:180px;font-size:1rem;background:var(--bg)}
 .p-write.say{min-height:110px}
+.hp-q{display:flex;align-items:baseline;gap:12px;flex-wrap:wrap}.hp-q b{font-family:var(--f-display);font-size:2.4rem;line-height:1.1;color:var(--accent)}.hp-q span{font-weight:700;font-size:1.05rem}
+.hp-a{white-space:pre-wrap}
+.grades.three{grid-template-columns:repeat(3,1fr)}
 .btn.mic{align-self:center;min-width:140px;min-height:56px;border-radius:999px;font-size:1.05rem;font-weight:700;border:2px solid var(--accent);color:var(--accent);background:var(--surface)}
 .btn.mic.on{background:var(--accent);color:var(--surface);animation:micp 1.2s ease-in-out infinite}
 @keyframes micp{50%{box-shadow:0 0 0 8px color-mix(in srgb,var(--accent) 25%,transparent)}}
@@ -701,7 +704,7 @@ function ovPush(){if(inClaude)return;try{history.pushState({ov:1},'');ovN++}catc
 function ovPop(){if(inClaude||ovN<=0)return;ovN--;popSkip++;try{history.back()}catch(e){popSkip--}}
 function openSheet(html,bind){const was=!$('scrim').hidden;if(!was){lastFocus=document.activeElement;ovPush()}
   $('sheet').innerHTML='<div class="sheet-top"><button class="btn ghost" data-sheet-close>← 戻る</button></div>'+html;$('scrim').hidden=false;$('sheet').scrollTop=0;bind($('sheet'));const f=$('sheet').querySelector('input:not([type=checkbox]):not([type=file]),textarea,select');if(f)f.focus()}
-function closeSheet(fromPop){if($('scrim').hidden)return;if(fromPop!==true)ovPop();$('scrim').hidden=true;$('sheet').innerHTML='';if(lastFocus&&lastFocus.focus)try{lastFocus.focus()}catch(e){}}
+function closeSheet(fromPop){if($('scrim').hidden)return;stopRec();if(fromPop!==true)ovPop();$('scrim').hidden=true;$('sheet').innerHTML='';if(lastFocus&&lastFocus.focus)try{lastFocus.focus()}catch(e){}}
 $('scrim').addEventListener('click',e=>{if(e.target.id==='scrim'||e.target.closest('[data-sheet-close]'))closeSheet()});
 const subjSel=(id,v)=>`<select id="${id}">${SUBJ.map(s=>`<option value="${s}"${s===v?' selected':''}>${esc(SL(s))}</option>`).join('')}</select>`;
 const exNote=kind=>mine(kind).length?'':'<p class="note" style="padding-bottom:6px"><span class="chip ex">例</span> は見本です。自分の項目を追加すると表示されなくなります。</p>';
@@ -1926,27 +1929,84 @@ const hsDoc=()=>items.get('hyakusen')||{id:'hyakusen',kind:'h',books:{}};
 const HS_SUBJ={kenpo1:'憲法',kenpo2:'憲法',gyosei1:'行政法',gyosei2:'行政法',minpo1:'民法',minpo2:'民法',minpo3:'民法',kaisha:'商法',minso:'民訴',keiho1:'刑法',keiho2:'刑法',keiso:'刑訴'};
 const hsTag=(k,i)=>HS_BOOKS.find(b=>b[0]===k)[1].replace(/判例百選/,'百選').replace(/（.*）/,'')+'-'+i;
 const hsHasCard=(k,i)=>{const t=hsTag(k,i);return [...items.values()].some(x=>x.kind==='c'&&(x.tags||'').split(/[\s,、]+/).includes(t))};
-let hsLast=null;
-const hsBook=k=>{const b=(hsDoc().books||{})[k]||{};return {n:+b.n||100,r:b.r||{}}};
+const hsBook=k=>{const b=(hsDoc().books||{})[k]||{};return {n:+b.n||100,r:b.r||{},m:b.m||{},o:b.o||{}}};
+const hsKey=()=>HS_BOOKS.some(b=>b[0]===ui.hs)?ui.hs:'kenpo1';
+const hsName=k=>HS_BOOKS.find(b=>b[0]===k)[1];
+const hsHasMemo=(b,i)=>{const m=b.m[i];return !!(m&&(m.t||m.memo))};
 function renderHS(){
   const el=$('hs-panel');if(!el)return;
-  const k=HS_BOOKS.some(b=>b[0]===ui.hs)?ui.hs:'kenpo1',b=hsBook(k),read=Object.values(b.r).filter(v=>v>0).length;
-  el.innerHTML=`<div class="spread"><h3>判例百選スタンプラリー</h3><span class="meta"><b style="color:var(--ink)">${read}</b> / ${b.n}件（${Math.round(read/b.n*100)}%）</span></div>
+  const k=hsKey(),b=hsBook(k),read=Object.values(b.r).filter(v=>v>0).length,nm=Object.keys(b.m).filter(i=>hsHasMemo(b,i)).length;
+  el.innerHTML=`<div class="spread"><h3>判例百選</h3><span class="meta"><b style="color:var(--ink)">${read}</b> / ${b.n}件（${Math.round(read/b.n*100)}%）</span></div>
     <div class="hs-top"><label class="f">本<select id="hs-b">${HS_BOOKS.map(([key,l])=>{const bb=hsBook(key),rd=Object.values(bb.r).filter(v=>v>0).length;return `<option value="${key}"${key===k?' selected':''}>${l}${rd?`（${rd}/${bb.n}）`:''}</option>`}).join('')}</select></label>
     <label class="f">件数<input type="number" id="hs-n" min="1" max="400" inputmode="numeric" value="${b.n}"></label></div>
     <div class="meter"><i style="width:${Math.round(read/b.n*100)}%"></i></div>
-    ${hsLast&&hsLast.k===k?`<div class="reco" style="background:var(--accent-soft,var(--ng-soft));border-radius:8px;padding:10px 12px;border:0"><span>${hsLast.i}番を読みました。判例カードにしますか？</span><div class="row" style="gap:6px"><button class="btn primary" data-hs-card>カードにする</button><button class="btn ghost" data-hs-skip>しない</button></div></div>`:''}
-    <div class="hs-grid">${Array.from({length:b.n},(_,i)=>{const c=+b.r[i+1]||0,hc=hsHasCard(k,i+1);return `<button class="hs${c?' s'+Math.min(c,3):''}${hc?' hc':''}" data-hs="${i+1}" aria-label="${i+1}番 ${c?c+'回読んだ':'未読'}${hc?' カードあり':''}">${i+1}</button>`}).join('')}</div>
-    <p class="note">読んだ番号を押すとスタンプ。押すたびに 1回→2回→3回→消す。カードにした判例には小さな点がつきます。件数はお使いの版に合わせてください。</p>`;
+    ${nm?`<button class="btn primary" data-hs-say>口で説明する練習（メモ ${nm}件）</button>`:''}
+    <div class="hs-grid">${Array.from({length:b.n},(_,i)=>{const c=+b.r[i+1]||0,hm=hsHasMemo(b,i+1),t=hm&&b.m[i+1].t;return `<button class="hs${c?' s'+Math.min(c,3):''}${hm?' hc':''}" data-hs="${i+1}" aria-label="${i+1}番${t?' '+esc(t):''} ${c?c+'回読んだ':'未読'}${hm?' メモあり':''}">${i+1}</button>`}).join('')}</div>
+    <p class="note">番号を押すと、読んだ回数とメモ（事件名・規範・ポイント）を記録できます。メモがある番号には点がつき、「口で説明する練習」に出ます。</p>`;
 }
-function hsSave(k,fn){const d=hsDoc(),books={...(d.books||{})},b={n:hsBook(k).n,r:{...hsBook(k).r}};fn(b);books[k]=b;put({...d,id:'hyakusen',kind:'h',books})}
-document.addEventListener('click',e=>{const k=HS_BOOKS.some(b=>b[0]===ui.hs)?ui.hs:'kenpo1';
-  if(e.target.closest('[data-hs-skip]')){hsLast=null;renderHS();return}
-  if(e.target.closest('[data-hs-card]')&&hsLast){const {i}=hsLast;hsLast=null;renderHS();
-    cForm({ctype:'hanrei',use:'both',subject:HS_SUBJ[k]||'民法',title:'',body:'',article:'',issue:'',tags:hsTag(k,i)});return}
-  const t=e.target.closest('[data-hs]');if(!t)return;const i=t.dataset.hs;let nc=0;
-  hsSave(k,b=>{const c=((+b.r[i]||0)+1)%4;nc=c;if(c)b.r[i]=c;else delete b.r[i]});
-  hsLast=(nc===1&&!hsHasCard(k,i))?{k,i}:null;renderHS()});
+function hsSave(k,fn){const d=hsDoc(),books={...(d.books||{})},o=hsBook(k),b={n:o.n,r:{...o.r},m:{...o.m},o:{...o.o}};fn(b);books[k]=b;put({...d,id:'hyakusen',kind:'h',books})}
+function recToggle(ta,btn){
+  if(REC){stopRec();btn.textContent='話す';btn.classList.remove('on');return}
+  if(!srOk){toast('この画面ではマイクが使えません。キーボードのマイクで話してください');return}
+  const base=ta.value?ta.value.replace(/\s*$/,'')+' ':'';let r;try{r=new SRC()}catch(e){srOk=false;btn.hidden=true;return}
+  r.lang='ja-JP';r.continuous=true;r.interimResults=true;REC=r;
+  r.onresult=ev=>{let t='';for(let i=0;i<ev.results.length;i++)t+=ev.results[i][0].transcript;ta.value=base+t};
+  r.onerror=ev=>{if(/not-allowed|audio-capture/.test(ev.error)){srOk=false;btn.hidden=true;toast('この画面ではマイクが使えません。キーボードのマイクで話してください')}stopRec();btn.textContent='話す';btn.classList.remove('on')};
+  r.onend=()=>{if(REC===r){REC=null;btn.textContent='話す';btn.classList.remove('on')}};
+  try{r.start()}catch(e){REC=null;return}
+  btn.textContent='止める';btn.classList.add('on');
+}
+function hsMemoSheet(k,i){
+  const b=hsBook(k),m=b.m[i]||{},c=+b.r[i]||0,o=b.o[i];
+  openSheet(`<h2>${esc(hsName(k))} ${i}番</h2>
+    <div class="f"><span>読んだ回数</span><div class="seg" role="group" aria-label="読んだ回数">${['未読','1回','2回','3回'].map((l,n)=>`<button type="button" data-hr="${n}" aria-pressed="${c===n}">${l}</button>`).join('')}</div></div>
+    <label class="f">事件名<input id="hm-t" value="${esc(m.t||'')}" placeholder="例：クロロホルム事件（早すぎた構成要件の実現）"></label>
+    <label class="f">メモ（事案・争点・規範・結論）<textarea id="hm-m" rows="7" placeholder="自分の言葉で短く。口で説明するときの答えになります。">${esc(m.memo||'')}</textarea></label>
+    ${o?`<p class="note">前回の口頭練習：${o.g===2?'言えた':o.g===1?'あやふや':'言えなかった'}（${md(o.last)}）</p>`:''}
+    <div class="row"><button class="btn" data-hm-say>口で説明する</button><button class="btn primary wide" data-hm-save>保存</button></div>`,sh=>{
+    let rc=c;
+    sh.querySelectorAll('[data-hr]').forEach(bt=>bt.onclick=()=>{rc=+bt.dataset.hr;sh.querySelectorAll('[data-hr]').forEach(x=>x.setAttribute('aria-pressed',x===bt))});
+    const save=()=>{const t=sh.querySelector('#hm-t').value.trim(),memo=sh.querySelector('#hm-m').value.trim();
+      hsSave(k,bb=>{if(rc)bb.r[i]=rc;else delete bb.r[i];if(t||memo)bb.m[i]={t,memo};else delete bb.m[i]});return t||memo};
+    sh.querySelector('[data-hm-save]').onclick=()=>{save();closeSheet();toast('保存しました')};
+    sh.querySelector('[data-hm-say]').onclick=()=>{if(!save()){toast('先に事件名かメモを書いてください');return}hsPractice(k,[String(i)])};
+  });
+}
+let HP=null;
+function hsPractice(k,ids){
+  const b=hsBook(k);
+  if(!ids){const all=Object.keys(b.m).filter(i=>hsHasMemo(b,i));const w=i=>{const o=b.o[i];return !o?1:o.g===0?0:o.g===1?2:3};
+    ids=shuffle(all).sort((x,y)=>w(x)-w(y)).slice(0,20)}
+  HP={k,ids,i:0,show:false,typed:'',res:[0,0,0]};hsStep();
+}
+function hsStep(){
+  stopRec();const {k,ids}=HP;
+  if(HP.i>=ids.length){const [ng,mid,ok]=HP.res;HP=null;
+    openSheet(`<h2>おつかれさまでした</h2><div class="stats"><div class="stat"><b>${ok}</b><span>言えた</span></div><div class="stat"><b>${mid}</b><span>あやふや</span></div><div class="stat"><b>${ng}</b><span>言えなかった</span></div></div>
+      <p class="note">言えなかった判例は、次の練習で先に出ます。</p><button class="btn primary" data-sheet-close>閉じる</button>`,()=>{});renderHS();return}
+  const i=ids[HP.i],b=hsBook(k),m=b.m[i]||{},from=ui.hsFrom||'num';
+  openSheet(`<div class="spread"><span class="meta">${esc(hsName(k))}</span><span class="meta">${HP.i+1} / ${ids.length}</span></div>
+    <div class="seg" role="group" aria-label="出し方"><button type="button" data-hf="num" aria-pressed="${from==='num'}">番号から</button><button type="button" data-hf="title" aria-pressed="${from==='title'}">事件名から</button></div>
+    <div class="hp-q"><b>${i}番</b>${from==='title'||HP.show?`<span>${esc(m.t||'')}</span>`:''}</div>
+    ${HP.show?`<div class="p-body hp-a">${esc(m.memo||'（メモなし）')}</div>`:`<p class="note">${from==='num'?'どんな事件で、何が争点で、どんな規範を示したか':'争点・規範・結論'}を、見ないで口で説明してみよう。</p>`}
+    ${!HP.show&&srOk?'<button class="btn mic" data-hp-mic>話す</button>':''}
+    <textarea id="hp-t" class="p-write say" placeholder="話した内容がここに出ます（キーボードのマイクでもOK。空でもかまいません）" aria-label="話した内容"${HP.show?' readonly':''}>${esc(HP.typed||'')}</textarea>
+    ${HP.show?`<div class="grades three"><button class="btn ng" data-hg="0">言えなかった</button><button class="btn" data-hg="1">あやふや</button><button class="btn primary" data-hg="2">言えた</button></div>`
+      :'<button class="btn primary" data-hp-show>メモを見て確かめる</button>'}`,sh=>{
+    const ta=sh.querySelector('#hp-t');
+    sh.querySelectorAll('[data-hf]').forEach(bt=>bt.onclick=()=>{ui.hsFrom=bt.dataset.hf;saveUi();HP.typed=ta.value;hsStep()});
+    const mic=sh.querySelector('[data-hp-mic]');if(mic)mic.onclick=()=>recToggle(ta,mic);
+    const sw=sh.querySelector('[data-hp-show]');if(sw)sw.onclick=()=>{HP.typed=ta.value;HP.show=true;hsStep()};
+    sh.querySelectorAll('[data-hg]').forEach(bt=>bt.onclick=()=>{const g=+bt.dataset.hg;HP.res[g]++;
+      hsSave(k,bb=>{const o=bb.o[i]||{};bb.o[i]={n:(o.n||0)+1,g,last:today()}});
+      HP.i++;HP.show=false;HP.typed='';hsStep()});
+  });
+  try{document.activeElement.blur()}catch(e){}
+}
+document.addEventListener('click',e=>{const k=hsKey();
+  if(e.target.closest('[data-hs-say]')){hsPractice(k);return}
+  const t=e.target.closest('[data-hs]');if(!t)return;hsMemoSheet(k,t.dataset.hs)});
+
 document.addEventListener('change',e=>{
   if(e.target.id==='hs-b'){ui.hs=e.target.value;saveUi();renderHS()}
   if(e.target.id==='hs-n'){const n=Math.max(1,Math.min(400,Math.round(+e.target.value||100))),k=HS_BOOKS.some(b=>b[0]===ui.hs)?ui.hs:'kenpo1';hsSave(k,b=>{b.n=n});toast(`件数を${n}件にしました`)}
