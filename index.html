@@ -323,6 +323,11 @@ details.info .tbl+.note{margin-bottom:12px}
 .p-body.q{font-size:1.08rem;line-height:1.9}
 .p-body.mine{font-size:.92rem;line-height:1.8;color:var(--muted)}
 .p-write{min-height:180px;font-size:1rem;background:var(--bg)}
+.p-write.say{min-height:110px}
+.btn.mic{align-self:center;min-width:140px;min-height:56px;border-radius:999px;font-size:1.05rem;font-weight:700;border:2px solid var(--accent);color:var(--accent);background:var(--surface)}
+.btn.mic.on{background:var(--accent);color:var(--surface);animation:micp 1.2s ease-in-out infinite}
+@keyframes micp{50%{box-shadow:0 0 0 8px color-mix(in srgb,var(--accent) 25%,transparent)}}
+@media (prefers-reduced-motion:reduce){.btn.mic.on{animation:none}}
 mark.kw{background:var(--accent-soft);color:var(--ink);padding:0 2px;border-radius:3px;font-weight:700}
 mark.kw.hit{color:var(--ok)}
 mark.kw.miss{background:var(--ng-soft);color:var(--ng);text-decoration:underline wavy;text-underline-offset:3px}
@@ -436,7 +441,7 @@ details summary{cursor:pointer;font-size:.85rem;color:var(--muted)}
         <label class="f">科目<select id="c-subj"></select></label>
         <label class="f">範囲<select id="c-scope">
           <option value="today">今日の復習</option><option value="all">すべて</option><option value="wrong">前回忘れた</option><option value="flag">苦手★</option><option value="new">未学習</option></select></label>
-        <label class="f">覚え方<select id="c-mode"><option value="flip">めくる</option><option value="cloze">穴埋め</option><option value="write">書いて確認</option></select></label>
+        <label class="f">覚え方<select id="c-mode"><option value="flip">めくる</option><option value="cloze">穴埋め</option><option value="write">書く</option><option value="say">声に出す</option></select></label>
       </div>
       <button class="btn primary" id="c-start">復習を始める</button>
     </div>
@@ -738,8 +743,22 @@ function startSession(ids,label){
   P={q:ids.map(id=>({id,re:false})),i:0,res:[0,0,0,0],wrong:new Set(),reN:{},t0:Date.now(),label};
   resetCard();if($('player').hidden)ovPush();$('player').hidden=false;document.body.style.overflow='hidden';$('player').scrollTop=0;renderPlayer();
 }
-function resetCard(){Object.assign(P,{phase:'front',ans:null,revealed:new Set(),hint:false,typed:''})}
-function closePlayer(fromPop){try{speechSynthesis.cancel()}catch(e){}if(fromPop!==true&&!$('player').hidden)ovPop();P=null;$('player').hidden=true;document.body.style.overflow='';render()}
+// 声に出して言う（音声認識）
+const SRC=window.SpeechRecognition||window.webkitSpeechRecognition;let srOk=!!SRC,REC=null;
+function stopRec(){if(REC){try{REC.onend=null;REC.stop()}catch(e){}REC=null}const b=document.querySelector('[data-p="mic"]');if(b){b.textContent='話す';b.classList.remove('on')}}
+function startRec(){
+  if(!srOk){toast('この画面ではマイクが使えません。キーボードのマイクで話してください');return}
+  stopRec();const base=P.typed?P.typed.replace(/\s*$/,'')+' ':'';let r;
+  try{r=new SRC()}catch(e){srOk=false;toast('この画面ではマイクが使えません。キーボードのマイクで話してください');renderPlayer();return}
+  r.lang='ja-JP';r.continuous=true;r.interimResults=true;REC=r;
+  r.onresult=ev=>{let t='';for(let i=0;i<ev.results.length;i++)t+=ev.results[i][0].transcript;P.typed=base+t;const ta=$('p-write');if(ta)ta.value=P.typed};
+  r.onerror=ev=>{if(ev.error==='not-allowed'||ev.error==='service-not-allowed'||ev.error==='audio-capture'){srOk=false;stopRec();toast('この画面ではマイクが使えません。キーボードのマイクで話してください');renderPlayer()}};
+  r.onend=()=>{if(REC===r)stopRec()};
+  try{r.start()}catch(e){REC=null;return}
+  const b=document.querySelector('[data-p="mic"]');if(b){b.textContent='止める';b.classList.add('on')}
+}
+function resetCard(){stopRec();Object.assign(P,{phase:'front',ans:null,revealed:new Set(),hint:false,typed:''})}
+function closePlayer(fromPop){stopRec();try{speechSynthesis.cancel()}catch(e){}if(fromPop!==true&&!$('player').hidden)ovPop();P=null;$('player').hidden=true;document.body.style.overflow='';render()}
 function advance(g){
   const e=P.q[P.i],x=getItem(e.id);
   if(!e.re){grade(x,g,x.kind==='q'?P.ans===x.answer:null);P.res[g]++}
@@ -782,7 +801,7 @@ function qCard(x,e,chips){
 function cCard(x,e,chips){
   const t=ctOf(x),rev=t==='hanrei'&&!!ui.rev,m=rev?'flip':(ui.cMode||'flip'),nk=kwCount(x.body),back=P.phase==='back';
   let h='<div class="row" style="gap:8px">';
-  if(!rev)h+=`<div class="seg" role="group" aria-label="覚え方">${[['flip','めくる'],['cloze','穴埋め'],['write','書いて確認']].map(([k,l])=>`<button data-mode="${k}" aria-pressed="${m===k}">${l}</button>`).join('')}</div>`;
+  if(!rev)h+=`<div class="seg" role="group" aria-label="覚え方">${[['flip','めくる'],['cloze','穴埋め'],['write','書く'],['say','声に出す']].map(([k,l])=>`<button data-mode="${k}" aria-pressed="${m===k}">${l}</button>`).join('')}</div>`;
   if(t==='hanrei')h+=`<div class="seg" role="group" aria-label="出題の向き"><button data-p="rev" data-v="0" aria-pressed="${!rev}">判例→規範</button><button data-p="rev" data-v="1" aria-pressed="${rev}">規範→判例</button></div>`;
   h+='</div>';
   const head=`<div class="p-title">${tint(esc(x.title))}</div>${t==='hanrei'&&x.article?`<div class="p-sub">${esc(x.article)}</div>`:''}${t==='hanrei'&&x.issue?`<div class="p-issue">争点：${esc(x.issue)}</div>`:''}`;
@@ -798,17 +817,22 @@ function cCard(x,e,chips){
       if(!nk)h+=back?`<div class="p-body">${tint(esc(x.body))}</div>`:'<p class="note">このカードにはキーワードの【】がありません。編集で語句を【】で囲むと穴埋めになります。</p>';
       else h+=`<div class="p-body">${back?fmt(x.body,'plain'):fmt(x.body,'cloze',{revealed:P.revealed,hint:P.hint})}</div>`+(back?'':`<p class="note">空欄をタップすると1つずつ開きます。</p>`);
     }else{
-      if(!back)h+=`<textarea id="p-write" class="p-write" placeholder="${esc(CT[t].back)}を思い出して書きます" aria-label="${esc(CT[t].back)}を書く">${esc(P.typed)}</textarea>`;
-      else{
+      if(!back&&m==='say')h+=`<p class="note">見ないで声に出して言ってみよう。${srOk?'「話す」で文字にすると':'キーボードのマイクで文字にすると'}、キーワードが言えたか確かめられます。</p>
+        ${srOk?`<button class="btn mic${REC?' on':''}" data-p="mic">${REC?'止める':'話す'}</button>`:''}
+        <textarea id="p-write" class="p-write say" placeholder="話した内容がここに出ます（声に出すだけで、空のまま答えを見てもOK）" aria-label="話した内容">${esc(P.typed)}</textarea>`;
+      else if(!back)h+=`<textarea id="p-write" class="p-write" placeholder="${esc(CT[t].back)}を思い出して書きます" aria-label="${esc(CT[t].back)}を書く">${esc(P.typed)}</textarea>`;
+      else if(m==='say'&&!P.typed.trim()){
+        h+=`<p class="note">声に出した内容と見比べて、言えたかどうかで評価してください。</p><div class="p-body">${fmt(x.body,'plain')}</div>`;
+      }else{
         const norm=nz(P.typed),ks=parts(x.body).filter(p=>p.k),hit=ks.filter(p=>norm.includes(nz(p.k))).length;
-        h+=nk?`<div class="score-line">キーワード <b>${hit} / ${nk}</b> を再現（${Math.round(hit/nk*100)}%）　<span class="note">目安：8割以上で「覚えた」</span></div>`:'<p class="note">キーワードの【】が無いので、原文と見比べて自己評価してください。</p>';
+        h+=nk?`<div class="score-line">キーワード <b>${hit} / ${nk}</b> を${m==='say'?'言えた':'再現'}（${Math.round(hit/nk*100)}%）　<span class="note">目安：8割以上で「覚えた」</span></div>`:'<p class="note">キーワードの【】が無いので、原文と見比べて自己評価してください。</p>';
         h+=`<div class="p-body">${fmt(x.body,'check',{norm})}</div><details><summary>自分の答えを見る</summary><div class="p-body mine">${esc(P.typed)||'（未記入）'}</div></details>`;
       }
     }
     if(back)h+=facts;
   }
   h+='</div>';
-  if(!back)h+=`<div class="row">${m==='cloze'&&nk&&!P.hint?'<button class="btn" data-p="hint">ヒント（頭文字）</button>':''}<button class="btn primary wide" data-p="reveal">${m==='write'?'答え合わせ':'答えを見る'}</button></div>`;
+  if(!back)h+=`<div class="row">${m==='cloze'&&nk&&!P.hint?'<button class="btn" data-p="hint">ヒント（頭文字）</button>':''}<button class="btn primary wide" data-p="reveal">${m==='write'||m==='say'&&P.typed.trim()?'答え合わせ':'答えを見る'}</button></div>`;
   else{
     h+=`<div class="grades">${[['もう一度',0],['難しい',1],['覚えた',2],['簡単',3]].map(([l,g])=>`<button class="btn${g===2?' primary':''}${g===0?' ng':''}" data-g="${g}">${l}<small>${e.re?'—':g===0?'数問後':ivlLabel(sched(srsOf(x),g).ivl)}</small></button>`).join('')}</div>`;
     if(canSpeak)h+='<button class="btn ghost" data-p="speak">読み上げる</button>';
@@ -818,7 +842,7 @@ function cCard(x,e,chips){
 function keysHint(x){
   let k;
   if(x.kind==='q')k=P.phase==='front'?'O または ← で○、X または → で×':'Space 次へ・2 まぐれ';
-  else if(P.phase==='front'){const fm=ctOf(x)==='hanrei'&&ui.rev?'flip':ui.cMode;k=(fm==='write'?'Ctrl+Enter 答え合わせ':'Space 答えを見る')+(fm==='cloze'?'・H ヒント':'')}
+  else if(P.phase==='front'){const fm=ctOf(x)==='hanrei'&&ui.rev?'flip':ui.cMode;k=(fm==='write'||fm==='say'?'Ctrl+Enter 答え合わせ':'Space 答えを見る')+(fm==='cloze'?'・H ヒント':'')}
   else k='1 もう一度・2 難しい・3 覚えた・4 簡単（Space＝覚えた）';
   return k+'・F 苦手★・Esc 終了';
 }
@@ -842,7 +866,7 @@ function renderPlayer(){
   h+=`<p class="keys">${keysHint(x)}</p>`;
   el.innerHTML=h;
   const ta=$('p-write');
-  if(ta){ta.addEventListener('input',()=>{P.typed=ta.value});ta.focus()}else $('player').focus({preventScroll:true});
+  if(ta){ta.addEventListener('input',()=>{P.typed=ta.value});if(!ta.classList.contains('say'))ta.focus();else $('player').focus({preventScroll:true})}else $('player').focus({preventScroll:true});
 }
 function pAct(d){
   if(!P)return;
@@ -854,7 +878,8 @@ function pAct(d){
     case 'close':closePlayer();break;
     case 'flag':toggleFlag(x);renderPlayer();break;
     case 'o':case 'x':P.ans=d.p==='o';P.phase='back';renderPlayer();break;
-    case 'reveal':{const ta=$('p-write');if(ta)P.typed=ta.value;P.phase='back';renderPlayer();break}
+    case 'mic':REC?stopRec():startRec();break;
+    case 'reveal':{stopRec();const ta=$('p-write');if(ta)P.typed=ta.value;P.phase='back';renderPlayer();break}
     case 'hint':P.hint=true;renderPlayer();break;
     case 'rev':ui.rev=d.v==='1';saveUi();resetCard();renderPlayer();break;
     case 'speak':speak(x.body);break;
