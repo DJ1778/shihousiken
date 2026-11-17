@@ -696,7 +696,51 @@ function del(id){
   items.delete(id);render();
   if(mode==='cloud'){chains[id]=(chains[id]||Promise.resolve()).then(()=>col.doc(id).delete()).catch(()=>toast('削除に失敗しました'))}else saveLocal();
 }
-function initStore(){mode='local';loadLocal();try{navigator.storage&&navigator.storage.persist&&navigator.storage.persist()}catch(e){}setStore();render()}
+const FB=null;let fbUser=null,fbUnsub=null,fbReady=null;
+function initStore(){mode='local';loadLocal();try{navigator.storage&&navigator.storage.persist&&navigator.storage.persist()}catch(e){}setStore();render();if(FB)fbInit()}
+function loadScript(u){return new Promise((ok,ng)=>{const s=document.createElement('script');s.src=u;s.onload=ok;s.onerror=ng;document.head.appendChild(s)})}
+function fbLoad(){
+  if(!fbReady){const b='https://www.gstatic.com/firebasejs/10.12.2/';
+    fbReady=loadScript(b+'firebase-app-compat.js').then(()=>Promise.all([loadScript(b+'firebase-auth-compat.js'),loadScript(b+'firebase-firestore-compat.js')])).then(()=>{if(!firebase.apps.length)firebase.initializeApp(FB);return firebase});
+    fbReady.catch(()=>{fbReady=null})}
+  return fbReady}
+async function fbInit(){
+  try{const fb=await fbLoad();
+    fb.auth().getRedirectResult().catch(e=>toast('ログインできませんでした（'+(e.code||'エラー')+'）'));
+    fb.auth().onAuthStateChanged(u=>{fbUser=u;if(u)fbConnect(u);else fbDisconnect()});
+  }catch(e){/* 通信なし：このブラウザの保存で続ける */}
+}
+function fbConnect(u){
+  fbDisconnect(true);
+  const c=firebase.firestore().collection('users').doc(u.uid).collection('items');let first=true;
+  fbUnsub=c.onSnapshot(snap=>{
+    const m=new Map(snap.docs.map(d=>[d.id,{id:d.id,...d.data()}]));
+    if(first){first=false;
+      // このブラウザにだけあるデータをクラウドへ引き継ぐ
+      const up=[...items.values()].filter(x=>!m.has(x.id)&&!isEx(x));
+      for(let i=0;i<up.length;i+=400){const bt=firebase.firestore().batch();up.slice(i,i+400).forEach(x=>{const {id,...rest}=x;bt.set(c.doc(id),JSON.parse(JSON.stringify(rest)))});bt.commit().catch(()=>toast('引き継ぎの一部に失敗しました。通信を確認してください'))}
+      up.forEach(x=>m.set(x.id,x));
+      col=c;mode='cloud';setStore();if(up.length)toast(up.length+'件をクラウドに引き継ぎました');
+    }
+    items=m;saveLocal();render();
+  },e=>{toast('同期できませんでした（'+(e.code||'エラー')+'）');fbDisconnect()});
+}
+function fbDisconnect(keep){if(fbUnsub){try{fbUnsub()}catch(e){}fbUnsub=null}if(keep)return;if(mode==='cloud'){col=null;mode='local';setStore();render()}}
+function fbBlock(){
+  if(!FB)return '<p class="note">データはこのブラウザの中に保存されます。別の端末へ移すときや念のための保管には、バックアップと復元を使ってください。</p>';
+  return fbUser?`<p class="note">ログイン中：<b>${esc(fbUser.email||fbUser.displayName||'')}</b><br>スマホでもパソコンでも、同じGoogleアカウントでログインすれば同じデータが使えます。</p><button class="btn" data-fb-out>ログアウト</button>`
+    :`<p class="note">Googleでログインすると、スマホとパソコンで同じデータが使えます。いまこのブラウザにあるデータもそのまま引き継がれます。</p><button class="btn primary" data-fb-in>Googleでログイン</button>`;
+}
+document.addEventListener('click',async e=>{
+  if(e.target.closest('[data-fb-in]')){
+    try{const fb=await fbLoad(),a=fb.auth(),pv=new fb.auth.GoogleAuthProvider();
+      try{await a.signInWithPopup(pv);closeSheet();toast('ログインしました')}
+      catch(er){if(/popup-blocked|operation-not-supported|cancelled-popup/.test(er.code||''))a.signInWithRedirect(pv);else if(!/popup-closed/.test(er.code||''))toast('ログインできませんでした（'+(er.code||'エラー')+'）')}
+    }catch(er){toast('通信できませんでした。電波のある場所でもう一度')}
+  }
+  if(e.target.closest('[data-fb-out]')){try{await firebase.auth().signOut();closeSheet();toast('ログアウトしました。データはこのブラウザにも残っています')}catch(er){}}
+});
+
 /* ---------- 共通UI ---------- */
 let toastT;
 function toast(msg){const t=$('toast');t.textContent=msg;t.hidden=false;clearTimeout(toastT);toastT=setTimeout(()=>t.hidden=true,2800)}
@@ -1291,9 +1335,9 @@ function settingsSheet(){
    <h3>この端末の自動の控え（毎日・14日分）</h3>
    <div class="row"><select id="sn-k" style="flex:1;min-width:0" aria-label="控えの日付"><option value="">読み込み中…</option></select><button class="btn" id="sn-go">この日の状態に戻す</button></div>
    <p class="note">うっかり消したときのための控えです。戻すと、その日にあったカードや記録が復活します（今あるものは消えません）。</p>
-   <p class="note">データはこのブラウザの中に保存されます。別の端末へ移すときや念のための保管には、バックアップと復元を使ってください。</p>`,sh=>{
+   ${fbBlock()}`,sh=>{
     const sv=sh.querySelector('#st-v');
-    const fillV=()=>{if(!sv)return;loadVoices();const cur=bestVoice();
+    const fillV=()=>{if(!sv||!sv.isConnected)return;loadVoices();const cur=bestVoice();
       sv.innerHTML=`<option value="">自動（いま：${esc(cur?vLabel(cur):'端末の標準')}）</option>`+voices.map(v=>{const id=v.voiceURI||v.name;return `<option value="${esc(id)}"${id===ui.voice?' selected':''}>${esc(vLabel(v))}</option>`}).join('');
       sh.querySelector('#st-vn').textContent=`使える日本語の声：${voices.length}個`;
       sh.querySelector('#st-vnote').textContent=voices.length<=1?'この画面では声を選べません。Claudeアプリの中で開いている場合は、SafariやChromeでサイト版を開くと、端末に入っている声を選べます。':'iPhoneで声を追加・変更したあとは、アプリを一度閉じて開き直すと一覧に出ます。'};
