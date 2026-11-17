@@ -1327,7 +1327,10 @@ function settingsSheet(){
    ${inClaude?'':`<hr><h3>毎日のリマインダー</h3><div class="row"><input type="time" id="st-time" value="${esc(ui.remind||'20:00')}" style="width:auto" aria-label="通知する時刻"><button class="btn" id="st-ics">カレンダーに登録</button></div>
    <p class="note">ファイルを開くと、スマホやPCのカレンダーに毎日の予定が通知つきで追加されます。</p>`}
    <div class="row"><button class="btn wide" id="fx">閉じる</button><button class="btn primary wide" id="fs">設定を保存</button></div>
-   <hr><h3>データ</h3>
+   <hr><h3>引っ越し（Claude版 ⇄ サイト版）</h3>
+   <p class="note">① 元の画面で「データをコピー」　② 移したい画面で「貼り付けて取り込む」。これだけで暗記カードも記録もすべて移ります。</p>
+   <div class="row"><button class="btn wide" id="mv-copy">① データをコピー</button><button class="btn primary wide" id="mv-paste">② 貼り付けて取り込む</button></div>
+   <h3>データ</h3>
    <div class="row"><button class="btn wide" id="im-q">短答を取り込む</button><button class="btn wide" id="im-c">暗記カードを取り込む</button></div>
    <div class="row"><button class="btn wide" id="bk-save" hidden>バックアップを保存</button><button class="btn wide" id="bk-copy">バックアップをコピー</button><button class="btn wide" id="im-j">バックアップから復元</button></div>
    <div id="bk-out"></div>
@@ -1350,6 +1353,16 @@ function settingsSheet(){
         newPerDay:num('#st-n',20),reviewGoal:num('#st-r',50),minGoal:num('#st-m',180),weekHours:num('#st-w',30),elective:sh.querySelector('#st-e').value});closeSheet();refreshSubj();toast('設定を保存しました')};
     sh.querySelector('#im-q').onclick=()=>importSheet('q');sh.querySelector('#im-c').onclick=()=>importSheet('c');sh.querySelector('#im-j').onclick=()=>importSheet('json');
     const backup=()=>JSON.stringify({app:'司法試験 学習帳',version:2,exported:new Date().toISOString(),items:[...items.values()]});
+    let mvRes=null;
+    sh.querySelector('#mv-copy').onclick=()=>{const data=backup();
+      try{navigator.clipboard.writeText(data).then(()=>toast(`${items.size}件をコピーしました。移したい画面で「② 貼り付けて取り込む」を押してください`),()=>sh.querySelector('#bk-copy').click())}catch(e){sh.querySelector('#bk-copy').click()}};
+    sh.querySelector('#mv-paste').onclick=async e=>{const bt=e.currentTarget;
+      if(mvRes){const all=mvRes;mvRes=null;bt.disabled=true;let n=0;for(const x of all){await put(x);n++;if(n%20===0)bt.textContent=`取り込み中… ${n} / ${all.length}`}
+        closeSheet();toast(`${n}件を取り込みました`);return}
+      let txt='';try{txt=await navigator.clipboard.readText()}catch(er){}
+      const r=txt?parseImport('json',txt):{out:[]};
+      if(r.out.length){mvRes=r.out;bt.textContent=`${r.out.length}件を取り込む（もう一度押す）`}
+      else importSheet('json')};
     sh.querySelector('#bk-copy').onclick=()=>{const data=backup();
       const fallback=()=>{sh.querySelector('#bk-out').innerHTML='<label class="f">下の文字をすべて選んでコピーし、メモなどに保管してください<textarea id="bk-ta" readonly style="min-height:90px;font-family:var(--f-num);font-size:.75rem"></textarea></label>';const ta=sh.querySelector('#bk-ta');ta.value=data;ta.focus();ta.select()};
       try{navigator.clipboard.writeText(data).then(()=>{markBackup();toast(`${items.size}件をコピーしました。メモなどに貼り付けて保管してください`)},fallback)}catch(e){fallback()}};
