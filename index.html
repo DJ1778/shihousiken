@@ -696,7 +696,7 @@ function del(id){
   items.delete(id);render();
   if(mode==='cloud'){chains[id]=(chains[id]||Promise.resolve()).then(()=>col.doc(id).delete()).catch(()=>toast('削除に失敗しました'))}else saveLocal();
 }
-const FB=null;let fbUser=null,fbUnsub=null,fbReady=null;
+const FB={"apiKey": "AIzaSyAgiCepw_HOM3HUTFY89jUDhXPpSFWHQ5g", "authDomain": "shihoushiken.firebaseapp.com", "projectId": "shihoushiken", "storageBucket": "shihoushiken.firebasestorage.app", "messagingSenderId": "651633109899", "appId": "1:651633109899:web:7fab3caebbdb21e6b79d8e"};let fbUser=null,fbUnsub=null,fbReady=null;
 function initStore(){mode='local';loadLocal();try{navigator.storage&&navigator.storage.persist&&navigator.storage.persist()}catch(e){}setStore();render();if(FB)fbInit()}
 function loadScript(u){return new Promise((ok,ng)=>{const s=document.createElement('script');s.src=u;s.onload=ok;s.onerror=ng;document.head.appendChild(s)})}
 function fbLoad(){
