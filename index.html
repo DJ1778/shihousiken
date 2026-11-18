@@ -267,7 +267,7 @@ details.info .tbl+.note{margin-bottom:12px}
 .hs.s3{background:var(--ng);color:var(--surface)}
 .hs.hc::after{content:"";position:absolute;right:2px;top:2px;width:7px;height:7px;border-radius:50%;background:var(--blue,#1f5fa8);border:1.5px solid var(--surface)}
 .hs:focus-visible{outline:2px solid var(--ink);outline-offset:2px}
-.hs-top{display:grid;grid-template-columns:1fr 6.5em;gap:8px}
+.hs-top{display:grid;grid-template-columns:1fr 5em 6.5em;gap:8px}
 /* 勉強時間グラフ */
 .tb{display:flex;flex-direction:column;gap:10px}
 .tb-row{display:grid;grid-template-columns:4.6em 1fr 4.4em;gap:10px;align-items:center;font-size:.9rem}
@@ -306,7 +306,7 @@ details.info .tbl+.note{margin-bottom:12px}
 .rich:empty::before{content:attr(data-ph);color:var(--muted)}
 .rich [style*="198, 40, 40"],.rich [style*="#c62828"],.rich font[color="#c62828"]{color:var(--red)!important;font-weight:700}
 .rich [style*="31, 95, 168"],.rich [style*="#1f5fa8"],.rich font[color="#1f5fa8"]{color:var(--blue)!important;font-weight:700}
-.rich [style*="27, 36, 32"],.rich font[color="#1b2420"]{color:var(--ink)!important}
+.rich [style*="27, 36, 32"],.rich font[color="#1b2420"]{color:var(--ink)!important;font-weight:400}
 /* player */
 .player{position:fixed;inset:0;z-index:60;background:var(--bg);overflow:auto;
   padding:calc(env(safe-area-inset-top,0px) + 12px) max(16px,env(safe-area-inset-right,0px)) calc(env(safe-area-inset-bottom,0px) + 28px) max(16px,env(safe-area-inset-left,0px))}
@@ -332,6 +332,8 @@ details.info .tbl+.note{margin-bottom:12px}
 .hp-ai .sc{font-family:var(--f-num);font-size:1.6rem;font-weight:700;color:var(--accent)}
 .grades.three .sug{outline:3px solid var(--accent);outline-offset:2px}
 .hp-a{white-space:pre-wrap}
+.hs-sub{margin:4px 0 0;font-size:.85rem;color:var(--muted);letter-spacing:.04em}
+.hm-ed{display:flex;flex-direction:column;gap:4px;font-size:.8rem;color:var(--muted)}.hm-ed .rich{min-height:90px;font-size:1rem;color:var(--ink)}
 .grades.three{grid-template-columns:repeat(3,1fr)}
 .btn.mic{align-self:center;min-width:140px;min-height:56px;border-radius:999px;font-size:1.05rem;font-weight:700;border:2px solid var(--accent);color:var(--accent);background:var(--surface)}
 .btn.mic.on{background:var(--accent);color:var(--surface);animation:micp 1.2s ease-in-out infinite}
@@ -1034,6 +1036,36 @@ function renderTanto(){
 }
 
 /* ---------- 暗記カード ---------- */
+/* 複数のリッチ入力欄で1つのペン・穴埋めツールを共有する（判例メモ用） */
+function mkRich(s,eds,bar){
+  let cur=eds[0],saved=null,pending=null;
+  const inEd=n=>n&&cur.contains(n.nodeType===1?n:n.parentNode);
+  const saveRange=()=>{const sel=getSelection();if(!sel.rangeCount)return;const a=sel.anchorNode;const e=eds.find(x=>a&&x.contains(a.nodeType===1?a:a.parentNode));if(e){cur=e;saved=sel.getRangeAt(0).cloneRange()}};
+  const restore=()=>{cur.focus();if(saved&&inEd(saved.startContainer)){const sel=getSelection();sel.removeAllRanges();sel.addRange(saved)}};
+  const penAt=()=>{if(pending)return pending;const sel=getSelection();let n=sel.rangeCount&&inEd(sel.anchorNode)?sel.anchorNode:null;while(n&&n!==cur){if(n.nodeType===1){const cc=colorOf(n);if(cc)return cc}n=n.parentNode}return 'k'};
+  const showPen=()=>{const k=penAt();bar.querySelectorAll('[data-pen]').forEach(b=>b.setAttribute('aria-pressed',b.dataset.pen===k))};
+  const onSel=()=>{if(!cur.isConnected){document.removeEventListener('selectionchange',onSel);return}saveRange();showPen()};
+  document.addEventListener('selectionchange',onSel);
+  eds.forEach(ed=>{ed.addEventListener('input',()=>{pending=null;showPen()});ed.addEventListener('focus',()=>{if(cur!==ed){cur=ed;pending=null;saved=null}});ed.addEventListener('pointerdown',()=>{pending=null});
+    ed.addEventListener('paste',e=>{e.preventDefault();document.execCommand('insertText',false,(e.clipboardData||window.clipboardData).getData('text/plain'))})});
+  const keep=bt=>['mousedown','pointerdown'].forEach(ev=>bt.addEventListener(ev,e=>e.preventDefault()));
+  bar.querySelectorAll('[data-pen]').forEach(bt=>{keep(bt);bt.onclick=()=>{
+    const k=bt.dataset.pen;restore();try{document.execCommand('styleWithCSS',false,true)}catch(e){}
+    const sel=getSelection(),rg=sel.rangeCount?sel.getRangeAt(0):null;
+    if(rg&&rg.collapsed){let sp=rg.startContainer.nodeType===3?rg.startContainer.parentNode:null;
+      if(sp&&sp.dataset&&sp.dataset.pen0==='1'&&sp.textContent==='\u200b'){sp.style.color=PENC[k]}
+      else{sp=document.createElement('span');sp.dataset.pen0='1';sp.style.color=PENC[k];sp.textContent='\u200b';rg.insertNode(sp)}
+      const r2=document.createRange();r2.setStart(sp.firstChild,1);r2.collapse(true);sel.removeAllRanges();sel.addRange(r2);pending=k;
+    }else{document.execCommand('foreColor',false,PENC[k]);pending=null}
+    saveRange();showPen();if(!pending)toast(k==='r'?'赤字にしました':k==='b'?'青字にしました':'黒に戻しました')}});
+  const wb=bar.querySelector('[data-wrap]');if(wb){keep(wb);wb.onclick=()=>{restore();const sel=getSelection();if(!sel.rangeCount)return;const r=sel.getRangeAt(0);
+    let m=r.commonAncestorContainer;while(m&&m!==cur&&!(m.nodeType===1&&m.tagName==='MARK'))m=m.parentNode;
+    if(m&&m!==cur){const f=document.createDocumentFragment();while(m.firstChild)f.appendChild(m.firstChild);m.replaceWith(f);toast('キーワードを外しました');return}
+    if(r.collapsed){toast('キーワードにしたい語句を選んでから押してください');return}
+    const mk=document.createElement('mark');mk.className='kw';mk.appendChild(r.extractContents());mk.querySelectorAll('mark').forEach(x=>{while(x.firstChild)x.parentNode.insertBefore(x.firstChild,x);x.remove()});
+    r.insertNode(mk);sel.removeAllRanges();const r2=document.createRange();r2.setStartAfter(mk);r2.collapse(true);sel.addRange(r2);saveRange();toast('キーワードにしました')}}
+}
+const PEN_BAR=(wrapLabel)=>`<div class="kwhelp"><span>ペンの色</span><div class="seg pen" role="group" aria-label="ペンの色"><button type="button" data-pen="k" aria-pressed="true">黒</button><button type="button" class="red" data-pen="r" aria-pressed="false">赤</button><button type="button" class="blue" data-pen="b" aria-pressed="false">青</button></div>${wrapLabel?`<button class="btn" data-wrap type="button">${wrapLabel}</button>`:''}</div>`;
 /* カード本文のリッチ入力（色・穴埋めをカッコなしで表示） */
 const PENC={r:'#c62828',b:'#1f5fa8',k:'#1b2420'};
 const richCol=h=>h.replace(/《([^《》]*)》/g,'<span style="color:#c62828">$1</span>').replace(/〔([^〔〕]*)〕/g,'<span style="color:#1f5fa8">$1</span>');
@@ -2004,22 +2036,27 @@ const hsDoc=()=>items.get('hyakusen')||{id:'hyakusen',kind:'h',books:{}};
 const HS_SUBJ={kenpo1:'憲法',kenpo2:'憲法',gyosei1:'行政法',gyosei2:'行政法',minpo1:'民法',minpo2:'民法',minpo3:'民法',kaisha:'商法',minso:'民訴',keiho1:'刑法',keiho2:'刑法',keiso:'刑訴'};
 const hsTag=(k,i)=>HS_BOOKS.find(b=>b[0]===k)[1].replace(/判例百選/,'百選').replace(/（.*）/,'')+'-'+i;
 const hsHasCard=(k,i)=>{const t=hsTag(k,i);return [...items.values()].some(x=>x.kind==='c'&&(x.tags||'').split(/[\s,、]+/).includes(t))};
-const hsBook=k=>{const b=(hsDoc().books||{})[k]||{};return {n:+b.n||100,r:b.r||{},m:b.m||{},o:b.o||{}}};
+const hsBook=k=>{const b=(hsDoc().books||{})[k]||{};return {n:+b.n||100,an:+b.an||0,r:b.r||{},m:b.m||{},o:b.o||{}}};
+const hsNo=i=>String(i)[0]==='A'?'Appendix '+String(i).slice(1):i+'番';
+const hsIds=b=>[...Array.from({length:b.n},(_,i)=>String(i+1)),...Array.from({length:b.an},(_,i)=>'A'+(i+1))];
 const hsKey=()=>HS_BOOKS.some(b=>b[0]===ui.hs)?ui.hs:'kenpo1';
 const hsName=k=>HS_BOOKS.find(b=>b[0]===k)[1];
-const hsHasMemo=(b,i)=>{const m=b.m[i];return !!(m&&(m.t||m.f||m.memo))};
+const hsHasMemo=(b,i)=>{const m=b.m[i];return !!(m&&(m.t||m.f||m.memo||m.d))};
 function renderHS(){
   const el=$('hs-panel');if(!el)return;
-  const k=hsKey(),b=hsBook(k),read=Object.values(b.r).filter(v=>v>0).length,nm=Object.keys(b.m).filter(i=>hsHasMemo(b,i)).length;
-  el.innerHTML=`<div class="spread"><h3>判例百選</h3><span class="meta"><b style="color:var(--ink)">${read}</b> / ${b.n}件（${Math.round(read/b.n*100)}%）</span></div>
-    <div class="hs-top"><label class="f">本<select id="hs-b">${HS_BOOKS.map(([key,l])=>{const bb=hsBook(key),rd=Object.values(bb.r).filter(v=>v>0).length;return `<option value="${key}"${key===k?' selected':''}>${l}${rd?`（${rd}/${bb.n}）`:''}</option>`}).join('')}</select></label>
-    <label class="f">件数<input type="number" id="hs-n" min="1" max="400" inputmode="numeric" value="${b.n}"></label></div>
-    <div class="meter"><i style="width:${Math.round(read/b.n*100)}%"></i></div>
+  const k=hsKey(),b=hsBook(k),tot=b.n+b.an,read=hsIds(b).filter(i=>+b.r[i]>0).length,nm=Object.keys(b.m).filter(i=>hsHasMemo(b,i)).length;
+  const cell=i=>{const c=+b.r[i]||0,hm=hsHasMemo(b,i),t=hm&&b.m[i].t,lab=String(i)[0]==='A'?'A'+String(i).slice(1):i;return `<button class="hs${c?' s'+Math.min(c,3):''}${hm?' hc':''}" data-hs="${i}" aria-label="${hsNo(i)}${t?' '+esc(t):''} ${c?c+'回読んだ':'未読'}${hm?' メモあり':''}">${lab}</button>`};
+  el.innerHTML=`<div class="spread"><h3>判例百選</h3><span class="meta"><b style="color:var(--ink)">${read}</b> / ${tot}件（${Math.round(read/tot*100)}%）</span></div>
+    <div class="hs-top"><label class="f">本<select id="hs-b">${HS_BOOKS.map(([key,l])=>{const bb=hsBook(key),rd=hsIds(bb).filter(i=>+bb.r[i]>0).length;return `<option value="${key}"${key===k?' selected':''}>${l}${rd?`（${rd}/${bb.n+bb.an}）`:''}</option>`}).join('')}</select></label>
+    <label class="f">件数<input type="number" id="hs-n" min="1" max="400" inputmode="numeric" value="${b.n}"></label>
+    <label class="f">Appendix<input type="number" id="hs-an" min="0" max="200" inputmode="numeric" value="${b.an}" placeholder="0"></label></div>
+    <div class="meter"><i style="width:${Math.round(read/tot*100)}%"></i></div>
     ${nm?`<button class="btn primary" data-hs-say>口で説明する練習（メモ ${nm}件）</button>`:''}
-    <div class="hs-grid">${Array.from({length:b.n},(_,i)=>{const c=+b.r[i+1]||0,hm=hsHasMemo(b,i+1),t=hm&&b.m[i+1].t;return `<button class="hs${c?' s'+Math.min(c,3):''}${hm?' hc':''}" data-hs="${i+1}" aria-label="${i+1}番${t?' '+esc(t):''} ${c?c+'回読んだ':'未読'}${hm?' メモあり':''}">${i+1}</button>`}).join('')}</div>
-    <p class="note">番号を押すと、読んだ回数とメモ（事件名・事案・判旨）を記録できます。メモがある判例は「口で説明する練習」で、事案から判旨を説明する問題になります。</p>`;
+    <div class="hs-grid">${Array.from({length:b.n},(_,i)=>cell(String(i+1))).join('')}</div>
+    ${b.an?`<h4 class="hs-sub">Appendix</h4><div class="hs-grid">${Array.from({length:b.an},(_,i)=>cell('A'+(i+1))).join('')}</div>`:''}
+    <p class="note">番号を押すと、読んだ回数とメモ（事件名・年月日・事案・判旨）を記録できます。Appendixの件数を入れると、付録の判例も記録できます。</p>`;
 }
-function hsSave(k,fn){const d=hsDoc(),books={...(d.books||{})},o=hsBook(k),b={n:o.n,r:{...o.r},m:{...o.m},o:{...o.o}};fn(b);books[k]=b;put({...d,id:'hyakusen',kind:'h',books})}
+function hsSave(k,fn){const d=hsDoc(),books={...(d.books||{})},o=hsBook(k),b={n:o.n,an:o.an,r:{...o.r},m:{...o.m},o:{...o.o}};fn(b);books[k]=b;put({...d,id:'hyakusen',kind:'h',books})}
 function recToggle(ta,btn){
   if(REC){stopRec();btn.textContent='話す';btn.classList.remove('on');return}
   if(!srOk){toast('この画面ではマイクが使えません。キーボードのマイクで話してください');return}
@@ -2033,20 +2070,25 @@ function recToggle(ta,btn){
 }
 function hsMemoSheet(k,i){
   const b=hsBook(k),m=b.m[i]||{},c=+b.r[i]||0,o=b.o[i];
-  openSheet(`<h2>${esc(hsName(k))} ${i}番</h2>
+  openSheet(`<h2>${esc(hsName(k))} ${hsNo(i)}</h2>
     <div class="f"><span>読んだ回数</span><div class="seg" role="group" aria-label="読んだ回数">${['未読','1回','2回','3回'].map((l,n)=>`<button type="button" data-hr="${n}" aria-pressed="${c===n}">${l}</button>`).join('')}</div></div>
-    <label class="f">事件名<input id="hm-t" value="${esc(m.t||'')}" placeholder="例：クロロホルム事件"></label>
-    <label class="f">事案（練習で問題として出ます）<textarea id="hm-f" rows="4" placeholder="例：XはAをクロロホルムで失神させ、車ごと海に転落させて殺害する計画を立て…">${esc(m.f||'')}</textarea></label>
-    <label class="f">判旨（規範・結論。採点の答えになります）<textarea id="hm-m" rows="5" placeholder="例：第1行為が第2行為に密接で、第1行為の開始時点で結果発生の客観的危険性がある→実行の着手あり。殺人既遂。">${esc(m.memo||'')}</textarea></label>
+    <div class="grid2"><label class="f">事件名<input id="hm-t" value="${esc(m.t||'')}" placeholder="例：クロロホルム事件"></label>
+    <label class="f">裁判所・年月日<input id="hm-d" value="${esc(m.d||'')}" placeholder="例：最決平16.3.22"></label></div>
+    <div class="f hm-ed"><span id="hm-fl">事案（練習で問題として出ます）</span><div id="hm-f" class="rich" contenteditable="true" role="textbox" aria-multiline="true" aria-labelledby="hm-fl" data-ph="例：XはAをクロロホルムで失神させ、車ごと海に転落させて殺害する計画を立て…">${toRich(m.f||'')}</div></div>
+    <div class="f hm-ed"><span id="hm-ml">判旨（規範・結論。採点の答えになります）</span><div id="hm-m" class="rich" contenteditable="true" role="textbox" aria-multiline="true" aria-labelledby="hm-ml" data-ph="例：第1行為が第2行為に密接で、結果発生の客観的危険性がある→実行の着手あり。">${toRich(m.memo||'')}</div></div>
+    <div id="hm-bar">${PEN_BAR('キーワード')}</div>
+    <p class="note" style="margin-top:-6px">書いている欄に色がつきます。判旨の大事な語句を選んで「キーワード」を押すと、口頭練習で言えたかを確かめられます。</p>
     ${o?`<p class="note">前回の口頭練習：${o.g===2?'言えた':o.g===1?'あやふや':'言えなかった'}${o.sc!=null?`（AI ${o.sc}点）`:''}・${md(o.last)}</p>`:''}
     <div class="row"><button class="btn" data-hm-say>口で説明する</button><button class="btn primary wide" data-hm-save>保存</button></div>`,sh=>{
-    let rc=c;
+    let rc=c;const ef=sh.querySelector('#hm-f'),em=sh.querySelector('#hm-m');
+    mkRich(sh,[ef,em],sh.querySelector('#hm-bar'));
     sh.querySelectorAll('[data-hr]').forEach(bt=>bt.onclick=()=>{rc=+bt.dataset.hr;sh.querySelectorAll('[data-hr]').forEach(x=>x.setAttribute('aria-pressed',x===bt))});
-    const save=()=>{const v=id=>sh.querySelector(id).value.trim(),t=v('#hm-t'),f=v('#hm-f'),memo=v('#hm-m');
-      hsSave(k,bb=>{if(rc)bb.r[i]=rc;else delete bb.r[i];if(t||f||memo)bb.m[i]={t,f,memo};else delete bb.m[i]});return t||f||memo};
+    const save=()=>{const v=id=>sh.querySelector(id).value.trim(),t=v('#hm-t'),d=v('#hm-d'),f=fromRich(ef).trim(),memo=fromRich(em).trim();
+      hsSave(k,bb=>{if(rc)bb.r[i]=rc;else delete bb.r[i];if(t||d||f||memo)bb.m[i]={t,d,f,memo};else delete bb.m[i]});return t||f||memo};
     sh.querySelector('[data-hm-save]').onclick=()=>{save();closeSheet();toast('保存しました')};
     sh.querySelector('[data-hm-say]').onclick=()=>{if(!save()){toast('先に事案か事件名を書いてください');return}hsPractice(k,[String(i)])};
   });
+  try{document.activeElement.blur()}catch(e){}
 }
 let HP=null;
 function hsPractice(k,ids){
@@ -2057,9 +2099,9 @@ function hsPractice(k,ids){
 }
 const hsAiPrompt=(k,m,said)=>`あなたは司法試験の判例学習の採点者です。受験生が「${hsName(k)}」の判例について、事案だけを見て判旨（規範・結論）を口頭で説明しました。正解メモと比べて採点してください。
 口頭説明は音声認識の文字起こしなので、誤変換・言い直し・話し言葉は気にせず、中身（規範の要素・判断の枠組み・結論）が合っているかで判断してください。正解メモが短い・空のときは、事件名と事案から一般に知られている判旨を基準にしてかまいません。
-【事件名】${m.t||'（なし）'}
-【事案】${m.f||'（なし）'}
-【正解メモ（判旨）】${m.memo||'（なし）'}
+【事件名】${m.t||'（なし）'}${m.d?'（'+m.d+'）':''}
+【事案】${stripC(m.f||'（なし）').replace(/[【】]/g,'')}
+【正解メモ（判旨）】${stripC(m.memo||'（なし）').replace(/[【】]/g,'')}
 【受験生の口頭説明】${said}
 JSONだけを返してください：{"score":0〜100の整数,"grade":2（言えた：規範の要素と結論が合っている）か1（あやふや：方向は合うが要素の抜け・不正確がある）か0（言えなかった）,"good":"言えていた点（60字以内）","missing":"抜けていた・違っていた点（80字以内、なければ空）","tip":"次に説明するときのひと言アドバイス（50字以内）"}`;
 function hsStep(){
@@ -2068,14 +2110,17 @@ function hsStep(){
     openSheet(`<h2>おつかれさまでした</h2><div class="stats"><div class="stat"><b>${ok}</b><span>言えた</span></div><div class="stat"><b>${mid}</b><span>あやふや</span></div><div class="stat"><b>${ng}</b><span>言えなかった</span></div></div>
       <p class="note">言えなかった判例は、次の練習で先に出ます。</p><button class="btn primary" data-sheet-close>閉じる</button>`,()=>{});renderHS();return}
   const i=ids[HP.i],b=hsBook(k),m=b.m[i]||{},A=HP.ai;
-  const q=m.f?esc(m.f):`（事案のメモがありません）<br>事件名：<b>${esc(m.t||'')}</b>`;
+  const q=m.f?fmt(m.f,'plain'):`（事案のメモがありません）<br>事件名：<b>${esc(m.t||'')}</b>`;
+  const kws=parts(m.memo||'').filter(p=>p.k!=null).map(p=>nz(p.k)),said=nz(HP.typed||''),hit=kws.filter(x=>said.includes(x)).length;
   openSheet(`<div class="spread"><span class="meta">${esc(hsName(k))}</span><span class="meta">${HP.i+1} / ${ids.length}</span></div>
     <h3 style="margin:0">事案</h3><div class="hp-case">${q}</div>
     ${HP.show?'':`<p class="note">この事案で裁判所はどう判断した？ 規範と結論を、見ないで口で説明しよう。</p>`}
     ${!HP.show&&srOk?'<button class="btn mic" data-hp-mic>話す</button>':''}
     <textarea id="hp-t" class="p-write say" placeholder="話した内容がここに出ます（キーボードのマイクでもOK）" aria-label="話した内容"${HP.show?' readonly':''}>${esc(HP.typed||'')}</textarea>
     ${HP.show?`${A?`<div class="hp-ai"><div><span class="sc">${A.score}</span> 点 <span class="meta">AI採点</span></div>${A.good?`<div><b>よかった点</b>　${esc(A.good)}</div>`:''}${A.missing?`<div><b>足りない点</b>　${esc(A.missing)}</div>`:''}${A.tip?`<div class="meta">${esc(A.tip)}</div>`:''}</div>`:''}
-      <h3 style="margin:0">判旨${m.t?`<span class="meta">　${esc(m.t)}</span>`:''}</h3><div class="p-body hp-a">${esc(m.memo||'（判旨のメモがありません）')}</div>
+      <h3 style="margin:0">判旨${m.t||m.d?`<span class="meta">　${esc([m.t,m.d].filter(Boolean).join('・'))}</span>`:''}</h3>
+      ${kws.length&&HP.typed.trim()?`<p class="score-line">キーワード <b>${hit} / ${kws.length}</b> を言えた</p>`:''}
+      <div class="p-body hp-a">${m.memo?(kws.length&&HP.typed.trim()?fmt(m.memo,'check',{norm:said}):fmt(m.memo,'plain')):'（判旨のメモがありません）'}</div>
       <div class="grades three">${[['0','言えなかった','ng'],['1','あやふや',''],['2','言えた','primary']].map(([g,l,c])=>`<button class="btn ${c}${A&&String(A.grade)===g?' sug':''}" data-hg="${g}">${l}</button>`).join('')}</div>
       ${A&&A.grade!=null?'<p class="note">AIのおすすめに枠がついています。自分の感覚で選び直してもOK。</p>':''}`
     :`${HPS?`<button class="btn primary" data-hp-ai${HP.busy?' disabled':''}>${HP.busy?'採点中…':'AIに採点してもらう'}</button><button class="btn ghost" data-hp-show>自分で判旨と見比べる</button>`
@@ -2104,6 +2149,7 @@ document.addEventListener('click',e=>{const k=hsKey();
 
 document.addEventListener('change',e=>{
   if(e.target.id==='hs-b'){ui.hs=e.target.value;saveUi();renderHS()}
+  if(e.target.id==='hs-an'){const n=Math.max(0,Math.min(200,Math.round(+e.target.value||0))),k=hsKey();hsSave(k,b=>{b.an=n});toast(n?`Appendixを${n}件にしました`:'Appendixをなしにしました')}
   if(e.target.id==='hs-n'){const n=Math.max(1,Math.min(400,Math.round(+e.target.value||100))),k=HS_BOOKS.some(b=>b[0]===ui.hs)?ui.hs:'kenpo1';hsSave(k,b=>{b.n=n});toast(`件数を${n}件にしました`)}
 });
 
