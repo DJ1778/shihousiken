@@ -1473,7 +1473,7 @@ function importSheet(type){
    <p class="note" id="im-pv">貼り付けると件数を確認できます。</p>
    <div class="row"><button class="btn wide" id="fx">キャンセル</button><button class="btn primary wide" id="fs" disabled>取り込む</button></div>`,sh=>{
     const ta=sh.querySelector('#im-t'),pv=sh.querySelector('#im-pv'),go=sh.querySelector('#fs');let res={out:[],bad:0};
-    const check=()=>{res=parseImport(type,ta.value);go.disabled=!res.out.length;
+    const check=()=>{res=parseImport(/^\s*[\[{]/.test(ta.value)?'json':type,ta.value);go.disabled=!res.out.length;
       pv.textContent=!ta.value.trim()?'貼り付けると件数を確認できます。':res.bad<0?'データの形式が正しくありません。バックアップの文字を最初から最後までコピーしたか確認してください。':`${res.out.length}件を読み取りました${res.bad?`（${res.bad}行は形式が合わず飛ばします）`:''}`};
     ta.addEventListener('input',check);
     sh.querySelector('#im-f').onchange=e=>{const f=e.target.files[0];if(!f)return;const r=new FileReader();r.onload=()=>{ta.value=String(r.result||'');check()};r.onerror=()=>toast('ファイルを読み込めませんでした');r.readAsText(f)};
