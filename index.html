@@ -99,7 +99,9 @@ label.f>input,label.f>select,label.f>textarea{color:var(--ink);font-size:1rem}
 .filters{display:flex;gap:6px;flex-wrap:wrap}
 .fchip{border:1px solid var(--line);background:transparent;border-radius:999px;padding:4px 12px;min-height:32px;font-size:.8rem;cursor:pointer;color:var(--muted)}
 .fchip[aria-pressed="true"]{background:var(--ink);color:var(--bg);border-color:var(--ink)}
-.searchrow{display:grid;grid-template-columns:1fr 7.5em;gap:8px}
+.searchrow{display:grid;grid-template-columns:1fr;gap:8px}
+.searchrow input[type=search],.csearch input{padding-left:36px!important;background:var(--bg) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='18' height='18' viewBox='0 0 24 24' fill='none' stroke='%23889' stroke-width='2'%3E%3Ccircle cx='11' cy='11' r='7'/%3E%3Cpath d='m20 20-3.5-3.5'/%3E%3C/svg%3E") no-repeat 10px center!important}
+.searchrow .cnt{font-size:.82rem;color:var(--muted)}
 .meter{height:8px;background:var(--accent-soft);border-radius:4px;overflow:hidden}
 .meter i{display:block;height:100%;background:var(--accent)}
 .goal{display:flex;flex-direction:column;gap:4px}
@@ -465,7 +467,7 @@ details summary{cursor:pointer;font-size:.85rem;color:var(--muted)}
     </div>
     <div class="panel">
       <h3>カード一覧</h3>
-      <div class="searchrow"><input type="search" id="cl-q" placeholder="表面・裏面・判例名・タグで検索" aria-label="カードを検索"><select id="cl-s" aria-label="科目で絞り込み"></select></div>
+      <div class="searchrow"><input type="search" id="cl-q" placeholder="一覧を検索（題名・本文・判例名・タグ）" aria-label="カード一覧を検索" enterkeyhint="search"><select id="cl-s" aria-label="科目で絞り込み"></select></div>
       <div class="filters" id="cl-t" aria-label="種類で絞り込み"></div>
       <div class="filters" id="cl-f"></div>
       <div class="list" id="c-list"></div>
@@ -1203,7 +1205,7 @@ function renderCTop(){
 document.addEventListener('input',e=>{if(e.target.id==='c-top-q')renderCTop()});
 function renderCList(){
   const xs=filtered('c').slice().sort((a,b)=>{const sa=srsOf(a),sb=srsOf(b);return (sa?sa.due:'9999').localeCompare(sb?sb.due:'9999')});
-  $('c-list').innerHTML=exNote('c')+(xs.length?xs.slice(0,LF.c.limit).map(c=>`<div class="item"><div class="body cview" data-cview="${esc(c.id)}" role="button" tabindex="0" aria-label="${esc(stripC(c.title))}を開く">
+  $('c-list').innerHTML=exNote('c')+(LF.c.q.trim()?`<p class="meta">${xs.length}件見つかりました</p>`:'')+(xs.length?xs.slice(0,LF.c.limit).map(c=>`<div class="item"><div class="body cview" data-cview="${esc(c.id)}" role="button" tabindex="0" aria-label="${esc(stripC(c.title))}を開く">
     <div class="row" style="gap:6px"><span class="chip">${esc(SL(c.subject))}</span><span class="chip t">${CT[ctOf(c)].l}</span><span class="chip u">${USE[useOf(c)]}</span>${isEx(c)?'<span class="chip ex">例</span>':''}${lvHtml(c)}</div>
     <div style="font-weight:700">${tint(esc(c.title))}</div>
     ${ctOf(c)==='hanrei'&&c.issue?`<div class="meta">争点：${esc(c.issue)}</div>`:''}
