@@ -2099,15 +2099,20 @@ function hsPractice(k,ids){
     ids=shuffle(all).sort((x,y)=>w(x)-w(y)).slice(0,20)}
   HP={k,ids,i:0,show:false,typed:'',ai:null,busy:false,res:[0,0,0]};hsStep();
 }
-const hsAiPrompt=(k,m,said)=>`あなたは司法試験の判例学習の採点者です。受験生が「${hsName(k)}」の判例について、事案だけを見て判旨（規範・結論）を口頭で説明しました。正解メモと比べて採点してください。
-口頭説明は音声認識の文字起こしなので、誤変換・言い直し・話し言葉は気にせず、中身（規範の要素・判断の枠組み・結論）が合っているかで判断してください。正解メモが短い・空のときは、事件名と事案から一般に知られている判旨を基準にしてかまいません。
+// その科目の出題趣旨・採点実感の要点（全年度）を採点基準として渡す
+const sjSubjectRef=sj=>Object.keys(SJ).filter(x=>x.split('|')[1]===sj).sort().reverse().map(x=>{const y=+x.split('|')[0];return `■${y===2019?'令和元年':y>2019?'令和'+(y-2018)+'年':'平成'+(y-1988)+'年'}\n${SJ[x]}`}).join('\n');
+const hsAiPrompt=(k,m,said)=>{const sj=HS_SUBJ[k]||'';return `あなたは司法試験の考査委員の立場で、判例学習の口頭説明を採点します。受験生が「${hsName(k)}」の判例について、事案だけを見て判旨（規範・結論）を口頭で説明しました。
+採点の基準は、下にある法務省「出題趣旨」「採点実感」の要点（${sj}・全年度）を最優先にしてください。採点実感がくり返し求めていること（条文・判例の規範を正確に示す、規範の理由や趣旨に触れる、事案の具体的事実と結び付ける、判例の射程や事案の違いを意識する、論証の丸暗記・結論だけを避ける等）に照らして、この説明が答案で評価される水準かどうかで点を付けてください。判旨の中身が合っているかは正解メモで確かめます。
+口頭説明は音声認識の文字起こしなので、誤変換・言い直し・話し言葉は気にせず、中身で判断してください。正解メモが短い・空のときは、事件名と事案から一般に知られている判旨を基準にしてかまいません。
+【出題趣旨・採点実感の要点（${sj}）】
+${sjSubjectRef(sj)||'（なし）'}
 【事件名】${m.t||'（なし）'}${m.d?'（'+m.d+'）':''}
 【事案】${stripC(m.f||'（なし）').replace(/[【】]/g,'')}
 【正解メモ（判旨）】${stripC(m.memo||'（なし）').replace(/[【】]/g,'')}${m.sh?`
 【射程（受験生のメモ。説明に含まれていれば加点要素）】${stripC(m.sh).replace(/[【】]/g,'')}`:''}${m.ro?`
 【付随する論点（同上）】${stripC(m.ro).replace(/[【】]/g,'')}`:''}
 【受験生の口頭説明】${said}
-JSONだけを返してください：{"score":0〜100の整数,"grade":2（言えた：規範の要素と結論が合っている）か1（あやふや：方向は合うが要素の抜け・不正確がある）か0（言えなかった）,"good":"言えていた点（60字以内）","missing":"抜けていた・違っていた点（80字以内、なければ空）","tip":"次に説明するときのひと言アドバイス（50字以内）"}`;
+JSONだけを返してください：{"score":0〜100の整数,"grade":2（言えた：規範の要素と結論が合っている）か1（あやふや：方向は合うが要素の抜け・不正確がある）か0（言えなかった）,"good":"言えていた点（60字以内）","missing":"抜けていた・違っていた点（80字以内、なければ空）","sj":"採点実感・出題趣旨のどの指摘から見て、この説明がどう評価されるか（年度を挙げて80字以内）","tip":"次に説明するときのひと言アドバイス（50字以内）"}`};
 function hsStep(){
   stopRec();const {k,ids}=HP;
   if(HP.i>=ids.length){const [ng,mid,ok]=HP.res;HP=null;
@@ -2121,7 +2126,7 @@ function hsStep(){
     ${HP.show?'':`<p class="note">この事案で裁判所はどう判断した？ 規範と結論を、見ないで口で説明しよう。</p>`}
     ${!HP.show&&srOk?'<button class="btn mic" data-hp-mic>話す</button>':''}
     <textarea id="hp-t" class="p-write say" placeholder="話した内容がここに出ます（キーボードのマイクでもOK）" aria-label="話した内容"${HP.show?' readonly':''}>${esc(HP.typed||'')}</textarea>
-    ${HP.show?`${A?`<div class="hp-ai"><div><span class="sc">${A.score}</span> 点 <span class="meta">AI採点</span></div>${A.good?`<div><b>よかった点</b>　${esc(A.good)}</div>`:''}${A.missing?`<div><b>足りない点</b>　${esc(A.missing)}</div>`:''}${A.tip?`<div class="meta">${esc(A.tip)}</div>`:''}</div>`:''}
+    ${HP.show?`${A?`<div class="hp-ai"><div><span class="sc">${A.score}</span> 点 <span class="meta">AI採点（出題趣旨・採点実感が基準）</span></div>${A.good?`<div><b>よかった点</b>　${esc(A.good)}</div>`:''}${A.missing?`<div><b>足りない点</b>　${esc(A.missing)}</div>`:''}${A.sj?`<div><b>採点実感から見ると</b>　${esc(A.sj)}</div>`:''}${A.tip?`<div class="meta">${esc(A.tip)}</div>`:''}</div>`:''}
       <h3 style="margin:0">判旨${m.t||m.d?`<span class="meta">　${esc([m.t,m.d].filter(Boolean).join('・'))}</span>`:''}</h3>
       ${kws.length&&HP.typed.trim()?`<p class="score-line">キーワード <b>${hit} / ${kws.length}</b> を言えた</p>`:''}
       <div class="p-body hp-a">${m.memo?(kws.length&&HP.typed.trim()?fmt(m.memo,'check',{norm:said}):fmt(m.memo,'plain')):'（判旨のメモがありません）'}</div>
@@ -2138,7 +2143,7 @@ function hsStep(){
       const said=ta.value.trim();if(!said){toast('話した内容が空です。「話す」かキーボードのマイクで話してください');return}
       HP.typed=said;HP.busy=true;stopRec();hsStep();
       try{const r=await HPS.json(hsAiPrompt(k,m,said),{cache:false});
-        if(!HP)return;HP.ai={score:Math.max(0,Math.min(100,+r.score||0)),grade:[0,1,2].includes(+r.grade)?+r.grade:null,good:String(r.good||''),missing:String(r.missing||''),tip:String(r.tip||'')};HP.show=true}
+        if(!HP)return;HP.ai={score:Math.max(0,Math.min(100,+r.score||0)),grade:[0,1,2].includes(+r.grade)?+r.grade:null,good:String(r.good||''),missing:String(r.missing||''),sj:String(r.sj||''),tip:String(r.tip||'')};HP.show=true}
       catch(e){if(!HP)return;toast(e&&e.code==='rate_limited'?'混み合っています。少し待ってからもう一度':'採点できませんでした。自分で見比べてください');HP.show=true}
       HP.busy=false;hsStep()};
     sh.querySelectorAll('[data-hg]').forEach(bt=>bt.onclick=()=>{const g=+bt.dataset.hg;HP.res[g]++;const sc=HP.ai?HP.ai.score:null;
