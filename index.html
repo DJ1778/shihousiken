@@ -332,7 +332,9 @@ details.info .tbl+.note{margin-bottom:12px}
 .hp-ai .sc{font-family:var(--f-num);font-size:1.6rem;font-weight:700;color:var(--accent)}
 .grades.three .sug{outline:3px solid var(--accent);outline-offset:2px}
 .hp-a{white-space:pre-wrap}
-.cview{cursor:pointer}.cview:focus-visible{outline:2px solid var(--accent);outline-offset:4px;border-radius:6px}
+.cview{cursor:pointer}
+.csearch input{width:100%;font-size:1rem;padding:10px 12px 10px 36px;border-radius:10px;border:1px solid var(--line);background:var(--bg) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='18' height='18' viewBox='0 0 24 24' fill='none' stroke='%23889' stroke-width='2'%3E%3Ccircle cx='11' cy='11' r='7'/%3E%3Cpath d='m20 20-3.5-3.5'/%3E%3C/svg%3E") no-repeat 10px center;color:var(--ink)}
+#c-top-res{display:flex;flex-direction:column;gap:6px}.cview:focus-visible{outline:2px solid var(--accent);outline-offset:4px;border-radius:6px}
 .cv-body{white-space:pre-wrap;line-height:1.85}
 .p-case{background:var(--bg);border-radius:10px;padding:10px 12px;display:flex;flex-direction:column;gap:4px;font-size:.95rem;line-height:1.75;white-space:pre-wrap}.p-case b{font-size:.78rem;color:var(--muted);letter-spacing:.04em}
 .hs-sub{margin:4px 0 0;font-size:.85rem;color:var(--muted);letter-spacing:.04em}
@@ -447,6 +449,8 @@ details summary{cursor:pointer;font-size:.85rem;color:var(--muted)}
   <section id="v-ronsho" class="view" hidden>
     <div class="panel">
       <div class="spread"><h2>暗記カード</h2><div class="row" style="gap:6px"><button class="btn" data-import="c">取り込み</button><button class="btn" id="c-add">＋ カード</button></div></div>
+      <div class="csearch"><input type="search" id="c-top-q" placeholder="カードを検索（例：既判力　信義則）" aria-label="カードを検索" enterkeyhint="search"></div>
+      <div id="c-top-res" hidden></div>
       <div class="stats" id="c-stats"></div>
       <p class="note gone" id="c-breakdown"></p>
       <div class="grid3">
@@ -975,7 +979,7 @@ function filtered(kind){
   if(f.subj)xs=xs.filter(x=>x.subject===f.subj);
   if(kind==='c'&&f.t)xs=xs.filter(x=>ctOf(x)===f.t);
   if(f.f==='due')xs=xs.filter(isDue);else if(f.f==='flag')xs=xs.filter(x=>x.flag);else if(f.f==='wrong')xs=xs.filter(x=>x.last===false);else if(f.f==='new')xs=xs.filter(isNew);
-  if(f.q){const w=nz(f.q);xs=xs.filter(x=>nz([x.text,x.title,x.body,x.explain,x.article,x.tags,x.subject,x.issue,x.facts].join(' ')).includes(w))}
+  if(f.q){const ws=String(f.q).split(/[\s　]+/).map(w=>nz(w).replace(/[【】]/g,'')).filter(Boolean);xs=xs.filter(x=>{const h=nz([x.text,x.title,x.body,x.explain,x.article,x.tags,SL(x.subject),x.issue,x.facts].join(' ')).replace(/[【】]/g,'');return ws.every(w=>h.includes(w))})}
   return xs;
 }
 function setupFilters(kind,pre,renderFn){
@@ -1185,6 +1189,18 @@ function cView(c){
 }
 document.addEventListener('click',e=>{const v=e.target.closest('[data-cview]');if(!v||e.target.closest('button,a'))return;const c=items.get(v.dataset.cview)||SAMPLES.find(x=>x.id===v.dataset.cview);if(c)cView(c)});
 document.addEventListener('keydown',e=>{if(e.key!=='Enter'&&e.key!==' ')return;const v=e.target.closest&&e.target.closest('[data-cview]');if(!v)return;e.preventDefault();v.click()});
+// 上の検索：その場で結果を出す（押すと開く）
+function renderCTop(){
+  const box=$('c-top-res'),qv=($('c-top-q')||{}).value||'';if(!box)return;
+  if(!qv.trim()){box.hidden=true;box.innerHTML='';return}
+  const ws=qv.split(/[\s　]+/).map(w=>nz(w).replace(/[【】]/g,'')).filter(Boolean);
+  const hay=x=>nz([x.title,x.body,x.article,x.tags,SL(x.subject),x.issue,x.facts].join(' ')).replace(/[【】]/g,'');
+  const xs=list('c').filter(x=>{const h=hay(x);return ws.every(w=>h.includes(w))}).sort((a,b)=>{const ta=nz(a.title).includes(ws[0])?0:1,tb=nz(b.title).includes(ws[0])?0:1;return ta-tb});
+  const snip=x=>{const plain=stripC(String(x.body||'')).replace(/[【】]/g,'').replace(/\s+/g,' ');const k=plain.indexOf(qv.trim().split(/[\s　]+/)[0]);const st=Math.max(0,k-20);return (st?'…':'')+plain.slice(st,st+70)+(plain.length>st+70?'…':'')};
+  box.hidden=false;
+  box.innerHTML=`<p class="meta">${xs.length}件見つかりました${xs.length>30?'（上位30件）':''}</p>`+(xs.length?`<div class="list">${xs.slice(0,30).map(x=>`<div class="item"><div class="body cview" data-cview="${esc(x.id)}" role="button" tabindex="0"><div class="row" style="gap:6px"><span class="chip">${esc(SL(x.subject))}</span><span class="chip t">${CT[ctOf(x)].l}</span></div><div style="font-weight:700">${tint(esc(x.title))}</div><div class="meta">${esc(snip(x))}</div></div></div>`).join('')}</div>`:'<div class="empty">見つかりませんでした。言葉を短くするか、別の言い方で試してください。</div>');
+}
+document.addEventListener('input',e=>{if(e.target.id==='c-top-q')renderCTop()});
 function renderCList(){
   const xs=filtered('c').slice().sort((a,b)=>{const sa=srsOf(a),sb=srsOf(b);return (sa?sa.due:'9999').localeCompare(sb?sb.due:'9999')});
   $('c-list').innerHTML=exNote('c')+(xs.length?xs.slice(0,LF.c.limit).map(c=>`<div class="item"><div class="body cview" data-cview="${esc(c.id)}" role="button" tabindex="0" aria-label="${esc(stripC(c.title))}を開く">
@@ -1194,7 +1210,7 @@ function renderCList(){
     <div class="row" style="gap:8px">${c.article?`<span class="meta">${esc(c.article)}</span>`:''}<span class="meta">キーワード ${kwCount(c.body)}</span>${tagsHtml(c)}</div></div>
     ${actsHtml(c)}</div>`).join('')+moreBtn('c',xs.length):'<div class="empty">条件に合うカードはありません。</div>');
 }
-function renderRonsho(){
+function renderRonsho(){renderCTop();
   const cs=list('c'),due=cs.filter(isDue).length,solid=cs.filter(c=>level(c)===3).length;
   $('c-stats').innerHTML=`<div class="stat"><b>${due}</b><span>今日の復習</span></div><div class="stat"><b>${cs.length}</b><span>登録カード</span></div><div class="stat"><b>${solid}</b><span>定着（3週以上）</span></div>`;
   $('c-breakdown').textContent=Object.entries(CT).map(([k,v])=>`${v.l} ${cs.filter(c=>ctOf(c)===k).length}`).join('・');
