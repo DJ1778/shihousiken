@@ -332,6 +332,7 @@ details.info .tbl+.note{margin-bottom:12px}
 .hp-ai .sc{font-family:var(--f-num);font-size:1.6rem;font-weight:700;color:var(--accent)}
 .grades.three .sug{outline:3px solid var(--accent);outline-offset:2px}
 .hp-a{white-space:pre-wrap}
+.p-case{background:var(--bg);border-radius:10px;padding:10px 12px;display:flex;flex-direction:column;gap:4px;font-size:.95rem;line-height:1.75;white-space:pre-wrap}.p-case b{font-size:.78rem;color:var(--muted);letter-spacing:.04em}
 .hs-sub{margin:4px 0 0;font-size:.85rem;color:var(--muted);letter-spacing:.04em}
 .hm-ed{display:flex;flex-direction:column;gap:4px;font-size:.8rem;color:var(--muted)}.hm-ed .rich{min-height:90px;font-size:1rem;color:var(--ink)}
 .grades.three{grid-template-columns:repeat(3,1fr)}
@@ -861,13 +862,14 @@ function cCard(x,e,chips){
   if(t==='hanrei')h+=`<div class="seg" role="group" aria-label="出題の向き"><button data-p="rev" data-v="0" aria-pressed="${!rev}">判例→規範</button><button data-p="rev" data-v="1" aria-pressed="${rev}">規範→判例</button></div>`;
   h+='</div>';
   const head=`<div class="p-title">${tint(esc(x.title))}</div>${t==='hanrei'&&x.article?`<div class="p-sub">${esc(x.article)}</div>`:''}${t==='hanrei'&&x.issue?`<div class="p-issue">争点：${esc(x.issue)}</div>`:''}`;
-  const facts=x.facts?`<details><summary>事案・ポイント</summary><div class="p-body mine">${esc(x.facts)}</div></details>`:'';
+  const facts=x.facts&&t!=='ronsho'?`<details><summary>事案・ポイント</summary><div class="p-body mine">${esc(x.facts)}</div></details>`:'';
+  const rcase=x.facts&&t==='ronsho'?`<div class="p-case"><b>事案</b><div>${esc(x.facts)}</div></div>`:'';
   h+=`<div class="p-card">${chips}`;
   if(rev){
     h+=`<div class="p-body">${fmt(x.body,'plain')}</div>`;
     h+=back?`<hr class="p-hr">${head}${facts}`:'<p class="note">この規範を示した判例は？（事件名・裁判所・年月日）</p>';
   }else{
-    h+=head;
+    h+=head+rcase;
     if(m==='flip'){h+=back?`<div class="p-body">${fmt(x.body,'plain')}</div>`:(CT[t].ask?`<p class="note">${CT[t].ask}</p>`:'')}
     else if(m==='cloze'){
       if(!nk)h+=back?`<div class="p-body">${tint(esc(x.body))}</div>`:'<p class="note">このカードにはキーワードの【】がありません。編集で語句を【】で囲むと穴埋めになります。</p>';
@@ -1104,13 +1106,14 @@ function cForm(c,keep){
    <div class="f" style="display:flex;flex-direction:column;gap:4px;font-size:.8rem;color:var(--muted)"><span id="fc-bl"></span><div id="fc-b" class="rich" contenteditable="true" role="textbox" aria-multiline="true" aria-labelledby="fc-bl">${toRich(c.body)}</div></div>
    <div class="kwhelp"><span>ペンの色</span><div class="seg pen" role="group" aria-label="ペンの色"><button type="button" data-pen="k" aria-pressed="true">黒</button><button type="button" class="red" data-pen="r" aria-pressed="false">赤</button><button type="button" class="blue" data-pen="b" aria-pressed="false">青</button></div><button class="btn" id="fc-wrap" type="button">穴埋め</button><span id="fc-n"></span></div>
    <p class="note" style="margin-top:-6px">色を選んでから書くと、その色になります。書いた語句を選んで色や「穴埋め」を押すと、あとから変えられます。</p>
-   <label class="f" id="fc-fw">事案・ポイント（任意）<textarea id="fc-f" style="min-height:70px" placeholder="どんな事案で、結論はどうなったか">${esc(c.facts)}</textarea></label>
+   <label class="f" id="fc-fw"><span id="fc-fl">事案・ポイント（任意）</span><textarea id="fc-f" style="min-height:70px" placeholder="どんな事案で、結論はどうなったか">${esc(c.facts)}</textarea></label>
    <div class="grid2"><label class="f" id="fc-rw"><span id="fc-rl"></span><input id="fc-r" value="${esc(t0==='hanrei'?'':c.article)}" placeholder="例：民法177条"></label>
    <label class="f">タグ（任意・空白区切り）<input id="fc-g" value="${esc(c.tags)}" placeholder="例：重要 R6"></label></div>
    <div class="row">${editing?'<button class="btn wide" id="fx">キャンセル</button>':'<button class="btn wide" id="fn">もう一枚作る</button>'}<button class="btn primary wide" id="fs">保存</button></div>`,s=>{
     const q=id=>s.querySelector(id),ed=q('#fc-b');
     const layout=()=>{const t=q('#fc-k').value,d=CT[t];q('#fc-tl').textContent=d.front+'（表面）';q('#fc-bl').textContent=d.back+'（裏面）';q('#fc-rl').textContent=d.src;
-      q('#fc-t').placeholder=d.ph[0];ed.dataset.ph=d.ph[1].replace(/[【】]/g,'').replace('、覚えるべき語句を囲みます','').replace('、キーワードを囲みます','');const hr=t==='hanrei';q('#fc-hanrei').hidden=!hr;q('#fc-fw').hidden=!hr;q('#fc-rw').hidden=hr};
+      q('#fc-t').placeholder=d.ph[0];ed.dataset.ph=d.ph[1].replace(/[【】]/g,'').replace('、覚えるべき語句を囲みます','').replace('、キーワードを囲みます','');const hr=t==='hanrei',rs=t==='ronsho';q('#fc-hanrei').hidden=!hr;q('#fc-fw').hidden=!(hr||rs);q('#fc-rw').hidden=hr;
+      q('#fc-fl').textContent=rs?'事案（任意・表面に出ます）':'事案・ポイント（任意）';q('#fc-f').placeholder=rs?'例：AはBに甲土地を売却したが、登記はAのままで、AはさらにCに売却して登記を移した。':'どんな事案で、結論はどうなったか'};
     const cnt=()=>{const n=kwCount(fromRich(ed));q('#fc-n').textContent=n?`穴埋め ${n}か所`:''};
     let useTouched=!!editing;q('#fc-u').onchange=()=>{useTouched=true};
     layout();cnt();
@@ -1149,7 +1152,7 @@ function cForm(c,keep){
       r.insertNode(mk);sel.removeAllRanges();const r2=document.createRange();r2.setStartAfter(mk);r2.collapse(true);sel.addRange(r2);saveRange();cnt();toast('穴埋めにしました')};
     const save=()=>{const t=q('#fc-t').value.trim(),b=fromRich(ed),k=q('#fc-k').value;if(!t||!b){toast(`${CT[k].front}と${CT[k].back}を入力してください`);return null}
       const hr=k==='hanrei',out={...(editing?c:{}),id:editing?c.id:'c_'+uid(),kind:'c',ctype:k,use:q('#fc-u').value,subject:q('#fc-s').value,title:t,body:b,
-        article:(hr?q('#fc-r2'):q('#fc-r')).value.trim(),issue:hr?q('#fc-i').value.trim():'',facts:hr?q('#fc-f').value.trim():'',tags:q('#fc-g').value.trim()};
+        article:(hr?q('#fc-r2'):q('#fc-r')).value.trim(),issue:hr?q('#fc-i').value.trim():'',facts:hr||k==='ronsho'?q('#fc-f').value.trim():'',tags:q('#fc-g').value.trim()};
       put(out);ui.lastCt=k;saveUi();return {t:k,u:out.use,s:out.subject,g:out.tags}};
     const fx=q('#fx');if(fx)fx.onclick=closeSheet;
     const fn=q('#fn');if(fn)fn.onclick=()=>{const k=save();if(k){toast('保存しました。もう一枚どうぞ');cForm(null,k)}};
