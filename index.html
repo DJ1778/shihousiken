@@ -2041,7 +2041,7 @@ const hsNo=i=>String(i)[0]==='A'?'Appendix '+String(i).slice(1):i+'番';
 const hsIds=b=>[...Array.from({length:b.n},(_,i)=>String(i+1)),...Array.from({length:b.an},(_,i)=>'A'+(i+1))];
 const hsKey=()=>HS_BOOKS.some(b=>b[0]===ui.hs)?ui.hs:'kenpo1';
 const hsName=k=>HS_BOOKS.find(b=>b[0]===k)[1];
-const hsHasMemo=(b,i)=>{const m=b.m[i];return !!(m&&(m.t||m.f||m.memo||m.d))};
+const hsHasMemo=(b,i)=>{const m=b.m[i];return !!(m&&(m.t||m.f||m.memo||m.d||m.sh||m.ro))};
 function renderHS(){
   const el=$('hs-panel');if(!el)return;
   const k=hsKey(),b=hsBook(k),tot=b.n+b.an,read=hsIds(b).filter(i=>+b.r[i]>0).length,nm=Object.keys(b.m).filter(i=>hsHasMemo(b,i)).length;
@@ -2054,7 +2054,7 @@ function renderHS(){
     ${nm?`<button class="btn primary" data-hs-say>口で説明する練習（メモ ${nm}件）</button>`:''}
     <div class="hs-grid">${Array.from({length:b.n},(_,i)=>cell(String(i+1))).join('')}</div>
     ${b.an?`<h4 class="hs-sub">Appendix</h4><div class="hs-grid">${Array.from({length:b.an},(_,i)=>cell('A'+(i+1))).join('')}</div>`:''}
-    <p class="note">番号を押すと、読んだ回数とメモ（事件名・年月日・事案・判旨）を記録できます。Appendixの件数を入れると、付録の判例も記録できます。</p>`;
+    <p class="note">番号を押すと、読んだ回数とメモ（事件名・年月日・事案・判旨・射程・付随する論点）を記録できます。Appendixの件数を入れると、付録の判例も記録できます。</p>`;
 }
 function hsSave(k,fn){const d=hsDoc(),books={...(d.books||{})},o=hsBook(k),b={n:o.n,an:o.an,r:{...o.r},m:{...o.m},o:{...o.o}};fn(b);books[k]=b;put({...d,id:'hyakusen',kind:'h',books})}
 function recToggle(ta,btn){
@@ -2076,15 +2076,17 @@ function hsMemoSheet(k,i){
     <label class="f">裁判所・年月日<input id="hm-d" value="${esc(m.d||'')}" placeholder="例：最決平16.3.22"></label></div>
     <div class="f hm-ed"><span id="hm-fl">事案（練習で問題として出ます）</span><div id="hm-f" class="rich" contenteditable="true" role="textbox" aria-multiline="true" aria-labelledby="hm-fl" data-ph="例：XはAをクロロホルムで失神させ、車ごと海に転落させて殺害する計画を立て…">${toRich(m.f||'')}</div></div>
     <div class="f hm-ed"><span id="hm-ml">判旨（規範・結論。採点の答えになります）</span><div id="hm-m" class="rich" contenteditable="true" role="textbox" aria-multiline="true" aria-labelledby="hm-ml" data-ph="例：第1行為が第2行為に密接で、結果発生の客観的危険性がある→実行の着手あり。">${toRich(m.memo||'')}</div></div>
+    <div class="f hm-ed"><span id="hm-sl">判例の射程（どこまで及ぶか・事案の違い）</span><div id="hm-s" class="rich" contenteditable="true" role="textbox" aria-multiline="true" aria-labelledby="hm-sl" data-ph="例：第1行為と第2行為が一連の計画で密接な場合に限る。計画がない場合は…">${toRich(m.sh||'')}</div></div>
+    <div class="f hm-ed"><span id="hm-rl">付随する論点</span><div id="hm-r" class="rich" contenteditable="true" role="textbox" aria-multiline="true" aria-labelledby="hm-rl" data-ph="例：因果関係の錯誤、早すぎた構成要件の実現と故意">${toRich(m.ro||'')}</div></div>
     <div id="hm-bar">${PEN_BAR('キーワード')}</div>
     <p class="note" style="margin-top:-6px">書いている欄に色がつきます。判旨の大事な語句を選んで「キーワード」を押すと、口頭練習で言えたかを確かめられます。</p>
     ${o?`<p class="note">前回の口頭練習：${o.g===2?'言えた':o.g===1?'あやふや':'言えなかった'}${o.sc!=null?`（AI ${o.sc}点）`:''}・${md(o.last)}</p>`:''}
     <div class="row"><button class="btn" data-hm-say>口で説明する</button><button class="btn primary wide" data-hm-save>保存</button></div>`,sh=>{
-    let rc=c;const ef=sh.querySelector('#hm-f'),em=sh.querySelector('#hm-m');
-    mkRich(sh,[ef,em],sh.querySelector('#hm-bar'));
+    let rc=c;const ef=sh.querySelector('#hm-f'),em=sh.querySelector('#hm-m'),es=sh.querySelector('#hm-s'),er=sh.querySelector('#hm-r');
+    mkRich(sh,[ef,em,es,er],sh.querySelector('#hm-bar'));
     sh.querySelectorAll('[data-hr]').forEach(bt=>bt.onclick=()=>{rc=+bt.dataset.hr;sh.querySelectorAll('[data-hr]').forEach(x=>x.setAttribute('aria-pressed',x===bt))});
-    const save=()=>{const v=id=>sh.querySelector(id).value.trim(),t=v('#hm-t'),d=v('#hm-d'),f=fromRich(ef).trim(),memo=fromRich(em).trim();
-      hsSave(k,bb=>{if(rc)bb.r[i]=rc;else delete bb.r[i];if(t||d||f||memo)bb.m[i]={t,d,f,memo};else delete bb.m[i]});return t||f||memo};
+    const save=()=>{const v=id=>sh.querySelector(id).value.trim(),t=v('#hm-t'),d=v('#hm-d'),f=fromRich(ef).trim(),memo=fromRich(em).trim(),shg=fromRich(es).trim(),ro=fromRich(er).trim();
+      hsSave(k,bb=>{if(rc)bb.r[i]=rc;else delete bb.r[i];if(t||d||f||memo||shg||ro)bb.m[i]={t,d,f,memo,sh:shg,ro};else delete bb.m[i]});return t||f||memo};
     sh.querySelector('[data-hm-save]').onclick=()=>{save();closeSheet();toast('保存しました')};
     sh.querySelector('[data-hm-say]').onclick=()=>{if(!save()){toast('先に事案か事件名を書いてください');return}hsPractice(k,[String(i)])};
   });
@@ -2101,7 +2103,9 @@ const hsAiPrompt=(k,m,said)=>`あなたは司法試験の判例学習の採点�
 口頭説明は音声認識の文字起こしなので、誤変換・言い直し・話し言葉は気にせず、中身（規範の要素・判断の枠組み・結論）が合っているかで判断してください。正解メモが短い・空のときは、事件名と事案から一般に知られている判旨を基準にしてかまいません。
 【事件名】${m.t||'（なし）'}${m.d?'（'+m.d+'）':''}
 【事案】${stripC(m.f||'（なし）').replace(/[【】]/g,'')}
-【正解メモ（判旨）】${stripC(m.memo||'（なし）').replace(/[【】]/g,'')}
+【正解メモ（判旨）】${stripC(m.memo||'（なし）').replace(/[【】]/g,'')}${m.sh?`
+【射程（受験生のメモ。説明に含まれていれば加点要素）】${stripC(m.sh).replace(/[【】]/g,'')}`:''}${m.ro?`
+【付随する論点（同上）】${stripC(m.ro).replace(/[【】]/g,'')}`:''}
 【受験生の口頭説明】${said}
 JSONだけを返してください：{"score":0〜100の整数,"grade":2（言えた：規範の要素と結論が合っている）か1（あやふや：方向は合うが要素の抜け・不正確がある）か0（言えなかった）,"good":"言えていた点（60字以内）","missing":"抜けていた・違っていた点（80字以内、なければ空）","tip":"次に説明するときのひと言アドバイス（50字以内）"}`;
 function hsStep(){
@@ -2121,6 +2125,8 @@ function hsStep(){
       <h3 style="margin:0">判旨${m.t||m.d?`<span class="meta">　${esc([m.t,m.d].filter(Boolean).join('・'))}</span>`:''}</h3>
       ${kws.length&&HP.typed.trim()?`<p class="score-line">キーワード <b>${hit} / ${kws.length}</b> を言えた</p>`:''}
       <div class="p-body hp-a">${m.memo?(kws.length&&HP.typed.trim()?fmt(m.memo,'check',{norm:said}):fmt(m.memo,'plain')):'（判旨のメモがありません）'}</div>
+      ${m.sh?`<h3 style="margin:0">射程</h3><div class="p-body hp-a">${fmt(m.sh,'plain')}</div>`:''}
+      ${m.ro?`<h3 style="margin:0">付随する論点</h3><div class="p-body hp-a">${fmt(m.ro,'plain')}</div>`:''}
       <div class="grades three">${[['0','言えなかった','ng'],['1','あやふや',''],['2','言えた','primary']].map(([g,l,c])=>`<button class="btn ${c}${A&&String(A.grade)===g?' sug':''}" data-hg="${g}">${l}</button>`).join('')}</div>
       ${A&&A.grade!=null?'<p class="note">AIのおすすめに枠がついています。自分の感覚で選び直してもOK。</p>':''}`
     :`${HPS?`<button class="btn primary" data-hp-ai${HP.busy?' disabled':''}>${HP.busy?'採点中…':'AIに採点してもらう'}</button><button class="btn ghost" data-hp-show>自分で判旨と見比べる</button>`
