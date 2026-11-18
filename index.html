@@ -332,6 +332,8 @@ details.info .tbl+.note{margin-bottom:12px}
 .hp-ai .sc{font-family:var(--f-num);font-size:1.6rem;font-weight:700;color:var(--accent)}
 .grades.three .sug{outline:3px solid var(--accent);outline-offset:2px}
 .hp-a{white-space:pre-wrap}
+.cview{cursor:pointer}.cview:focus-visible{outline:2px solid var(--accent);outline-offset:4px;border-radius:6px}
+.cv-body{white-space:pre-wrap;line-height:1.85}
 .p-case{background:var(--bg);border-radius:10px;padding:10px 12px;display:flex;flex-direction:column;gap:4px;font-size:.95rem;line-height:1.75;white-space:pre-wrap}.p-case b{font-size:.78rem;color:var(--muted);letter-spacing:.04em}
 .hs-sub{margin:4px 0 0;font-size:.85rem;color:var(--muted);letter-spacing:.04em}
 .hm-ed{display:flex;flex-direction:column;gap:4px;font-size:.8rem;color:var(--muted)}.hm-ed .rich{min-height:90px;font-size:1rem;color:var(--ink)}
@@ -1170,9 +1172,22 @@ function startC(){
     ids=shuffle(pool).map(c=>c.id)}
   startSession(ids,(ty?CT[ty].l:'暗記カード')+' '+(subj?SL(subj):'全科目'));
 }
+function cView(c){
+  const t=ctOf(c),hr=t==='hanrei';
+  openSheet(`<div class="row" style="gap:6px"><span class="chip">${esc(SL(c.subject))}</span><span class="chip t">${CT[t].l}</span><span class="chip u">${USE[useOf(c)]}</span>${lvHtml(c)}</div>
+    <h2 style="margin:0">${tint(esc(c.title))}</h2>
+    ${hr&&c.article?`<div class="p-sub">${esc(c.article)}</div>`:''}${hr&&c.issue?`<div class="p-issue">争点：${esc(c.issue)}</div>`:''}
+    ${c.facts?`<div class="p-case"><b>${hr?'事案・ポイント':'事案'}</b><div>${esc(c.facts)}</div></div>`:''}
+    <div class="p-body cv-body">${fmt(c.body,'plain')}</div>
+    ${!hr&&c.article?`<p class="meta">${esc(c.article)}</p>`:''}
+    <div class="row">${isEx(c)?'':`<button class="btn wide" data-cv-edit>編集</button>`}<button class="btn primary wide" data-sheet-close>閉じる</button></div>`,sh=>{
+    const e=sh.querySelector('[data-cv-edit]');if(e)e.onclick=()=>cForm(c)});
+}
+document.addEventListener('click',e=>{const v=e.target.closest('[data-cview]');if(!v||e.target.closest('button,a'))return;const c=items.get(v.dataset.cview)||SAMPLES.find(x=>x.id===v.dataset.cview);if(c)cView(c)});
+document.addEventListener('keydown',e=>{if(e.key!=='Enter'&&e.key!==' ')return;const v=e.target.closest&&e.target.closest('[data-cview]');if(!v)return;e.preventDefault();v.click()});
 function renderCList(){
   const xs=filtered('c').slice().sort((a,b)=>{const sa=srsOf(a),sb=srsOf(b);return (sa?sa.due:'9999').localeCompare(sb?sb.due:'9999')});
-  $('c-list').innerHTML=exNote('c')+(xs.length?xs.slice(0,LF.c.limit).map(c=>`<div class="item"><div class="body">
+  $('c-list').innerHTML=exNote('c')+(xs.length?xs.slice(0,LF.c.limit).map(c=>`<div class="item"><div class="body cview" data-cview="${esc(c.id)}" role="button" tabindex="0" aria-label="${esc(stripC(c.title))}を開く">
     <div class="row" style="gap:6px"><span class="chip">${esc(SL(c.subject))}</span><span class="chip t">${CT[ctOf(c)].l}</span><span class="chip u">${USE[useOf(c)]}</span>${isEx(c)?'<span class="chip ex">例</span>':''}${lvHtml(c)}</div>
     <div style="font-weight:700">${tint(esc(c.title))}</div>
     ${ctOf(c)==='hanrei'&&c.issue?`<div class="meta">争点：${esc(c.issue)}</div>`:''}
