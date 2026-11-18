@@ -40,7 +40,7 @@
 [hidden],.gone{display:none!important}
 body{background:var(--bg);color:var(--ink);font-family:var(--f-body);font-size:1rem;line-height:1.75;
   padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));
-  padding-block:0 calc(var(--tabh) + env(safe-area-inset-bottom,0px) + 24px)}
+  padding-block:0 calc(var(--tabh) + max(14px,env(safe-area-inset-bottom,0px)) + 24px)}
 .wrap{max-width:640px;margin:0 auto}
 header.top{padding-block:18px 6px;display:flex;align-items:baseline;gap:6px 12px;flex-wrap:wrap}
 header.top .hd-count{font-family:var(--f-num);font-size:.8rem;color:var(--accent);font-variant-numeric:tabular-nums}
@@ -148,9 +148,9 @@ label.f>input,label.f>select,label.f>textarea{color:var(--ink);font-size:1rem}
 /* tabs */
 nav.tabs{position:fixed;left:0;right:0;bottom:0;z-index:20;background:var(--surface);border-top:1px solid var(--line);
   padding-left:max(8px,env(safe-area-inset-left,0px));padding-right:max(8px,env(safe-area-inset-right,0px));
-  padding-bottom:env(safe-area-inset-bottom,0px)}
+  padding-bottom:max(14px,env(safe-area-inset-bottom,0px))}
 nav.tabs .in{max-width:640px;margin:0 auto;display:grid;grid-template-columns:repeat(6,1fr);height:var(--tabh)}
-.tab{appearance:none;border:0;background:none;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;cursor:pointer;color:var(--muted);font-size:.72rem;text-decoration:none;position:relative}
+.tab{appearance:none;border:0;background:none;touch-action:manipulation;-webkit-tap-highlight-color:transparent;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;cursor:pointer;color:var(--muted);font-size:.72rem;text-decoration:none;position:relative}
 .tab b{font-family:var(--f-display);font-size:1.15rem;font-weight:800;line-height:1}
 .tab[aria-current="page"]{color:var(--accent)}
 .tab[aria-current="page"] b{border-bottom:2px solid var(--accent)}
@@ -161,7 +161,7 @@ nav.tabs .in{max-width:640px;margin:0 auto;display:grid;grid-template-columns:re
   padding:18px max(16px,env(safe-area-inset-right,0px)) calc(18px + env(safe-area-inset-bottom,0px)) max(16px,env(safe-area-inset-left,0px));display:flex;flex-direction:column;gap:12px}
 .sheet>*{flex-shrink:0}
 .sheet hr{border:0;border-top:1px solid var(--line);margin:4px 0;width:100%}
-.toast{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(var(--tabh) + env(safe-area-inset-bottom,0px) + 12px);z-index:90;background:var(--ink);color:var(--bg);padding:8px 14px;border-radius:8px;font-size:.85rem;max-width:calc(100% - 32px)}
+.toast{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(var(--tabh) + max(14px,env(safe-area-inset-bottom,0px)) + 12px);z-index:90;background:var(--ink);color:var(--bg);padding:8px 14px;border-radius:8px;font-size:.85rem;max-width:calc(100% - 32px)}
 .confirm{display:flex;gap:4px;align-items:center;font-size:.8rem;flex-wrap:wrap;justify-content:flex-end}
 .kwhelp{font-size:.78rem;color:var(--muted);display:flex;gap:8px;align-items:center;flex-wrap:wrap}
 .kwhelp .btn{min-height:32px;padding:4px 10px;font-size:.8rem}
