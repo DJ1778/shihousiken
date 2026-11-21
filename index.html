@@ -343,6 +343,7 @@ details.info .tbl+.note{margin-bottom:12px}
 .hs-sub{margin:4px 0 0;font-size:.85rem;color:var(--muted);letter-spacing:.04em}
 .hm-ed{display:flex;flex-direction:column;gap:4px;font-size:.8rem;color:var(--muted)}.hm-ed .rich{min-height:90px;font-size:1rem;color:var(--ink)}
 .grades.three{grid-template-columns:repeat(3,1fr)}
+.btn.dict.on{background:var(--accent);color:var(--surface)}
 .btn.mic{align-self:center;min-width:140px;min-height:56px;border-radius:999px;font-size:1.05rem;font-weight:700;border:2px solid var(--accent);color:var(--accent);background:var(--surface)}
 .btn.mic.on{background:var(--accent);color:var(--surface);animation:micp 1.2s ease-in-out infinite}
 @keyframes micp{50%{box-shadow:0 0 0 8px color-mix(in srgb,var(--accent) 25%,transparent)}}
@@ -767,7 +768,7 @@ function ovPush(){if(inClaude)return;try{history.pushState({ov:1},'');ovN++}catc
 function ovPop(){if(inClaude||ovN<=0)return;ovN--;popSkip++;try{history.back()}catch(e){popSkip--}}
 function openSheet(html,bind){const was=!$('scrim').hidden;if(!was){lastFocus=document.activeElement;ovPush()}
   $('sheet').innerHTML='<div class="sheet-top"><button class="btn ghost" data-sheet-close>← 戻る</button></div>'+html;$('scrim').hidden=false;$('sheet').scrollTop=0;bind($('sheet'));const f=$('sheet').querySelector('input:not([type=checkbox]):not([type=file]),textarea,select');if(f)f.focus()}
-function closeSheet(fromPop){if($('scrim').hidden)return;stopRec();if(fromPop!==true)ovPop();$('scrim').hidden=true;$('sheet').innerHTML='';if(lastFocus&&lastFocus.focus)try{lastFocus.focus()}catch(e){}}
+function closeSheet(fromPop){if($('scrim').hidden)return;stopRec();dictStop();if(fromPop!==true)ovPop();$('scrim').hidden=true;$('sheet').innerHTML='';if(lastFocus&&lastFocus.focus)try{lastFocus.focus()}catch(e){}}
 $('scrim').addEventListener('click',e=>{if(e.target.id==='scrim'||e.target.closest('[data-sheet-close]'))closeSheet()});
 const subjSel=(id,v)=>`<select id="${id}">${SUBJ.map(s=>`<option value="${s}"${s===v?' selected':''}>${esc(SL(s))}</option>`).join('')}</select>`;
 const exNote=kind=>mine(kind).length?'':'<p class="note" style="padding-bottom:6px"><span class="chip ex">例</span> は見本です。自分の項目を追加すると表示されなくなります。</p>';
@@ -1076,7 +1077,30 @@ function mkRich(s,eds,bar){
     const mk=document.createElement('mark');mk.className='kw';mk.appendChild(r.extractContents());mk.querySelectorAll('mark').forEach(x=>{while(x.firstChild)x.parentNode.insertBefore(x.firstChild,x);x.remove()});
     r.insertNode(mk);sel.removeAllRanges();const r2=document.createRange();r2.setStartAfter(mk);r2.collapse(true);sel.addRange(r2);saveRange();toast('キーワードにしました')}}
 }
-const PEN_BAR=(wrapLabel)=>`<div class="kwhelp"><span>ペンの色</span><div class="seg pen" role="group" aria-label="ペンの色"><button type="button" data-pen="k" aria-pressed="true">黒</button><button type="button" class="red" data-pen="r" aria-pressed="false">赤</button><button type="button" class="blue" data-pen="b" aria-pressed="false">青</button></div>${wrapLabel?`<button class="btn" data-wrap type="button">${wrapLabel}</button>`:''}</div>`;
+// 話して入力：最後に触った入力欄へ、話した言葉を書き込む
+let dictEl=null,dictRange=null,DREC=null;
+const isEditable=el=>el&&(el.isContentEditable||(el.tagName==='TEXTAREA')||(el.tagName==='INPUT'&&/^(text|search)$/.test(el.type)));
+document.addEventListener('focusin',e=>{if(isEditable(e.target)&&e.target.closest('#sheet'))dictEl=e.target});
+document.addEventListener('selectionchange',()=>{if(dictEl&&dictEl.isContentEditable){const sel=getSelection();if(sel.rangeCount&&dictEl.contains(sel.anchorNode))dictRange=sel.getRangeAt(0).cloneRange()}});
+function dictInsert(t){const el=dictEl;if(!el||!el.isConnected)return;el.focus();
+  if(el.isContentEditable){if(dictRange&&el.contains(dictRange.startContainer)){const sel=getSelection();sel.removeAllRanges();sel.addRange(dictRange)}document.execCommand('insertText',false,t);const sel=getSelection();if(sel.rangeCount)dictRange=sel.getRangeAt(0).cloneRange()}
+  else{const a=el.selectionStart??el.value.length,b=el.selectionEnd??a;el.setRangeText(t,a,b,'end');el.dispatchEvent(new Event('input',{bubbles:true}))}}
+function dictStop(){if(DREC){try{DREC.onend=null;DREC.stop()}catch(e){}DREC=null}document.querySelectorAll('[data-dictate]').forEach(b=>{b.textContent='話して入力';b.classList.remove('on')})}
+document.addEventListener('pointerdown',e=>{if(e.target.closest('[data-dictate]'))e.preventDefault()});
+document.addEventListener('click',e=>{const b=e.target.closest('[data-dictate]');if(!b)return;
+  if(DREC){dictStop();return}
+  if(!dictEl||!dictEl.isConnected){const f=b.closest('#sheet')?.querySelector('[contenteditable=true],textarea,input[type=text]');if(f)dictEl=f}
+  if(!srOk){if(dictEl)dictEl.focus();toast('この画面では直接マイクが使えません。キーボードのマイクボタンを押して話してください');return}
+  let r;try{r=new SRC()}catch(er){srOk=false;toast('キーボードのマイクボタンを押して話してください');return}
+  r.lang='ja-JP';r.continuous=true;r.interimResults=false;DREC=r;let done=0;
+  r.onresult=ev=>{for(let i=done;i<ev.results.length;i++){if(ev.results[i].isFinal){dictInsert(ev.results[i][0].transcript);done=i+1}}};
+  r.onerror=ev=>{if(/not-allowed|audio-capture|service-not-allowed/.test(ev.error)){srOk=false;toast('この画面では直接マイクが使えません。キーボードのマイクボタンを押して話してください')}dictStop()};
+  r.onend=()=>{if(DREC===r)dictStop()};
+  try{r.start()}catch(er){DREC=null;return}
+  b.textContent='止める';b.classList.add('on');toast('話してください。終わったら「止める」');
+});
+const DICT_BTN='<button type="button" class="btn dict" data-dictate>話して入力</button>';
+const PEN_BAR=(wrapLabel)=>`<div class="kwhelp"><span>ペンの色</span><div class="seg pen" role="group" aria-label="ペンの色"><button type="button" data-pen="k" aria-pressed="true">黒</button><button type="button" class="red" data-pen="r" aria-pressed="false">赤</button><button type="button" class="blue" data-pen="b" aria-pressed="false">青</button></div>${wrapLabel?`<button class="btn" data-wrap type="button">${wrapLabel}</button>`:''}${DICT_BTN}</div>`;
 /* カード本文のリッチ入力（色・穴埋めをカッコなしで表示） */
 const PENC={r:'#c62828',b:'#1f5fa8',k:'#1b2420'};
 const richCol=h=>h.replace(/《([^《》]*)》/g,'<span style="color:#c62828">$1</span>').replace(/〔([^〔〕]*)〕/g,'<span style="color:#1f5fa8">$1</span>');
@@ -1113,7 +1137,7 @@ function cForm(c,keep){
    <div class="grid2" id="fc-hanrei"><label class="f">裁判所・年月日<input id="fc-r2" value="${esc(t0==='hanrei'?c.article:'')}" placeholder="例：最大判昭50.4.30"></label>
    <label class="f">争点（任意）<input id="fc-i" value="${esc(c.issue)}" placeholder="例：職業の許可制の合憲性の判断基準"></label></div>
    <div class="f" style="display:flex;flex-direction:column;gap:4px;font-size:.8rem;color:var(--muted)"><span id="fc-bl"></span><div id="fc-b" class="rich" contenteditable="true" role="textbox" aria-multiline="true" aria-labelledby="fc-bl">${toRich(c.body)}</div></div>
-   <div class="kwhelp"><span>ペンの色</span><div class="seg pen" role="group" aria-label="ペンの色"><button type="button" data-pen="k" aria-pressed="true">黒</button><button type="button" class="red" data-pen="r" aria-pressed="false">赤</button><button type="button" class="blue" data-pen="b" aria-pressed="false">青</button></div><button class="btn" id="fc-wrap" type="button">穴埋め</button><span id="fc-n"></span></div>
+   <div class="kwhelp"><span>ペンの色</span><div class="seg pen" role="group" aria-label="ペンの色"><button type="button" data-pen="k" aria-pressed="true">黒</button><button type="button" class="red" data-pen="r" aria-pressed="false">赤</button><button type="button" class="blue" data-pen="b" aria-pressed="false">青</button></div><button class="btn" id="fc-wrap" type="button">穴埋め</button>${DICT_BTN}<span id="fc-n"></span></div>
    <p class="note" style="margin-top:-6px">色を選んでから書くと、その色になります。書いた語句を選んで色や「穴埋め」を押すと、あとから変えられます。</p>
    <label class="f" id="fc-fw"><span id="fc-fl">事案・ポイント（任意）</span><textarea id="fc-f" style="min-height:70px" placeholder="どんな事案で、結論はどうなったか">${esc(c.facts)}</textarea></label>
    <div class="grid2"><label class="f" id="fc-rw"><span id="fc-rl"></span><input id="fc-r" value="${esc(t0==='hanrei'?'':c.article)}" placeholder="例：民法177条"></label>
