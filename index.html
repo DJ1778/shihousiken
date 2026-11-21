@@ -267,6 +267,7 @@ details.info .tbl+.note{margin-bottom:12px}
 .hs.s1,.hs.s2,.hs.s3{border:2px solid var(--ng);color:var(--ng);background:var(--ng-soft);font-weight:700;transform:rotate(-8deg)}
 .hs.s2{box-shadow:inset 0 0 0 3px var(--ng-soft),inset 0 0 0 4px var(--ng)}
 .hs.s3{background:var(--ng);color:var(--surface)}
+.hs.hx{opacity:.35;text-decoration:line-through;background:transparent!important;border-style:dashed!important}
 .hs.hc::after{content:"";position:absolute;right:2px;top:2px;width:7px;height:7px;border-radius:50%;background:var(--blue,#1f5fa8);border:1.5px solid var(--surface)}
 .hs:focus-visible{outline:2px solid var(--ink);outline-offset:2px}
 .hs-top{display:grid;grid-template-columns:1fr 5em 6.5em;gap:8px}
@@ -2072,27 +2073,30 @@ const hsDoc=()=>items.get('hyakusen')||{id:'hyakusen',kind:'h',books:{}};
 const HS_SUBJ={kenpo1:'憲法',kenpo2:'憲法',gyosei1:'行政法',gyosei2:'行政法',minpo1:'民法',minpo2:'民法',minpo3:'民法',kaisha:'商法',minso:'民訴',keiho1:'刑法',keiho2:'刑法',keiso:'刑訴'};
 const hsTag=(k,i)=>HS_BOOKS.find(b=>b[0]===k)[1].replace(/判例百選/,'百選').replace(/（.*）/,'')+'-'+i;
 const hsHasCard=(k,i)=>{const t=hsTag(k,i);return [...items.values()].some(x=>x.kind==='c'&&(x.tags||'').split(/[\s,、]+/).includes(t))};
-const hsBook=k=>{const b=(hsDoc().books||{})[k]||{};return {n:+b.n||100,an:+b.an||0,r:b.r||{},m:b.m||{},o:b.o||{}}};
+const hsBook=k=>{const b=(hsDoc().books||{})[k]||{};return {n:+b.n||100,an:+b.an||0,r:b.r||{},m:b.m||{},o:b.o||{},x:b.x||{}}};
+let hsXMode=false;
 const hsNo=i=>String(i)[0]==='A'?'Appendix '+String(i).slice(1):i+'番';
-const hsIds=b=>[...Array.from({length:b.n},(_,i)=>String(i+1)),...Array.from({length:b.an},(_,i)=>'A'+(i+1))];
+const hsAll=b=>[...Array.from({length:b.n},(_,i)=>String(i+1)),...Array.from({length:b.an},(_,i)=>'A'+(i+1))];
+const hsIds=b=>hsAll(b).filter(i=>!b.x[i]);
 const hsKey=()=>HS_BOOKS.some(b=>b[0]===ui.hs)?ui.hs:'kenpo1';
 const hsName=k=>HS_BOOKS.find(b=>b[0]===k)[1];
 const hsHasMemo=(b,i)=>{const m=b.m[i];return !!(m&&(m.t||m.f||m.memo||m.d||m.sh||m.ro))};
 function renderHS(){
   const el=$('hs-panel');if(!el)return;
-  const k=hsKey(),b=hsBook(k),tot=b.n+b.an,read=hsIds(b).filter(i=>+b.r[i]>0).length,nm=Object.keys(b.m).filter(i=>hsHasMemo(b,i)).length;
-  const cell=i=>{const c=+b.r[i]||0,hm=hsHasMemo(b,i),t=hm&&b.m[i].t,lab=String(i)[0]==='A'?'A'+String(i).slice(1):i;return `<button class="hs${c?' s'+Math.min(c,3):''}${hm?' hc':''}" data-hs="${i}" aria-label="${hsNo(i)}${t?' '+esc(t):''} ${c?c+'回読んだ':'未読'}${hm?' メモあり':''}">${lab}</button>`};
+  const k=hsKey(),b=hsBook(k),tot=Math.max(1,hsIds(b).length),nx=Object.keys(b.x).length,read=hsIds(b).filter(i=>+b.r[i]>0).length,nm=Object.keys(b.m).filter(i=>hsHasMemo(b,i)&&!b.x[i]).length;
+  const cell=i=>{const xx=!!b.x[i],c=+b.r[i]||0,hm=hsHasMemo(b,i),t=hm&&b.m[i].t,lab=String(i)[0]==='A'?'A'+String(i).slice(1):i;return `<button class="hs${xx?' hx':''}${!xx&&c?' s'+Math.min(c,3):''}${!xx&&hm?' hc':''}" data-hs="${i}" aria-label="${hsNo(i)}${t?' '+esc(t):''} ${xx?'除外':c?c+'回読んだ':'未読'}${hm&&!xx?' メモあり':''}">${lab}</button>`};
   el.innerHTML=`<div class="spread"><h3>判例百選</h3><span class="meta"><b style="color:var(--ink)">${read}</b> / ${tot}件（${Math.round(read/tot*100)}%）</span></div>
-    <div class="hs-top"><label class="f">本<select id="hs-b">${HS_BOOKS.map(([key,l])=>{const bb=hsBook(key),rd=hsIds(bb).filter(i=>+bb.r[i]>0).length;return `<option value="${key}"${key===k?' selected':''}>${l}${rd?`（${rd}/${bb.n+bb.an}）`:''}</option>`}).join('')}</select></label>
+    <div class="hs-top"><label class="f">本<select id="hs-b">${HS_BOOKS.map(([key,l])=>{const bb=hsBook(key),rd=hsIds(bb).filter(i=>+bb.r[i]>0).length;return `<option value="${key}"${key===k?' selected':''}>${l}${rd?`（${rd}/${hsIds(bb).length}）`:''}</option>`}).join('')}</select></label>
     <label class="f">件数<input type="number" id="hs-n" min="1" max="400" inputmode="numeric" value="${b.n}"></label>
     <label class="f">Appendix<input type="number" id="hs-an" min="0" max="200" inputmode="numeric" value="${b.an}" placeholder="0"></label></div>
     <div class="meter"><i style="width:${Math.round(read/tot*100)}%"></i></div>
     ${nm?`<button class="btn primary" data-hs-say>口で説明する練習（メモ ${nm}件）</button>`:''}
+    <div class="row" style="gap:8px;align-items:center"><button class="btn${hsXMode?' primary':''}" data-hs-xmode aria-pressed="${hsXMode}">${hsXMode?'除外を選び終わる':'使わない番号を除外'}</button><span class="meta">${hsXMode?'押した番号を除外／戻す':nx?`除外 ${nx}件`:''}</span></div>
     <div class="hs-grid">${Array.from({length:b.n},(_,i)=>cell(String(i+1))).join('')}</div>
     ${b.an?`<h4 class="hs-sub">Appendix</h4><div class="hs-grid">${Array.from({length:b.an},(_,i)=>cell('A'+(i+1))).join('')}</div>`:''}
-    <p class="note">番号を押すと、読んだ回数とメモ（事件名・年月日・事案・判旨・射程・付随する論点）を記録できます。Appendixの件数を入れると、付録の判例も記録できます。</p>`;
+    <p class="note">番号を押すと、読んだ回数とメモ（事件名・年月日・事案・判旨・射程・付随する論点）を記録できます。Appendixの件数を入れると、付録の判例も記録できます。使わない番号は「使わない番号を除外」で外すと、件数や練習に入らなくなります。</p>`;
 }
-function hsSave(k,fn){const d=hsDoc(),books={...(d.books||{})},o=hsBook(k),b={n:o.n,an:o.an,r:{...o.r},m:{...o.m},o:{...o.o}};fn(b);books[k]=b;put({...d,id:'hyakusen',kind:'h',books})}
+function hsSave(k,fn){const d=hsDoc(),books={...(d.books||{})},o=hsBook(k),b={n:o.n,an:o.an,r:{...o.r},m:{...o.m},o:{...o.o},x:{...o.x}};fn(b);books[k]=b;put({...d,id:'hyakusen',kind:'h',books})}
 function recToggle(ta,btn){
   if(REC){stopRec();btn.textContent='話す';btn.classList.remove('on');return}
   if(!srOk){toast('この画面ではマイクが使えません。キーボードのマイクで話してください');return}
@@ -2117,7 +2121,9 @@ function hsMemoSheet(k,i){
     <div id="hm-bar">${PEN_BAR('キーワード')}</div>
     <p class="note" style="margin-top:-6px">書いている欄に色がつきます。判旨の大事な語句を選んで「キーワード」を押すと、口頭練習で言えたかを確かめられます。</p>
     ${o?`<p class="note">前回の口頭練習：${o.g===2?'言えた':o.g===1?'あやふや':'言えなかった'}${o.sc!=null?`（AI ${o.sc}点）`:''}・${md(o.last)}</p>`:''}
-    <div class="row"><button class="btn" data-hm-say>口で説明する</button><button class="btn primary wide" data-hm-save>保存</button></div>`,sh=>{
+    <div class="row"><button class="btn" data-hm-say>口で説明する</button><button class="btn primary wide" data-hm-save>保存</button></div>
+    <button class="btn ghost" data-hm-x>この番号は使わない（除外する）</button>`,sh=>{
+    sh.querySelector('[data-hm-x]').onclick=()=>{hsSave(k,bb=>{bb.x[i]=1});closeSheet();toast(hsNo(i)+'を除外しました。もう一度押すと戻せます')};
     let rc=c;const ef=sh.querySelector('#hm-f'),em=sh.querySelector('#hm-m'),es=sh.querySelector('#hm-s'),er=sh.querySelector('#hm-r');
     mkRich(sh,[ef,em,es,er],sh.querySelector('#hm-bar'));
     sh.querySelectorAll('[data-hr]').forEach(bt=>bt.onclick=()=>{rc=+bt.dataset.hr;sh.querySelectorAll('[data-hr]').forEach(x=>x.setAttribute('aria-pressed',x===bt))});
@@ -2131,7 +2137,7 @@ function hsMemoSheet(k,i){
 let HP=null;
 function hsPractice(k,ids){
   const b=hsBook(k);
-  if(!ids){const all=Object.keys(b.m).filter(i=>hsHasMemo(b,i));const w=i=>{const o=b.o[i];return !o?1:o.g===0?0:o.g===1?2:3};
+  if(!ids){const all=Object.keys(b.m).filter(i=>hsHasMemo(b,i)&&!b.x[i]);const w=i=>{const o=b.o[i];return !o?1:o.g===0?0:o.g===1?2:3};
     ids=shuffle(all).sort((x,y)=>w(x)-w(y)).slice(0,20)}
   HP={k,ids,i:0,show:false,typed:'',ai:null,busy:false,res:[0,0,0]};hsStep();
 }
@@ -2191,7 +2197,11 @@ function hsStep(){
 let HPS=null;sampleP.then(x=>{HPS=x}).catch(()=>{});
 document.addEventListener('click',e=>{const k=hsKey();
   if(e.target.closest('[data-hs-say]')){hsPractice(k);return}
-  const t=e.target.closest('[data-hs]');if(!t)return;hsMemoSheet(k,t.dataset.hs)});
+  if(e.target.closest('[data-hs-xmode]')){hsXMode=!hsXMode;renderHS();if(hsXMode)toast('除外したい番号を押してください。もう一度押すと戻ります');return}
+  const t=e.target.closest('[data-hs]');if(!t)return;const i=t.dataset.hs;
+  if(hsXMode){hsSave(k,b=>{if(b.x[i])delete b.x[i];else b.x[i]=1});return}
+  if(hsBook(k).x[i]){hsSave(k,b=>{delete b.x[i]});toast(hsNo(i)+'の除外を外しました');return}
+  hsMemoSheet(k,i)});
 
 
 document.addEventListener('change',e=>{
