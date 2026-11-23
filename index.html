@@ -325,6 +325,7 @@ details.info .tbl+.note{margin-bottom:12px}
 .seg button[aria-pressed="true"]{background:var(--accent-soft);color:var(--accent);font-weight:700}
 .p-card{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:20px;display:flex;flex-direction:column;gap:14px;min-width:0}
 .p-title{font-family:var(--f-display);font-weight:800;font-size:1.3rem;line-height:1.5;text-wrap:balance}
+.c-fig{margin:10px 0;border:1px solid var(--line);border-radius:10px;overflow:hidden;background:#fff}.c-fig img{display:block;width:100%;height:auto}
 .p-body{white-space:pre-wrap;overflow-wrap:anywhere;font-size:1.02rem;line-height:2}
 .p-body.q{font-size:1.08rem;line-height:1.9}
 .p-body.mine{font-size:.92rem;line-height:1.8;color:var(--muted)}
@@ -904,7 +905,7 @@ function cCard(x,e,chips){
   h+=`<div class="p-card">${chips}`;
   if(rev){
     h+=`<div class="p-body">${fmt(x.body,'plain')}</div>`;
-    h+=back?`<hr class="p-hr">${head}${facts}`:'<p class="note">この規範を示した判例は？（事件名・裁判所・年月日）</p>';
+    h+=back?`<hr class="p-hr">${head}${figHtml(x)}${facts}`:'<p class="note">この規範を示した判例は？（事件名・裁判所・年月日）</p>';
   }else{
     h+=head+rcase;
     if(m==='flip'){h+=back?`<div class="p-body">${fmt(x.body,'plain')}</div>`:(CT[t].ask?`<p class="note">${CT[t].ask}</p>`:'')}
@@ -924,7 +925,7 @@ function cCard(x,e,chips){
         h+=`<div class="p-body">${fmt(x.body,'check',{norm})}</div><details><summary>自分の答えを見る</summary><div class="p-body mine">${esc(P.typed)||'（未記入）'}</div></details>`;
       }
     }
-    if(back)h+=facts;
+    if(back)h+=figHtml(x)+facts;
   }
   h+='</div>';
   if(!back)h+=`<div class="row">${m==='cloze'&&nk&&!P.hint?'<button class="btn" data-p="hint">ヒント（頭文字）</button>':''}<button class="btn primary wide" data-p="reveal">${m==='write'||m==='say'&&P.typed.trim()?'答え合わせ':'答えを見る'}</button></div>`;
@@ -1237,9 +1238,13 @@ function cView(c){
     ${hr&&c.article?`<div class="p-sub">${esc(c.article)}</div>`:''}${hr&&c.issue?`<div class="p-issue">争点：${esc(c.issue)}</div>`:''}
     ${c.facts?`<div class="p-case"><b>${hr?'事案・ポイント':'事案'}</b><div>${esc(c.facts)}</div></div>`:''}
     <div class="p-body cv-body">${fmt(c.body,'plain')}</div>
+    ${figHtml(c)}
     ${!hr&&c.article?`<p class="meta">${esc(c.article)}</p>`:''}
+    ${inClaude&&!isEx(c)?`<div class="row" style="gap:8px"><button class="btn" data-cv-fig>${c.fig?'図を作り直す':'AIで図を作る'}</button>${c.fig?'<button class="btn" data-cv-figdel>図を消す</button>':''}</div>`:''}
     <div class="row">${isEx(c)?'':`<button class="btn wide" data-cv-edit>編集</button>`}<button class="btn primary wide" data-sheet-close>閉じる</button></div>`,sh=>{
-    const e=sh.querySelector('[data-cv-edit]');if(e)e.onclick=()=>cForm(c)});
+    const e=sh.querySelector('[data-cv-edit]');if(e)e.onclick=()=>cForm(c);
+    const f=sh.querySelector('[data-cv-fig]');if(f)f.onclick=()=>cMakeFig(c,f);
+    const fd=sh.querySelector('[data-cv-figdel]');if(fd)fd.onclick=()=>{const n={...c};delete n.fig;put(n);toast('図を消しました');cView(n)}});
 }
 document.addEventListener('click',e=>{const v=e.target.closest('[data-cview]');if(!v||e.target.closest('button,a'))return;const c=items.get(v.dataset.cview)||SAMPLES.find(x=>x.id===v.dataset.cview);if(c)cView(c)});
 document.addEventListener('keydown',e=>{if(e.key!=='Enter'&&e.key!==' ')return;const v=e.target.closest&&e.target.closest('[data-cview]');if(!v)return;e.preventDefault();v.click()});
@@ -2017,6 +2022,40 @@ function topicSheet(y){
 }
 document.addEventListener('click',e=>{const b=e.target.closest('[data-ky]');if(b)topicSheet(+b.dataset.ky)});
 const sjHtml=t=>esc(t).replace(/【(論点|評価|失敗|要望)】/g,(m,k)=>`<b>${{論点:'出題の論点',評価:'評価された答案',失敗:'よくある失敗',要望:'採点者からの要望'}[k]}</b>`);
+
+/* ---------- カードの図（AIが作る） ---------- */
+function figSvg(t){const m=String(t||'').match(/<svg[\s\S]*<\/svg>/i);if(!m)return '';let v=m[0];
+  if(/<script|<foreignObject|\son\w+\s*=|href\s*=\s*["']?\s*(?:javascript|http)/i.test(v))return '';
+  if(!/xmlns=/.test(v))v=v.replace(/<svg/i,'<svg xmlns="http://www.w3.org/2000/svg"');return v.length<80000?v:''}
+function figHtml(x){const v=x&&x.fig?figSvg(x.fig):'';return v?`<div class="c-fig"><img alt="${esc(stripC(x.title||''))}の図" src="data:image/svg+xml;charset=utf-8,${encodeURIComponent(v)}"></div>`:''}
+function figPrompt(c){return `あなたは日本の法律の講師です。次の暗記カードの内容を、受験生が一目で覚えられる「図」にしてください。
+
+# 図の作り方
+- 内容の構造に合う形を選ぶ：要件→効果の流れ、判断の手順（フローチャート）、学説の対立（並べて比較）、当事者の関係図（A→B→Cと矢印）、時系列など。
+- 書くのは要点だけ。キーワードは短く（1行14字以内、全角で）。文章を丸写ししない。
+- 結論や規範の核心は赤（#c0392b）、それ以外は黒（#222）と灰色（#666）。箱は白（#fff）か薄い色（#f3efe6, #e8f0f7）で、線は#444。
+- 内容にないことを付け足さない。
+
+# 出力の形（厳守）
+- SVGだけを出力する。説明文やコードブロックの記号は書かない。
+- <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 360 H"> で始める。Hは200〜640。
+- 最初に <rect width="360" height="H" fill="#ffffff"/> を置く。
+- 文字は font-family="sans-serif"、font-size は13〜16。文字が箱や画面からはみ出さないように、長い語は<text>を分けて改行する。
+- 矢印は <defs><marker> で作る。画像・script・外部リンクは使わない。
+
+# カード
+科目：${SL(c.subject)}
+題名：${stripC(c.title)}
+${c.facts?'事案：'+c.facts+'\n':''}本文：
+${stripC(c.body)}`}
+async function cMakeFig(c,btn){
+  const sample=await sampleP;if(!sample){toast('ここではAIが使えません');return}
+  btn.disabled=true;btn.textContent='図を作っています…（20秒ほど）';
+  try{const r=await sample(figPrompt(c),{modelTier:'complex',cache:false});const v=figSvg(r&&r.text);
+    if(!v){toast('図をうまく作れませんでした。もう一度押してください');btn.disabled=false;btn.textContent='AIで図を作る';return}
+    const n={...items.get(c.id)||c,fig:v};await put(n);toast('図を入れました');cView(n);
+  }catch(e){toast(e&&e.code==='rate_limited'?'少し時間をおいてもう一度':e&&e.code==='not_granted'?'AIの利用が許可されていません':'図を作れませんでした');btn.disabled=false;btn.textContent=c.fig?'図を作り直す':'AIで図を作る'}
+}
 
 /* ---------- 答案のAI採点 ---------- */
 const sampleP=inClaude?window.claude.use('sample').catch(()=>null):Promise.resolve(null);
