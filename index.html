@@ -1170,6 +1170,7 @@ function cForm(c,keep){
    <label class="f" id="fc-fw"><span id="fc-fl">事案・ポイント（任意）</span><textarea id="fc-f" style="min-height:70px" placeholder="どんな事案で、結論はどうなったか">${esc(c.facts)}</textarea></label>
    <div class="grid2"><label class="f" id="fc-rw"><span id="fc-rl"></span><input id="fc-r" value="${esc(t0==='hanrei'?'':c.article)}" placeholder="例：民法177条"></label>
    <label class="f">タグ（任意・空白区切り）<input id="fc-g" value="${esc(c.tags)}" placeholder="例：重要 R6"></label></div>
+   ${inClaude?'<div class="f" style="display:grid;gap:6px;font-size:.8rem;color:var(--muted)"><span>図（任意・答えの側に出ます）</span><div id="fc-fig"></div></div>':''}
    <div class="row">${editing?'<button class="btn wide" id="fx">キャンセル</button>':'<button class="btn wide" id="fn">もう一枚作る</button>'}<button class="btn primary wide" id="fs">保存</button></div>`,s=>{
     const q=id=>s.querySelector(id),ed=q('#fc-b');
     const layout=()=>{const t=q('#fc-k').value,d=CT[t];q('#fc-tl').textContent=d.front+'（表面）';q('#fc-bl').textContent=d.back+'（裏面）';q('#fc-rl').textContent=d.src;
@@ -1211,9 +1212,17 @@ function cForm(c,keep){
       if(r.collapsed){toast('穴埋めにしたい語句を選んでから押してください');return}
       const mk=document.createElement('mark');mk.className='kw';mk.appendChild(r.extractContents());mk.querySelectorAll('mark').forEach(x=>{while(x.firstChild)x.parentNode.insertBefore(x.firstChild,x);x.remove()});
       r.insertNode(mk);sel.removeAllRanges();const r2=document.createRange();r2.setStartAfter(mk);r2.collapse(true);sel.addRange(r2);saveRange();cnt();toast('穴埋めにしました')};
+    let fig=c.fig||'';
+    const figBox=q('#fc-fig'),drawFig=()=>{if(!figBox)return;figBox.innerHTML=figHtml({fig,title:q('#fc-t').value})+`<div class="row" style="gap:8px"><button type="button" class="btn" data-fgen>${fig?'図を作り直す':'AIで図を作る'}</button>${fig?'<button type="button" class="btn" data-fdel>図を消す</button>':''}</div>`;
+      figBox.querySelector('[data-fgen]').onclick=async e=>{const btn=e.currentTarget,t=q('#fc-t').value.trim(),b=fromRich(ed);if(!t||!b){toast('先に表面と裏面を書いてください');return}
+        btn.disabled=true;btn.textContent='図を作っています…（20秒ほど）';const v=await aiFig({subject:q('#fc-s').value,title:t,body:b,facts:q('#fc-f').value.trim()});
+        if(v){fig=v;toast('図を作りました。保存すると残ります')}drawFig()};
+      const d=figBox.querySelector('[data-fdel]');if(d)d.onclick=()=>{fig='';drawFig();toast('図を外しました。保存すると消えます')}};
+    drawFig();
     const save=()=>{const t=q('#fc-t').value.trim(),b=fromRich(ed),k=q('#fc-k').value;if(!t||!b){toast(`${CT[k].front}と${CT[k].back}を入力してください`);return null}
       const hr=k==='hanrei',out={...(editing?c:{}),id:editing?c.id:'c_'+uid(),kind:'c',ctype:k,use:q('#fc-u').value,subject:q('#fc-s').value,title:t,body:b,
         article:(hr?q('#fc-r2'):q('#fc-r')).value.trim(),issue:hr?q('#fc-i').value.trim():'',facts:hr||k==='ronsho'?q('#fc-f').value.trim():'',tags:q('#fc-g').value.trim()};
+      if(fig)out.fig=fig;else delete out.fig;
       put(out);ui.lastCt=k;saveUi();return {t:k,u:out.use,s:out.subject,g:out.tags}};
     const fx=q('#fx');if(fx)fx.onclick=closeSheet;
     const fn=q('#fn');if(fn)fn.onclick=()=>{const k=save();if(k){toast('保存しました。もう一枚どうぞ');cForm(null,k)}};
@@ -2052,13 +2061,15 @@ function figPrompt(c){return `あなたは日本の法律の講師です。次�
 題名：${stripC(c.title)}
 ${c.facts?'事案：'+c.facts+'\n':''}本文：
 ${stripC(c.body)}`}
+async function aiFig(c){
+  const sample=await sampleP;if(!sample){toast('ここではAIが使えません');return ''}
+  try{const r=await sample(figPrompt(c),{modelTier:'complex',cache:false});const v=figSvg(r&&r.text);if(!v)toast('図をうまく作れませんでした。もう一度押してください');return v}
+  catch(e){toast(e&&e.code==='rate_limited'?'少し時間をおいてもう一度':e&&e.code==='not_granted'?'AIの利用が許可されていません':'図を作れませんでした');return ''}
+}
 async function cMakeFig(c,btn){
-  const sample=await sampleP;if(!sample){toast('ここではAIが使えません');return}
-  btn.disabled=true;btn.textContent='図を作っています…（20秒ほど）';
-  try{const r=await sample(figPrompt(c),{modelTier:'complex',cache:false});const v=figSvg(r&&r.text);
-    if(!v){toast('図をうまく作れませんでした。もう一度押してください');btn.disabled=false;btn.textContent='AIで図を作る';return}
-    const n={...items.get(c.id)||c,fig:v};await put(n);toast('図を入れました');cView(n);
-  }catch(e){toast(e&&e.code==='rate_limited'?'少し時間をおいてもう一度':e&&e.code==='not_granted'?'AIの利用が許可されていません':'図を作れませんでした');btn.disabled=false;btn.textContent=c.fig?'図を作り直す':'AIで図を作る'}
+  btn.disabled=true;btn.textContent='図を作っています…（20秒ほど）';const v=await aiFig(c);
+  if(!v){btn.disabled=false;btn.textContent=c.fig?'図を作り直す':'AIで図を作る';return}
+  const n={...items.get(c.id)||c,fig:v};await put(n);toast('図を入れました');cView(n);
 }
 
 /* ---------- 答案のAI採点 ---------- */
