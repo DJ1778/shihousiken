@@ -57,23 +57,44 @@ label{display:grid;gap:4px;font-size:.85rem;color:var(--muted)}
 .pass{color:var(--ok);font-weight:700}.fail{color:var(--ng);font-weight:700}
 table.sc{width:100%;border-collapse:collapse;font-size:.88rem}table.sc td,table.sc th{border-bottom:1px solid var(--line);padding:6px 4px;text-align:left}table.sc td:last-child,table.sc th:last-child{text-align:right}
 .grid2{display:grid;grid-template-columns:1fr 1fr;gap:8px}
-nav.tabs{position:fixed;left:0;right:0;bottom:0;display:grid;grid-template-columns:repeat(4,1fr);background:var(--card);border-top:1px solid var(--line);padding-bottom:env(safe-area-inset-bottom,0px);z-index:5}
+nav.tabs{position:fixed;left:0;right:0;bottom:0;display:grid;grid-template-columns:repeat(5,1fr);background:var(--card);border-top:1px solid var(--line);padding-bottom:env(safe-area-inset-bottom,0px);z-index:5}
 nav.tabs button{font:inherit;font-size:.8rem;border:0;background:none;color:var(--muted);padding:10px 0 12px;min-height:56px;cursor:pointer}
 nav.tabs button[aria-current="page"]{color:var(--ac);font-weight:700}
 .sheet-bg{position:fixed;inset:0;background:rgba(0,0,0,.4);z-index:10;display:flex;align-items:flex-end;justify-content:center}
 .sheet{background:var(--bg);width:100%;max-width:680px;max-height:92vh;overflow:auto;border-radius:16px 16px 0 0;padding:16px max(16px,env(safe-area-inset-right,0px)) calc(20px + env(safe-area-inset-bottom,0px)) max(16px,env(safe-area-inset-left,0px));display:grid;gap:12px}
 .toast{position:fixed;left:50%;bottom:calc(76px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);background:#222;color:#fff;padding:8px 14px;border-radius:10px;font-size:.88rem;z-index:20;max-width:90vw}
+.ox{display:grid;grid-template-columns:1fr 1fr;gap:10px}.ox .btn{font-size:2rem;min-height:72px;font-weight:700}
+.res-ok{color:var(--ok);font-weight:700;font-size:1.1rem}.res-ng{color:var(--ng);font-weight:700;font-size:1.1rem}
+.cnt{font-size:.85rem;text-align:right;color:var(--muted)}.cnt.over{color:var(--ng);font-weight:700}
+.kwl{display:flex;flex-wrap:wrap;gap:6px}.kwl span{font-size:.85rem;border-radius:999px;padding:2px 10px;border:1px solid var(--line)}.kwl .hit{background:var(--ac2);color:var(--ok);border-color:transparent}.kwl .miss{color:var(--ng)}
+.model{background:var(--ac2);border-radius:10px;padding:10px 12px;line-height:1.8}
 [hidden]{display:none!important}
 </style>
 </head>
 <body>
 <main>
-<header class="top"><h1>行政書士 学習帳</h1><span class="store" id="store">このブラウザに保存</span></header>
+<header class="top"><h1>行政書士 学習帳</h1><div class="row"><span class="store" id="store">このブラウザに保存</span><button class="btn sm" data-tab="set" aria-label="設定">設定</button></div></header>
 
 <section id="v-today" class="view">
   <div class="box" id="count"></div>
+  <div class="box"><h2>一問一答</h2><div class="stats" id="t-q"></div><div class="row"><button class="btn primary wide" data-qstart="rand">10問とく</button><button class="btn wide" data-qstart="wrong">間違えた問題</button></div></div>
   <div class="box"><h2>今日の暗記カード</h2><div class="stats" id="t-stats"></div><button class="btn primary" data-review>復習を始める</button></div>
   <div class="box"><h2>過去問の最新</h2><div id="t-last"></div></div>
+</section>
+
+<section id="v-q" class="view" hidden>
+  <div class="box"><h2>一問一答（○×）</h2>
+    <div class="grid2"><label>科目<select id="q-s"></select></label><label>出し方<select id="q-m"><option value="rand">ランダムに10問</option><option value="new">まだ解いていない問題</option><option value="wrong">間違えた問題</option><option value="all">全部（順番）</option></select></label></div>
+    <button class="btn primary" data-qstart>始める</button>
+    <div class="stats" id="q-stats"></div></div>
+  <div class="row"><button class="btn wide" data-qnew>＋ 問題を作る</button></div>
+  <div class="list" id="q-list"></div>
+</section>
+
+<section id="v-w" class="view" hidden>
+  <div class="box"><h2>記述（40字）</h2><p class="note">問題を選んで40字程度で書きます。書いたあと、模範解答とキーワードで見比べて自己採点（20点満点）します。</p></div>
+  <div class="row"><button class="btn wide" data-wnew>＋ 問題を作る</button></div>
+  <div class="list" id="w-list"></div>
 </section>
 
 <section id="v-cards" class="view" hidden>
@@ -86,6 +107,7 @@ nav.tabs button[aria-current="page"]{color:var(--ac);font-weight:700}
 </section>
 
 <section id="v-kako" class="view" hidden>
+  <div class="box"><h2>過去問を手に入れる</h2><p class="note">本試験の問題と正解は、行政書士試験研究センターのサイトでPDFが公開されています。問題の著作権はセンターにあるので、このアプリには入れていません。PDFを開いて解き、点数をここに記録してください。</p><a class="btn" href="https://www.gyosei-shiken.or.jp/" target="_blank" rel="noopener" style="text-align:center;text-decoration:none">行政書士試験研究センターを開く</a></div>
   <div class="box"><h2>過去問・模試の記録</h2><p class="note">点数を入れると、合格基準（法令等122点・基礎知識24点・合計180点）を満たしているか自動で判定します。</p><button class="btn primary" data-knew>＋ 記録する</button></div>
   <div class="list" id="k-list"></div>
 </section>
@@ -105,9 +127,81 @@ nav.tabs button[aria-current="page"]{color:var(--ac);font-weight:700}
 </section>
 </main>
 <nav class="tabs" aria-label="画面">
-  <button data-tab="today">今日</button><button data-tab="cards">カード</button><button data-tab="kako">過去問</button><button data-tab="set">設定</button>
+  <button data-tab="today">今日</button><button data-tab="q">一問一答</button><button data-tab="w">記述</button><button data-tab="cards">カード</button><button data-tab="kako">記録</button>
 </nav>
 <script>
+// 一問一答（自作の問題。条文・判例の基本）
+const QB=[
+['行政法','行政手続法上、申請に対する処分の審査基準を定めることは、努力義務にとどまる。',0,'審査基準を定めることは法的義務（行手法5条1項）。努力義務なのは不利益処分の処分基準（12条1項）。'],
+['行政法','行政手続法上、不利益処分の処分基準を定めることは努力義務である。',1,'行手法12条1項「定め、かつ、これを公にしておくよう努めなければならない」。'],
+['行政法','許認可等を取り消す不利益処分をしようとするときは、原則として聴聞の手続をとらなければならない。',1,'行手法13条1項1号イ。'],
+['行政法','行政指導に携わる者は、相手方が行政指導に従わなかったことを理由として、不利益な取扱いをしてはならない。',1,'行手法32条2項。'],
+['行政法','申請が行政庁の事務所に到達したときは、行政庁は遅滞なく審査を開始しなければならない。',1,'行手法7条。'],
+['行政法','意見公募手続の意見提出期間は、原則として公示の日から起算して30日以上でなければならない。',1,'行手法39条3項。'],
+['行政法','行政不服審査法上の審査請求は、原則として、処分があったことを知った日の翌日から起算して6か月以内にしなければならない。',0,'3か月以内（行審法18条1項本文）。6か月は取消訴訟の出訴期間（行訴法14条1項）。'],
+['行政法','処分庁に上級行政庁がない場合、審査請求は原則として当該処分庁にする。',1,'行審法4条1号。'],
+['行政法','審査請求がされた行政庁は、原則として審理員を指名して審理手続を行わせる。',1,'行審法9条1項。'],
+['行政法','取消訴訟は、処分があったことを知った日から6か月を経過したときは、正当な理由がない限り提起することができない。',1,'行訴法14条1項。'],
+['行政法','取消訴訟を提起すると、処分の効力や執行は当然に停止する。',0,'執行不停止が原則（行訴法25条1項）。止めたいときは執行停止の申立てが必要。'],
+['行政法','不作為の違法確認訴訟は、処分または裁決についての申請をした者に限り提起することができる。',1,'行訴法37条。'],
+['行政法','判例によれば、国家賠償法1条1項の「公権力の行使」には、公立学校の教師の教育活動も含まれる。',1,'最判昭62.2.6。権力的な作用に限らず、純粋な私経済作用と2条の作用を除く活動が含まれる。'],
+['行政法','国家賠償法1条1項により国が賠償責任を負う場合でも、判例によれば公務員個人も被害者に対して直接責任を負う。',0,'公務員個人は被害者に直接責任を負わない（最判昭30.4.19）。故意・重過失があれば国が求償できる（1条2項）。'],
+['行政法','国家賠償法2条の営造物の設置・管理の瑕疵による責任は、過失がなくても成立する。',1,'無過失責任（最判昭45.8.20 高知落石事件）。'],
+['行政法','条例の制定改廃の直接請求は、選挙権者の50分の1以上の連署をもって、長に対して行う。',1,'地方自治法74条1項。'],
+['行政法','事務の監査請求は、選挙権者の50分の1以上の連署をもって、監査委員に対して行う。',1,'地方自治法75条1項。'],
+['行政法','住民監査請求は、その地方公共団体の住民であれば、選挙権のない者や法人もすることができる。',1,'地方自治法242条1項。直接請求と違い、1人でもでき、選挙権も要らない。'],
+['行政法','行政代執行の対象は、代替的作為義務（他人が代わってすることができる行為の義務）である。',1,'行政代執行法2条。'],
+['行政法','住民訴訟は、住民監査請求をしなくても提起することができる。',0,'監査請求前置（地方自治法242条の2第1項）。'],
+['憲法','衆議院が解散されている間に国に緊急の必要があるとき、内閣は参議院の緊急集会を求めることができる。',1,'憲法54条2項ただし書。'],
+['憲法','法律案について参議院が衆議院と異なる議決をしたときは、衆議院で出席議員の3分の2以上の多数で再び可決すれば法律となる。',1,'憲法59条2項。'],
+['憲法','予算は、さきに衆議院に提出しなければならない。',1,'憲法60条1項（予算先議権）。'],
+['憲法','条約の締結に必要な国会の承認についても、衆議院に先議権がある。',0,'先議権はない。61条が準用するのは60条2項（衆議院の優越）だけ。'],
+['憲法','内閣総理大臣は国務大臣を任命するが、その過半数は国会議員の中から選ばなければならない。',1,'憲法68条1項。'],
+['憲法','最高裁判所の裁判官は、任命後初めて行われる衆議院議員総選挙の際に国民審査に付される。',1,'憲法79条2項。'],
+['憲法','憲法改正は、各議院の総議員の3分の2以上の賛成で、国会が発議する。',1,'憲法96条1項。「出席議員」ではなく「総議員」。'],
+['憲法','判例によれば、定住外国人に法律で地方選挙の選挙権を与えることは、憲法上禁止されていない。',1,'最判平7.2.28。'],
+['憲法','判例によれば、薬局の開設に距離制限を設けた薬事法の規定は合憲である。',0,'違憲（最大判昭50.4.30 薬事法距離制限事件）。'],
+['憲法','衆議院で内閣不信任の決議案を可決したとき、内閣は10日以内に衆議院が解散されない限り、総辞職しなければならない。',1,'憲法69条。'],
+['民法','成年年齢は18歳である。',1,'民法4条。'],
+['民法','制限行為能力者が、行為能力者であると信じさせるため詐術を用いたときは、その行為を取り消すことができない。',1,'民法21条。'],
+['民法','心裡留保による意思表示は、相手方がその意思表示が真意でないことを知り、または知ることができたときは無効となる。',1,'民法93条1項ただし書。'],
+['民法','錯誤による意思表示は無効である。',0,'取り消すことができる（民法95条1項。2020年の改正で無効から取消しに変わった）。'],
+['民法','詐欺による意思表示の取消しは、善意でかつ過失がない第三者に対抗することができない。',1,'民法96条3項。'],
+['民法','強迫による意思表示の取消しは、善意無過失の第三者に対しても対抗することができる。',1,'96条3項は詐欺だけを定めている。強迫された人はより強く保護される。'],
+['民法','債権は、債権者が権利を行使することができることを知った時から5年間行使しないときは、時効によって消滅する。',1,'民法166条1項1号。権利を行使できる時から10年でも消滅する（同2号）。'],
+['民法','人の生命または身体を害する不法行為による損害賠償請求権は、被害者が損害および加害者を知った時から5年間で時効消滅する。',1,'民法724条の2（通常の不法行為は3年）。'],
+['民法','抵当権は、地上権や永小作権を目的として設定することもできる。',1,'民法369条2項。'],
+['民法','連帯保証人は、催告の抗弁権を有しない。',1,'民法454条。催告の抗弁権（452条）と検索の抗弁権（453条）がない。'],
+['民法','個人根保証契約は、極度額を定めなければ効力を生じない。',1,'民法465条の2第2項。'],
+['民法','売買の目的物の種類・品質が契約に適合しないとき、買主はその不適合を知った時から1年以内に売主に通知しないと、原則として権利を失う。',1,'民法566条本文。売主が知っていたか重大な過失で知らなかったときは除く（同ただし書）。'],
+['民法','相続の放棄は、自己のために相続の開始があったことを知った時から3か月以内に、家庭裁判所に申述してしなければならない。',1,'民法915条1項、938条。'],
+['民法','兄弟姉妹にも遺留分が認められる。',0,'兄弟姉妹には遺留分がない（民法1042条1項）。'],
+['民法','留置権者は、留置物から生ずる果実を収取し、他の債権者に先立って自分の債権の弁済に充てることができる。',1,'民法297条1項。'],
+['商法・会社法','株式会社を設立するときの定款は、公証人の認証を受けなければ効力を生じない。',1,'会社法30条1項。'],
+['商法・会社法','公開会社でない株式会社は、取締役会を置かなければならない。',0,'取締役会を置かなければならないのは公開会社など（会社法327条1項）。'],
+['商法・会社法','取締役会設置会社では、取締役は3人以上でなければならない。',1,'会社法331条5項。'],
+['商法・会社法','株主総会の普通決議は、原則として、議決権の過半数を有する株主が出席し、出席した株主の議決権の過半数で行う。',1,'会社法309条1項。'],
+['基礎法学','法令で「推定する」とされた事実は、反対の証拠を出しても覆すことができない。',0,'「推定する」は反証で覆せる。覆せないのは「みなす」。'],
+['基礎法学','「直ちに」は、「遅滞なく」よりも時間的な即時性が強い言葉である。',1,'強い順に「直ちに」→「速やかに」→「遅滞なく」とされる。'],
+['基礎法学','特別法と一般法が抵触するときは、特別法が優先する。',1,'「特別法は一般法を破る」。'],
+['基礎知識','個人情報保護法上、要配慮個人情報を取得するには、原則としてあらかじめ本人の同意を得なければならない。',1,'個人情報保護法20条2項。'],
+['基礎知識','個人情報保護法上の「個人識別符号」には、旅券の番号や運転免許証の番号が含まれる。',1,'個人情報保護法2条2項、同法施行令1条。'],
+['基礎知識','行政書士となる資格を有する者が行政書士となるには、日本行政書士会連合会に備える行政書士名簿に登録を受けなければならない。',1,'行政書士法6条1項。'],
+];
+// 記述（40字程度。自作の問題）
+const WB=[
+['行政法','Xは、隣地の建築確認の取消しを求めて訴えを起こそうとしたが、建物の工事はすでに完了していた。判例によると、この訴えはどう扱われるか。理由とともに40字程度で書きなさい。','工事の完了により建築確認の取消しを求める訴えの利益が失われるため、却下される。',['工事','完了','訴えの利益','却下']],
+['行政法','Xが営業許可を申請したのに、行政庁は相当の期間がたっても何の処分もしない。Xが許可を求めて起こすべき訴えを、40字程度で書きなさい。','不作為の違法確認訴訟と併合して、許可処分をすべき旨を命ずる義務付け訴訟を提起する。',['不作為の違法確認','併合','義務付け']],
+['行政法','営業停止処分を受けたXが取消訴訟を起こしたが、処分はそのまま執行されている。執行を止めるには何をすればよく、どんな要件が必要か。40字程度で書きなさい。','執行停止を申し立て、重大な損害を避けるため緊急の必要があることを示す必要がある。',['執行停止','重大な損害','緊急の必要']],
+['行政法','公務員Aが職務中に故意に他人に損害を与え、国が国家賠償法に基づき賠償した。国はAに対して何ができるか。40字程度で書きなさい。','Aに故意または重大な過失があったときは、国はAに対して求償権を行使することができる。',['故意','重大な過失','求償']],
+['行政法','市の住民Xは、市長による違法な公金の支出をやめさせるため、住民訴訟を起こしたい。訴えを起こす前に、誰に対して何をしなければならないか。40字程度で書きなさい。','訴えの前に、監査委員に対して住民監査請求をしなければならない（監査請求前置）。',['監査委員','住民監査請求']],
+['民法','AはBに土地を売ったが、登記をしないうちにCにも同じ土地を売り、Cが先に登記をした。BはCに土地の所有権を主張できるか。40字程度で書きなさい。','不動産の物権変動は登記をしなければ第三者に対抗できないため、BはCに対抗できない。',['登記','第三者','対抗']],
+['民法','未成年者Aが、法定代理人の同意を得ずに高価な時計を買った。A側はこの売買契約をどうすることができるか。40字程度で書きなさい。','法定代理人の同意を得ていないため、Aまたはその法定代理人は売買契約を取り消すことができる。',['同意','取り消す']],
+['民法','Bは、Aの代理権がないのにAの代理人としてCと契約した。Cは、Aが追認するかどうか分からず困っている。CはAに対して何ができるか。40字程度で書きなさい。','Cは、Aに対し、相当の期間を定めて、その期間内に追認するかどうかを確答するよう催告できる。',['相当の期間','追認','催告']],
+['民法','買った中古車に、契約で約束した装備がついていなかった。買主が代金の減額を請求するには、原則としてその前に何をしなければならないか。40字程度で書きなさい。','相当の期間を定めて履行の追完を催告し、その期間内に追完がないことが必要である。',['相当の期間','追完','催告']],
+['民法','債務者Aは、消滅時効が完成したことを知らないまま、債権者Bに債務を承認した。その後Aは時効を援用できるか。判例に照らし40字程度で書きなさい。','時効完成を知らなかったとしても、信義則に照らし、その後に時効を援用することは許されない。',['信義則','援用','許されない']],
+];
+
 /* ---------- 基本 ---------- */
 const $=id=>document.getElementById(id);
 const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -194,9 +288,10 @@ const lvText=c=>!c.srs?'新規':c.srs.iv>=21?'定着':c.srs.iv>=7?'覚えかけ'
 /* ---------- 画面：今日 ---------- */
 function renderToday(){const d=examDate(),n=daysTo(d);
   $('count').innerHTML=`<div class="meta">${d===DEF_DATE&&!S().date?'令和9年度 行政書士試験（予想）':'目標の試験日'}　${d.replace(/-/g,'/')}</div><div class="days">${n>0?`<span>あと</span><b>${n}</b><span>日</span>`:n===0?'<b>当日</b>':`<b>${-n}</b><span>日経過</span>`}</div>`;
+  $('t-q').innerHTML=qStats(QALL());
   const cs=list('c');$('t-stats').innerHTML=`<div class="stat"><b>${cs.filter(due).length}</b><span>今日の復習</span></div><div class="stat"><b>${cs.length}</b><span>カード</span></div><div class="stat"><b>${cs.filter(c=>c.srs&&c.srs.iv>=21).length}</b><span>定着</span></div>`;
   const ks=list('k').sort((a,b)=>(b.date||'').localeCompare(a.date||''));
-  $('t-last').innerHTML=ks.length?kRow(ks[0]):'<p class="note">まだ記録がありません。「過去問」から点数を記録できます。</p>'}
+  $('t-last').innerHTML=ks.length?kRow(ks[0]):'<p class="note">まだ記録がありません。「記録」から過去問の点数を残せます。</p>'}
 
 /* ---------- 画面：カード ---------- */
 let CF={q:'',s:''};
@@ -277,6 +372,74 @@ function kForm(k){const n=!k;k=k||{id:'k_'+uid(),kind:'k',name:YEARS[0],date:tod
     sh.querySelector('#k-res').innerHTML=`<table class="sc"><tr><th>区分</th><th>点数</th><th>基準</th></tr><tr><td>法令等（択一${s.ta}＋多肢${s.mu}＋記述${s.ki}）</td><td>${c(s.ho,122)}/244</td><td>122点以上</td></tr><tr><td>基礎知識</td><td>${c(s.ki2,24)}/56</td><td>24点以上</td></tr><tr><td><b>合計</b></td><td><b>${c(s.all,180)}</b>/300</td><td>180点以上</td></tr></table><p class="${s.ok?'pass':'fail'}" style="margin:0">${s.ok?'合格ラインです':'合格ラインまで あと'+Math.max(0,180-s.all,122-s.ho,24-s.ki2)+'点以上'}</p>`};
   sh.addEventListener('input',upd);upd()}
 
+/* ---------- 一問一答 ---------- */
+const QALL=()=>[...QB.map((q,i)=>({id:'q'+String(i+1).padStart(3,'0'),subject:q[0],text:q[1],ans:q[2],exp:q[3],base:1})),...list('q')];
+const qRes=id=>items.get('r_'+id);
+function qStats(xs){const done=xs.filter(q=>qRes(q.id)),c=done.reduce((a,q)=>a+(qRes(q.id).c||0),0),w=done.reduce((a,q)=>a+(qRes(q.id).w||0),0),ng=done.filter(q=>qRes(q.id).last===0).length;
+  return `<div class="stat"><b>${done.length}<small style="font-size:.8rem">/${xs.length}</small></b><span>解いた問題</span></div><div class="stat"><b>${c+w?Math.round(c/(c+w)*100):0}<small style="font-size:.8rem">%</small></b><span>正答率</span></div><div class="stat"><b>${ng}</b><span>間違えたまま</span></div>`}
+function renderQ(){const sel=$('q-s');if(!sel.options.length)sel.innerHTML='<option value="">すべての科目</option>'+SUBJ.map(x=>`<option>${x}</option>`).join('');
+  const xs=QALL().filter(q=>!sel.value||q.subject===sel.value);$('q-stats').innerHTML=qStats(xs);
+  const own=list('q');$('q-list').innerHTML=own.length?'<p class="note">自分で作った問題（押すと編集）</p>'+own.map(q=>`<div class="item" data-qe="${esc(q.id)}" role="button" tabindex="0"><div class="row"><span class="chip s">${esc(q.subject)}</span><span class="chip">${q.ans?'○':'×'}</span></div><div>${esc(q.text)}</div></div>`).join(''):''}
+let QP=null;
+function qStart(m,subj){let xs=QALL().filter(q=>!subj||q.subject===subj);
+  if(m==='new')xs=xs.filter(q=>!qRes(q.id));
+  if(m==='wrong')xs=xs.filter(q=>qRes(q.id)&&qRes(q.id).last===0);
+  if(m==='rand'||!m){xs=xs.map(q=>[Math.random(),q]).sort((a,b)=>a[0]-b[0]).map(x=>x[1]).slice(0,10)}
+  if(!xs.length){toast(m==='wrong'?'間違えたままの問題はありません':m==='new'?'全部解きました':'問題がありません');return}
+  QP={xs,i:0,ok:0,ans:null};qShow()}
+function qShow(){const q=QP.xs[QP.i];let h=`<div class="row" style="justify-content:space-between"><span class="meta">${QP.i+1} / ${QP.xs.length}</span><span class="chip s">${esc(q.subject)}</span></div><div class="box"><div class="body">${esc(q.text)}</div></div>`;
+  if(QP.ans===null)h+=`<div class="ox"><button class="btn" data-a="1" aria-label="正しい">○</button><button class="btn" data-a="0" aria-label="誤り">×</button></div>`;
+  else{const ok=QP.ans===q.ans;h+=`<p class="${ok?'res-ok':'res-ng'}" style="margin:0">${ok?'正解！':'不正解'}　答えは「${q.ans?'○':'×'}」</p>${q.exp?`<div class="model">${esc(q.exp)}</div>`:''}<button class="btn primary" data-qn>${QP.i+1<QP.xs.length?'次へ':'結果を見る'}</button>`}
+  h+='<button class="btn" data-x="close">やめる</button>';
+  const sh=sheet(h,{},()=>{QP=null;render()});
+  sh.onclick=e=>{const b=e.target.closest('button');if(!b)return;
+    if(b.dataset.a!=null&&QP.ans===null){QP.ans=+b.dataset.a;const ok=QP.ans===q.ans;if(ok)QP.ok++;const r=qRes(q.id)||{id:'r_'+q.id,kind:'r',c:0,w:0};put({...r,c:(r.c||0)+(ok?1:0),w:(r.w||0)+(ok?0:1),last:ok?1:0,d:today()});qShow()}
+    else if('qn' in b.dataset){if(QP.i+1<QP.xs.length){QP.i++;QP.ans=null;qShow()}else qEnd()}}}
+function qEnd(){const n=QP.xs.length,ok=QP.ok,ng=QP.xs.filter(q=>qRes(q.id)&&qRes(q.id).last===0).length;
+  sheet(`<h2>結果</h2><p class="body" style="margin:0"><b style="font-size:1.6rem;color:var(--ac)">${ok}</b> / ${n}問 正解（${Math.round(ok/n*100)}%）</p>
+  <div class="row"><button class="btn wide" data-x="close">閉じる</button>${ng?'<button class="btn primary wide" data-x="wrong">間違えた問題をとく</button>':''}</div>`,{wrong:()=>{setTimeout(()=>qStart('wrong',''),0)}},()=>{QP=null;render()})}
+function qForm(q){const n=!q;q=q||{id:'q_'+uid(),kind:'q',subject:'行政法',text:'',ans:1,exp:''};
+  const sh=sheet(`<h2>${n?'一問一答を作る':'一問一答を編集'}</h2><label>科目<select id="qf-s">${SUBJ.map(x=>`<option${x===q.subject?' selected':''}>${x}</option>`).join('')}</select></label>
+    <label>問題文<textarea id="qf-t" style="min-height:90px" placeholder="例：取消訴訟の出訴期間は、処分を知った日から6か月である。">${esc(q.text)}</textarea></label>
+    <label>答え<select id="qf-a"><option value="1"${q.ans?' selected':''}>○（正しい）</option><option value="0"${q.ans?'':' selected'}>×（誤り）</option></select></label>
+    <label>解説（なくてもOK）<textarea id="qf-e" style="min-height:70px">${esc(q.exp)}</textarea></label>
+    <div class="row">${n?'':'<button class="btn" data-x="del">削除</button>'}<button class="btn wide" data-x="close">やめる</button><button class="btn primary wide" data-x="save">保存</button></div>`,{
+    save:()=>{const t=sh.querySelector('#qf-t').value.trim();if(!t){toast('問題文を入れてください');return false}put({...q,subject:sh.querySelector('#qf-s').value,text:t,ans:+sh.querySelector('#qf-a').value,exp:sh.querySelector('#qf-e').value.trim()});toast('保存しました')},
+    del:()=>{if(sh.dataset.sure){del(q.id);toast('削除しました')}else{sh.dataset.sure=1;toast('もう一度「削除」を押すと消えます');return false}}})}
+
+/* ---------- 記述（40字） ---------- */
+const WALL=()=>[...WB.map((w,i)=>({id:'w'+String(i+1).padStart(3,'0'),subject:w[0],text:w[1],model:w[2],kws:w[3],base:1})),...list('w')];
+const wRes=id=>items.get('wr_'+id);
+const jlen=t=>[...String(t).replace(/\s/g,'')].length;
+function renderW(){const xs=WALL();$('w-list').innerHTML=xs.map(w=>{const r=wRes(w.id);return `<div class="item" data-wv="${esc(w.id)}" role="button" tabindex="0"><div class="row"><span class="chip s">${esc(w.subject)}</span>${r?`<span class="chip">最高 ${r.best}点</span>`:'<span class="chip">未回答</span>'}${w.base?'':'<span class="chip">自作</span>'}</div><div>${esc(w.text)}</div></div>`}).join('')}
+function wPlay(w,typed,shown){
+  let h=`<div class="row"><span class="chip s">${esc(w.subject)}</span>${w.base?'':'<button class="btn sm" data-x="edit">編集</button>'}</div><div class="box"><div class="body">${esc(w.text)}</div></div>`;
+  if(!shown)h+=`<textarea id="w-in" style="min-height:110px" placeholder="40字程度で書く">${esc(typed||'')}</textarea><div class="cnt" id="w-cnt"></div><button class="btn primary" data-ws>答え合わせ</button>`;
+  else{const t=nz(typed),hit=w.kws.filter(k=>t.includes(nz(k))),sug=w.kws.length?Math.round(hit.length/w.kws.length*20):0,r=wRes(w.id);
+    h+=`<div><div class="meta">あなたの答え（${jlen(typed)}字）</div><div class="body">${esc(typed)||'（未記入）'}</div></div>
+    <div><div class="meta">模範解答（${jlen(w.model)}字）</div><div class="model">${esc(w.model)}</div></div>
+    ${w.kws.length?`<div><div class="meta">キーワード（${hit.length}/${w.kws.length}）</div><div class="kwl">${w.kws.map(k=>`<span class="${hit.includes(k)?'hit':'miss'}">${hit.includes(k)?'✓':'✗'} ${esc(k)}</span>`).join('')}</div></div>`:''}
+    <label>自己採点（20点満点。キーワードからの目安は${sug}点）<input id="w-sc" type="number" inputmode="numeric" min="0" max="20" value="${sug}"></label>
+    ${r?`<p class="note">これまでの最高 ${r.best}点・前回 ${r.last}点</p>`:''}
+    <div class="row"><button class="btn wide" data-ws-again>もう一度書く</button><button class="btn primary wide" data-ws-save>点数を記録</button></div>`}
+  h+='<button class="btn" data-x="close">閉じる</button>';
+  const sh=sheet(h,{edit:()=>{setTimeout(()=>wForm(w),0)}});
+  const inp=sh.querySelector('#w-in'),cnt=sh.querySelector('#w-cnt');
+  const upd=()=>{const n=jlen(inp.value);cnt.textContent=`${n}字（目安40字・45字まで）`;cnt.className='cnt'+(n>45?' over':'')};if(inp){inp.addEventListener('input',upd);upd()}
+  sh.onclick=e=>{const b=e.target.closest('button');if(!b)return;
+    if('ws' in b.dataset)wPlay(w,inp.value,true);
+    else if('wsAgain' in b.dataset)wPlay(w,'',false);
+    else if('wsSave' in b.dataset){const sc=Math.max(0,Math.min(20,Math.round(+sh.querySelector('#w-sc').value||0))),r=wRes(w.id)||{id:'wr_'+w.id,kind:'wr',best:0};put({...r,best:Math.max(r.best||0,sc),last:sc,ans:typed,d:today()});toast(sc+'点を記録しました');closeSheet()}}}
+function wForm(w){const n=!w;w=w||{id:'w_'+uid(),kind:'w',subject:'行政法',text:'',model:'',kws:[]};
+  const sh=sheet(`<h2>${n?'記述の問題を作る':'記述の問題を編集'}</h2><label>科目<select id="wf-s">${SUBJ.map(x=>`<option${x===w.subject?' selected':''}>${x}</option>`).join('')}</select></label>
+    <label>問題文<textarea id="wf-t" style="min-height:90px">${esc(w.text)}</textarea></label>
+    <label>模範解答（40字程度）<textarea id="wf-m" style="min-height:70px">${esc(w.model)}</textarea></label>
+    <label>キーワード（「、」で区切る）<input id="wf-k" value="${esc(w.kws.join('、'))}" placeholder="例：執行停止、重大な損害、緊急の必要"></label>
+    <div class="row">${n?'':'<button class="btn" data-x="del">削除</button>'}<button class="btn wide" data-x="close">やめる</button><button class="btn primary wide" data-x="save">保存</button></div>`,{
+    save:()=>{const t=sh.querySelector('#wf-t').value.trim(),m=sh.querySelector('#wf-m').value.trim();if(!t||!m){toast('問題文と模範解答を入れてください');return false}
+      put({...w,subject:sh.querySelector('#wf-s').value,text:t,model:m,kws:sh.querySelector('#wf-k').value.split(/[、,，\s]+/).map(x=>x.trim()).filter(Boolean)});toast('保存しました')},
+    del:()=>{if(sh.dataset.sure){del(w.id);toast('削除しました')}else{sh.dataset.sure=1;toast('もう一度「削除」を押すと消えます');return false}}})}
+
 /* ---------- 設定 ---------- */
 function renderSet(){
   $('fb').innerHTML=!FB?'<p class="note">データはこのブラウザの中に保存されます。</p>':fbUser?`<p class="note">ログイン中：<b>${esc(fbUser.email||fbUser.displayName||'')}</b><br>同じGoogleアカウントでログインすれば、スマホでもパソコンでも同じデータが使えます。</p><button class="btn" data-fb-out>ログアウト</button>`
@@ -294,7 +457,8 @@ function importText(t){t=String(t||'').trim();if(!t){toast('取り込む内容�
 document.addEventListener('change',e=>{
   if(e.target.id==='s-date'){const v=e.target.value;const s={...S(),id:'settings',kind:'s'};if(v)s.date=v;else delete s.date;put(s);toast(v?'試験日を変えました':'予想日に戻しました')}
   if(e.target.id==='i-file'){const f=e.target.files[0];if(f)f.text().then(importText);e.target.value=''}
-  if(e.target.id==='c-s'){CF.s=e.target.value;renderCards()}});
+  if(e.target.id==='c-s'){CF.s=e.target.value;renderCards()}
+  if(e.target.id==='q-s')renderQ()});
 document.addEventListener('input',e=>{if(e.target.id==='c-q'){CF.q=e.target.value;renderCards()}});
 
 /* ---------- バックアップ ---------- */
@@ -309,15 +473,20 @@ let SH=null;
 function closeSheet(){if(SH){const f=SH.onClose;SH.bg.remove();SH=null;if(f)f()}}
 function sheet(html,acts,onClose){if(SH){SH.onClose=null;SH.bg.remove()}const bg=document.createElement('div');bg.className='sheet-bg';bg.innerHTML=`<div class="sheet" role="dialog" aria-modal="true">${html}</div>`;document.body.appendChild(bg);
   const sh=bg.firstChild;SH={bg,onClose};bg.addEventListener('click',e=>{if(e.target===bg){closeSheet();return}const b=e.target.closest('[data-x]');if(!b)return;const k=b.dataset.x;if(k==='close'){closeSheet();return}if(acts&&acts[k]&&acts[k]()!==false)closeSheet()});return sh}
-document.addEventListener('keydown',e=>{if(e.key==='Escape')closeSheet();if((e.key==='Enter'||e.key===' ')&&e.target.matches('[data-cv],[data-kv]')){e.preventDefault();e.target.click()}});
+document.addEventListener('keydown',e=>{if(e.key==='Escape')closeSheet();if((e.key==='Enter'||e.key===' ')&&e.target.matches('[data-cv],[data-kv],[data-qe],[data-wv]')){e.preventDefault();e.target.click()}});
 
 /* ---------- 画面切替 ---------- */
-const TABS=['today','cards','kako','set'];let tab='today';
+const TABS=['today','q','w','cards','kako','set'];let tab='today';
 function go(t){tab=TABS.includes(t)?t:'today';TABS.forEach(x=>{$('v-'+x).hidden=x!==tab});document.querySelectorAll('[data-tab]').forEach(b=>b.setAttribute('aria-current',b.dataset.tab===tab?'page':'false'));if(location.hash!=='#'+tab)history.replaceState(null,'','#'+tab);render();scrollTo(0,0)}
-function render(){if(tab==='today')renderToday();if(tab==='cards')renderCards();if(tab==='kako')renderKako();if(tab==='set')renderSet()}
+function render(){if(tab==='q')renderQ();if(tab==='w')renderW();if(tab==='today')renderToday();if(tab==='cards')renderCards();if(tab==='kako')renderKako();if(tab==='set')renderSet()}
 document.addEventListener('click',e=>{const t=e.target.closest('[data-tab]');if(t){go(t.dataset.tab);return}
   if(e.target.closest('[data-review]')){startReview();return}
   if(e.target.closest('[data-cnew]')){cForm();return}
+  const qs=e.target.closest('[data-qstart]');if(qs){qStart(qs.dataset.qstart||$('q-m').value,qs.dataset.qstart?'':$('q-s').value);return}
+  if(e.target.closest('[data-qnew]')){qForm();return}
+  if(e.target.closest('[data-wnew]')){wForm();return}
+  const qe=e.target.closest('[data-qe]');if(qe){const x=items.get(qe.dataset.qe);if(x)qForm(x);return}
+  const wv=e.target.closest('[data-wv]');if(wv){const x=WALL().find(w=>w.id===wv.dataset.wv);if(x)wPlay(x,'',false);return}
   if(e.target.closest('[data-knew]')){kForm();return}
   if(e.target.closest('[data-imp]')){importText($('i-text').value);return}
   if(e.target.closest('[data-bk]')){backup();return}
