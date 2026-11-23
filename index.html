@@ -1521,7 +1521,7 @@ function parseImport(type,text){
   return {out,bad};
 }
 const RS_PACKS=null;
-const rsPackItems=pk=>pk.c.map((c,i)=>({id:`c_${pk.p}${String(i+1).padStart(3,'0')}`,kind:'c',ctype:'ronsho',use:'ronbun',subject:pk.s,title:c[0],body:c[1],article:'',issue:'',facts:c[2]||'',tags:'論証集'}));
+const rsPackItems=pk=>pk.c.map((c,i)=>({id:`c_${pk.p}${String(i+1).padStart(3,'0')}`,kind:'c',ctype:'ronsho',use:'ronbun',subject:pk.s,title:c[0],body:c[1],article:'',issue:'',facts:c[2]||'',tags:'論証集'+(pk.t?' '+pk.t:'')}));
 const rsPackHave=pk=>rsPackItems(pk).filter(x=>items.has(x.id)).length;
 function importSheet(type){
   const help={q:'1行に1問。列の順番は「科目、問題文、正誤（○か×）、解説、条文、タグ」です。解説から後ろは省略できます。Excelやスプレッドシートからそのまま貼り付けられます。',
@@ -1530,7 +1530,7 @@ function importSheet(type){
   const ph={q:'民法\t詐欺による取消しは善意無過失の第三者に対抗できない。\t○\t96条3項',c:'判例\t憲法\t薬事法距離制限事件\t【重要な公共の利益】のために【必要かつ合理的な措置】…\t最大判昭50.4.30\t職業の許可制の判断基準',json:'{"app":"司法試験 学習帳", ...}'}[type];
   openSheet(`<h2>${{q:'短答の問題を取り込む',c:'暗記カードを取り込む',json:'バックアップから復元'}[type]}</h2>
    <p class="note">${help}</p>
-   ${type==='c'&&RS_PACKS?`<div class="rspk"><b>送ってくれた論証集</b><div class="row" style="gap:8px;flex-wrap:wrap">${RS_PACKS.map((pk,i)=>{const h=rsPackHave(pk);return `<button class="btn${h<pk.c.length?' primary':''}" data-rspk="${i}">${pk.s} ${pk.c.length}枚${h===pk.c.length?'（取り込み済み）':h?`（${h}枚あり）`:''}</button>`}).join('')}</div><p class="meta">押すだけで取り込めます。もう一度押すと最新の内容で上書きします。</p></div>`:''}
+   ${type==='c'&&RS_PACKS?`<div class="rspk"><b>送ってくれた論証集</b><div class="row" style="gap:8px;flex-wrap:wrap">${RS_PACKS.map((pk,i)=>{const h=rsPackHave(pk);return `<button class="btn${h<pk.c.length?' primary':''}" data-rspk="${i}">${pk.l||pk.s} ${pk.c.length}枚${h===pk.c.length?'（取り込み済み）':h?`（${h}枚あり）`:''}</button>`}).join('')}</div><p class="meta">押すだけで取り込めます。もう一度押すと最新の内容で上書きします。</p></div>`:''}
    <label class="f">ここに貼り付け<textarea id="im-t" style="min-height:150px" placeholder="${esc(ph)}"></textarea></label>
    <label class="f">またはファイルを選ぶ<input type="file" id="im-f" accept=".csv,.tsv,.txt,.json,text/plain,text/csv,application/json"></label>
    <p class="note" id="im-pv">貼り付けると件数を確認できます。</p>
@@ -1543,7 +1543,7 @@ function importSheet(type){
     sh.querySelector('#fx').onclick=closeSheet;
     sh.querySelectorAll('[data-rspk]').forEach(b=>b.onclick=async()=>{const pk=RS_PACKS[+b.dataset.rspk],all=rsPackItems(pk);sh.querySelectorAll('[data-rspk]').forEach(x=>x.disabled=true);let n=0;
       for(const x of all){const old=items.get(x.id);await put(old?{...old,title:x.title,body:x.body,facts:x.facts||old.facts}:x);n++;if(n%10===0)b.textContent=`取り込み中… ${n} / ${all.length}`}
-      closeSheet();toast(`${pk.s}の論証カード${n}枚を取り込みました`)});
+      closeSheet();toast(`${pk.l||pk.s}の論証カード${n}枚を取り込みました${pk.s==='選択'&&S().elective!=='租税法'?'（科目は「選択」に入ります）':''}`)});
     go.onclick=async()=>{go.disabled=true;const all=res.out;let n=0;
       for(const x of all){await put(x);n++;if(n%10===0)pv.textContent=`取り込み中… ${n} / ${all.length}`}
       closeSheet();toast(`${n}件を取り込みました`)};
