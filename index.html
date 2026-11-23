@@ -335,6 +335,7 @@ details.info .tbl+.note{margin-bottom:12px}
 .hp-ai .sc{font-family:var(--f-num);font-size:1.6rem;font-weight:700;color:var(--accent)}
 .grades.three .sug{outline:3px solid var(--accent);outline-offset:2px}
 .hp-a{white-space:pre-wrap}
+.rspk{background:var(--bg);border-radius:10px;padding:12px;display:flex;flex-direction:column;gap:8px}
 .cview{cursor:pointer}
 .csearch input{width:100%;font-size:1rem;padding:10px 12px 10px 36px;border-radius:10px;border:1px solid var(--line);background:var(--bg) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='18' height='18' viewBox='0 0 24 24' fill='none' stroke='%23889' stroke-width='2'%3E%3Ccircle cx='11' cy='11' r='7'/%3E%3Cpath d='m20 20-3.5-3.5'/%3E%3C/svg%3E") no-repeat 10px center;color:var(--ink)}
 #c-top-res{display:flex;flex-direction:column;gap:6px}.cview:focus-visible{outline:2px solid var(--accent);outline-offset:4px;border-radius:6px}
@@ -1519,6 +1520,9 @@ function parseImport(type,text){
         issue:ty==='hanrei'?(rr[4]||''):'',facts:'',tags:rr[5]||''})}});
   return {out,bad};
 }
+const RS_PACKS=null;
+const rsPackItems=pk=>pk.c.map((c,i)=>({id:`c_${pk.p}${String(i+1).padStart(3,'0')}`,kind:'c',ctype:'ronsho',use:'ronbun',subject:pk.s,title:c[0],body:c[1],article:'',issue:'',facts:c[2]||'',tags:'論証集'}));
+const rsPackHave=pk=>rsPackItems(pk).filter(x=>items.has(x.id)).length;
 function importSheet(type){
   const help={q:'1行に1問。列の順番は「科目、問題文、正誤（○か×）、解説、条文、タグ」です。解説から後ろは省略できます。Excelやスプレッドシートからそのまま貼り付けられます。',
     c:'1行に1枚。列の順番は「種類、科目、表面、裏面、出典、争点、タグ、用途」です。種類は 論証・判例・定義・一問一答 のどれか、用途は 短答・論文・両方 のどれか（省略可）。出典は条文や「最大判昭50.4.30」、争点は判例のときだけ使います。裏面の【】はキーワードになり、セル内の改行もそのまま取り込めます。',
@@ -1526,6 +1530,7 @@ function importSheet(type){
   const ph={q:'民法\t詐欺による取消しは善意無過失の第三者に対抗できない。\t○\t96条3項',c:'判例\t憲法\t薬事法距離制限事件\t【重要な公共の利益】のために【必要かつ合理的な措置】…\t最大判昭50.4.30\t職業の許可制の判断基準',json:'{"app":"司法試験 学習帳", ...}'}[type];
   openSheet(`<h2>${{q:'短答の問題を取り込む',c:'暗記カードを取り込む',json:'バックアップから復元'}[type]}</h2>
    <p class="note">${help}</p>
+   ${type==='c'&&RS_PACKS?`<div class="rspk"><b>送ってくれた論証集</b><div class="row" style="gap:8px;flex-wrap:wrap">${RS_PACKS.map((pk,i)=>{const h=rsPackHave(pk);return `<button class="btn${h<pk.c.length?' primary':''}" data-rspk="${i}">${pk.s} ${pk.c.length}枚${h===pk.c.length?'（取り込み済み）':h?`（${h}枚あり）`:''}</button>`}).join('')}</div><p class="meta">押すだけで取り込めます。もう一度押すと最新の内容で上書きします。</p></div>`:''}
    <label class="f">ここに貼り付け<textarea id="im-t" style="min-height:150px" placeholder="${esc(ph)}"></textarea></label>
    <label class="f">またはファイルを選ぶ<input type="file" id="im-f" accept=".csv,.tsv,.txt,.json,text/plain,text/csv,application/json"></label>
    <p class="note" id="im-pv">貼り付けると件数を確認できます。</p>
@@ -1536,6 +1541,9 @@ function importSheet(type){
     ta.addEventListener('input',check);
     sh.querySelector('#im-f').onchange=e=>{const f=e.target.files[0];if(!f)return;const r=new FileReader();r.onload=()=>{ta.value=String(r.result||'');check()};r.onerror=()=>toast('ファイルを読み込めませんでした');r.readAsText(f)};
     sh.querySelector('#fx').onclick=closeSheet;
+    sh.querySelectorAll('[data-rspk]').forEach(b=>b.onclick=async()=>{const pk=RS_PACKS[+b.dataset.rspk],all=rsPackItems(pk);sh.querySelectorAll('[data-rspk]').forEach(x=>x.disabled=true);let n=0;
+      for(const x of all){const old=items.get(x.id);await put(old?{...old,title:x.title,body:x.body,facts:x.facts||old.facts}:x);n++;if(n%10===0)b.textContent=`取り込み中… ${n} / ${all.length}`}
+      closeSheet();toast(`${pk.s}の論証カード${n}枚を取り込みました`)});
     go.onclick=async()=>{go.disabled=true;const all=res.out;let n=0;
       for(const x of all){await put(x);n++;if(n%10===0)pv.textContent=`取り込み中… ${n} / ${all.length}`}
       closeSheet();toast(`${n}件を取り込みました`)};
