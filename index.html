@@ -1246,7 +1246,11 @@ function cView(c){
     const f=sh.querySelector('[data-cv-fig]');if(f)f.onclick=()=>cMakeFig(c,f);
     const fd=sh.querySelector('[data-cv-figdel]');if(fd)fd.onclick=()=>{const n={...c};delete n.fig;put(n);toast('図を消しました');cView(n)}});
 }
-document.addEventListener('click',e=>{const v=e.target.closest('[data-cview]');if(!v||e.target.closest('button,a'))return;const c=items.get(v.dataset.cview)||SAMPLES.find(x=>x.id===v.dataset.cview);if(c)cView(c)});
+// 一覧のカードを押すと、復習と同じ「答えが隠れた」出し方で開く（その下のカードへ続けて進める）
+document.addEventListener('click',e=>{const v=e.target.closest('[data-cview]');if(!v||e.target.closest('button,a'))return;const id=v.dataset.cview,c=items.get(id);
+  if(!c){const x=SAMPLES.find(x=>x.id===id);if(x)cView(x);return}
+  const box=v.closest('#c-list,#c-top-res')||document,ids=[...box.querySelectorAll('[data-cview]')].map(el=>el.dataset.cview).filter(k=>items.has(k)),i=Math.max(0,ids.indexOf(id));
+  startSession(ids.slice(i,i+50),'カード一覧')});
 document.addEventListener('keydown',e=>{if(e.key!=='Enter'&&e.key!==' ')return;const v=e.target.closest&&e.target.closest('[data-cview]');if(!v)return;e.preventDefault();v.click()});
 // 上の検索：その場で結果を出す（押すと開く）
 function renderCTop(){
