@@ -728,19 +728,45 @@ async function fbInit(){
     fb.auth().onAuthStateChanged(u=>{fbUser=u;if(u)fbConnect(u);else fbDisconnect()});
   }catch(e){/* 通信なし：このブラウザの保存で続ける */}
 }
+const SYNC='shiho_fbsync';
+function syncInfo(){try{return JSON.parse(localStorage.getItem(SYNC)||'null')}catch(e){return null}}
+function syncSave(uid,t){try{localStorage.setItem(SYNC,JSON.stringify({uid,t}))}catch(e){}}
+function fbClean(d){const x=d.data({serverTimestamps:'none'});const u=x._u;delete x._u;return {it:{id:d.id,...x},del:!!x._del,t:u&&u.toMillis?u.toMillis():0}}
+// 書き込みのたびに更新時刻(_u)をつけ、削除は印(_del)を残す → 次からは変わった分だけ読む
+function fbCol(c){const ts=()=>firebase.firestore.FieldValue.serverTimestamp();
+  return {doc:id=>({set:body=>c.doc(id).set({...body,_u:ts()}),delete:()=>c.doc(id).set({_del:true,_u:ts()})})}}
 function fbConnect(u){
   fbDisconnect(true);
-  const c=firebase.firestore().collection('users').doc(u.uid).collection('items');let first=true;
+  const c=firebase.firestore().collection('users').doc(u.uid).collection('items');
+  const si=syncInfo(),mine=si&&si.uid===u.uid&&si.t>0;let maxT=mine?si.t:0;
+  const done=()=>{if(mode!=='cloud'){col=fbCol(c);mode='cloud';setStore()}};
+  if(mine){
+    // 2回目以降：前回より後に変わったカードだけ読む
+    fbUnsub=c.where('_u','>',firebase.firestore.Timestamp.fromMillis(si.t)).onSnapshot(snap=>{
+      snap.docChanges().forEach(ch=>{if(ch.type==='removed')return;const r=fbClean(ch.doc);
+        if(r.del)items.delete(r.it.id);else items.set(r.it.id,r.it);if(r.t>maxT)maxT=r.t});
+      done();syncSave(u.uid,maxT);saveLocal();render();
+    },e=>{toast('同期できませんでした（'+(e.code||'エラー')+'）');fbDisconnect()});
+    return;
+  }
+  // この端末で初めて：全部読む
+  let first=true;
   fbUnsub=c.onSnapshot(snap=>{
-    const m=new Map(snap.docs.map(d=>[d.id,{id:d.id,...d.data()}]));
+    const m=new Map();
+    snap.docs.forEach(d=>{const r=fbClean(d);if(r.t>maxT)maxT=r.t;if(!r.del)m.set(r.it.id,r.it)});
     if(first){first=false;
-      // このブラウザにだけあるデータをクラウドへ引き継ぐ
-      const up=[...items.values()].filter(x=>!m.has(x.id)&&!isEx(x));
-      for(let i=0;i<up.length;i+=400){const bt=firebase.firestore().batch();up.slice(i,i+400).forEach(x=>{const {id,...rest}=x;bt.set(c.doc(id),JSON.parse(JSON.stringify(rest)))});bt.commit().catch(()=>toast('引き継ぎの一部に失敗しました。通信を確認してください'))}
+      // このブラウザにだけあるデータをクラウドへ引き継ぐ（別の人のデータは引き継がない）
+      const up=si&&si.uid!==u.uid?[]:[...items.values()].filter(x=>!m.has(x.id)&&!isEx(x));
+      const ts=firebase.firestore.FieldValue.serverTimestamp();
+      for(let i=0;i<up.length;i+=400){const bt=firebase.firestore().batch();up.slice(i,i+400).forEach(x=>{const {id,...rest}=x;bt.set(c.doc(id),{...JSON.parse(JSON.stringify(rest)),_u:ts})});bt.commit().catch(()=>toast('引き継ぎの一部に失敗しました。通信を確認してください'))}
       up.forEach(x=>m.set(x.id,x));
-      col=c;mode='cloud';setStore();if(up.length)toast(up.length+'件をクラウドに引き継ぎました');
+      done();if(up.length)toast(up.length+'件をクラウドに引き継ぎました');
+      // 古いデータにも更新時刻をつけておく（1回だけ）
+      const old=snap.docs.filter(d=>!d.get('_u')).map(d=>d.ref);
+      for(let i=0;i<old.length;i+=400){const bt=firebase.firestore().batch();old.slice(i,i+400).forEach(r=>bt.update(r,{_u:ts}));bt.commit().catch(()=>{})}
     }
     items=m;saveLocal();render();
+    if(!snap.metadata.hasPendingWrites&&maxT>0){syncSave(u.uid,maxT);fbUnsub();fbConnect(u)}
   },e=>{toast('同期できませんでした（'+(e.code||'エラー')+'）');fbDisconnect()});
 }
 function fbDisconnect(keep){if(fbUnsub){try{fbUnsub()}catch(e){}fbUnsub=null}if(keep)return;if(mode==='cloud'){col=null;mode='local';setStore();render()}}
