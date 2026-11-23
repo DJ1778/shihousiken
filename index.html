@@ -2041,13 +2041,14 @@ function figSvg(t){const m=String(t||'').match(/<svg[\s\S]*<\/svg>/i);if(!m)retu
   if(/<script|<foreignObject|\son\w+\s*=|href\s*=\s*["']?\s*(?:javascript|http)/i.test(v))return '';
   if(!/xmlns=/.test(v))v=v.replace(/<svg/i,'<svg xmlns="http://www.w3.org/2000/svg"');return v.length<80000?v:''}
 function figHtml(x){const v=x&&x.fig?figSvg(x.fig):'';return v?`<div class="c-fig"><img alt="${esc(stripC(x.title||''))}の図" src="data:image/svg+xml;charset=utf-8,${encodeURIComponent(v)}"></div>`:''}
-function figPrompt(c){return `あなたは日本の法律の講師です。次の暗記カードの内容を、受験生が一目で覚えられる「図」にしてください。
+function figPrompt(c){return `あなたは司法試験の受験指導をしている法律の講師です。次の「論点」を受験生が一目で理解できる図を作ってください。
 
-# 図の作り方
-- 内容の構造に合う形を選ぶ：要件→効果の流れ、判断の手順（フローチャート）、学説の対立（並べて比較）、当事者の関係図（A→B→Cと矢印）、時系列など。
-- 書くのは要点だけ。キーワードは短く（1行14字以内、全角で）。文章を丸写ししない。
-- 結論や規範の核心は赤（#c0392b）、それ以外は黒（#222）と灰色（#666）。箱は白（#fff）か薄い色（#f3efe6, #e8f0f7）で、線は#444。
-- 内容にないことを付け足さない。
+# 考え方
+- カードの文章をなぞる必要はありません。論点そのものをあなた自身の知識（判例・通説）で考え、理解に一番役立つ図を設計してください。
+- 例：典型的な事案の当事者関係（A・B・Cと矢印、売買・登記・請求など）、判断の手順（フローチャート）、要件と効果、学説・判例の対立の比較、時系列、条文どうしの関係。
+- 論点の核心（どこが問題になるのか・結論）が図だけで分かるようにする。カードにない事柄を足してもよいが、判例・通説として正確なことだけを書く。不確かなことは書かない。
+- 書くのは要点だけ。1行14字以内（全角）。
+- 核心・結論は赤（#c0392b）、それ以外は黒（#222）と灰色（#666）。箱は白（#fff）か薄い色（#f3efe6, #e8f0f7）、線は#444。
 
 # 出力の形（厳守）
 - SVGだけを出力する。説明文やコードブロックの記号は書かない。
@@ -2056,10 +2057,10 @@ function figPrompt(c){return `あなたは日本の法律の講師です。次�
 - 文字は font-family="sans-serif"、font-size は13〜16。文字が箱や画面からはみ出さないように、長い語は<text>を分けて改行する。
 - 矢印は <defs><marker> で作る。画像・script・外部リンクは使わない。
 
-# カード
+# 論点
 科目：${SL(c.subject)}
-題名：${stripC(c.title)}
-${c.facts?'事案：'+c.facts+'\n':''}本文：
+論点：${stripC(c.title)}
+${c.facts?'事案（参考）：'+c.facts+'\n':''}カードの文章（参考。図はこれに縛られなくてよい）：
 ${stripC(c.body)}`}
 async function aiFig(c){
   const sample=await sampleP;if(!sample){toast('ここではAIが使えません');return ''}
