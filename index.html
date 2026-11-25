@@ -387,7 +387,6 @@ details summary{cursor:pointer;font-size:.85rem;color:var(--muted)}
     <button class="btn ghost navback" id="nav-back" hidden>← 戻る</button>
     <h1>司法試験 学習帳</h1>
     <span class="hd-count" id="hd-count"></span>
-    <button class="btn ghost undo" id="undo-btn" aria-label="ひとつ戻す" disabled>↶ 戻す</button>
     <span id="store" class="store">保存先に接続中…</span>
   </header>
 
@@ -543,7 +542,6 @@ details summary{cursor:pointer;font-size:.85rem;color:var(--muted)}
   </section>
 </div>
 
-<button class="btn undo-fab" id="undo-fab" hidden>↶ ひとつ戻す</button>
 <nav class="tabs" aria-label="画面">
   <div class="in">
     <a class="tab" href="#today" data-v="today"><b>今</b>今日<span class="badge gone" id="badge" hidden></span></a>
@@ -839,7 +837,7 @@ document.addEventListener('click',e=>{
   const ask=e.target.closest('[data-ask]');
   if(ask){ask.parentElement.innerHTML='<span>削除しますか？</span><button class="btn ghost ng" data-yes>削除する</button><button class="btn ghost" data-no>やめる</button>';return}
   if(e.target.closest('[data-no]')){e.target.closest('[data-del]').innerHTML='<button class="btn ghost" data-ask>削除</button>';return}
-  if(e.target.closest('[data-yes]')){del(e.target.closest('[data-del]').dataset.del);toast('削除しました（右上の「↶ 戻す」で元に戻せます）');return}
+  if(e.target.closest('[data-yes]')){del(e.target.closest('[data-del]').dataset.del);toast('削除しました');return}
   const a=e.target.closest('[data-act]');
   if(a){const x=getItem(a.dataset.id);if(!x)return;
     if(a.dataset.act==='flag')toggleFlag(x);
