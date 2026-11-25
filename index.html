@@ -826,9 +826,11 @@ let ovN=0,popSkip=0;
 function ovPush(){if(inClaude)return;try{history.pushState({ov:1},'');ovN++}catch(e){}}
 function ovPop(){if(inClaude||ovN<=0)return;ovN--;popSkip++;try{history.back()}catch(e){popSkip--}}
 function openSheet(html,bind){if(sheetFlush){const f=sheetFlush;sheetFlush=null;try{f()}catch(e){}}const was=!$('scrim').hidden;if(!was){lastFocus=document.activeElement;ovPush()}
+  // 前の画面の入力の見張り（自動保存など）が残らないよう、毎回まっさらな入れ物にする
+  {const o=$('sheet'),n=o.cloneNode(false);o.replaceWith(n)}
   $('sheet').innerHTML='<div class="sheet-top"><button class="btn ghost" data-sheet-close>← 戻る</button></div>'+html;$('scrim').hidden=false;$('sheet').scrollTop=0;bind($('sheet'));const f=$('sheet').querySelector('input:not([type=checkbox]):not([type=file]),textarea,select');if(f)f.focus()}
 let sheetFlush=null;
-function closeSheet(fromPop){if($('scrim').hidden)return;if(sheetFlush){const f=sheetFlush;sheetFlush=null;try{f()}catch(e){}}stopRec();dictStop();if(fromPop!==true)ovPop();$('scrim').hidden=true;$('sheet').innerHTML='';if(lastFocus&&lastFocus.focus)try{lastFocus.focus()}catch(e){}}
+function closeSheet(fromPop){if($('scrim').hidden)return;if(sheetFlush){const f=sheetFlush;sheetFlush=null;try{f()}catch(e){}}stopRec();dictStop();if(fromPop!==true)ovPop();$('scrim').hidden=true;{const o=$('sheet'),n=o.cloneNode(false);o.replaceWith(n)}if(lastFocus&&lastFocus.focus)try{lastFocus.focus()}catch(e){}}
 $('scrim').addEventListener('click',e=>{if(e.target.id==='scrim'||e.target.closest('[data-sheet-close]'))closeSheet()});
 const subjSel=(id,v)=>`<select id="${id}">${SUBJ.map(s=>`<option value="${s}"${s===v?' selected':''}>${esc(SL(s))}</option>`).join('')}</select>`;
 const exNote=kind=>mine(kind).length?'':'<p class="note" style="padding-bottom:6px"><span class="chip ex">例</span> は見本です。自分の項目を追加すると表示されなくなります。</p>';
@@ -1621,6 +1623,37 @@ document.addEventListener('click',e=>{const tq=e.target.closest('[data-tq]');if(
   else if(m==='share'){tq.disabled=true;todayQuizUrl(10).then(q=>{tq.disabled=false;const txt=todayText()+(q?`\n\n今日の${q.n}問に挑戦してね👇\n${q.url}`:'');shareSheet(txt,'今日の勉強を共有')})}});
 document.addEventListener('click',e=>{if(e.target.closest('[data-share-today]')){shareSheet(todayText(),'今日の勉強を共有');return}if(e.target.closest('[data-quiz]')){qzCompose();return}});
 
+/* ---------- 修理：前の版の不具合で、別のカードの内容が上書きされたカードを元に戻す ---------- */
+async function fixDupCards(){
+  const since=Date.parse('2026-11-25T00:00:00+09:00'),T=c=>stripC(c.title||'').trim();
+  const cards=mine('c'),cand=cards.filter(c=>(+c.lu||0)>=since);if(!cand.length)return null;
+  // 元の内容の候補：変更の記録（新しい順）→ 昨日までの自動の控え → 取り込んだ論証集
+  const hist=new Map(),add=(id,x)=>{if(!x||x.kind!=='c')return;if(!hist.has(id))hist.set(id,[]);hist.get(id).push(x)};
+  try{UNDO.slice().reverse().forEach(g=>g.ops.forEach((prev,id)=>add(id,prev)))}catch(e){}
+  try{const ks=(await snapKeys()).filter(k=>k<'2026-11-25').sort();if(ks.length){const d=JSON.parse(await snapGet(ks[ks.length-1]));(d.items||[]).forEach(x=>x&&add(x.id,x))}}catch(e){}
+  try{(RS_PACKS||[]).forEach(pk=>rsPackItems(pk).forEach(x=>add(x.id,x)))}catch(e){}
+  const curTitles=new Map();cards.forEach(c=>{const t=T(c);curTitles.set(t,(curTitles.get(t)||0)+1)});
+  const origTitle=c=>{const h=hist.get(c.id)||[];return h.length?T(h[h.length-1]):null}; // いちばん古い元の論点名
+  const otherOrig=new Set(cards.map(c=>({c,t:origTitle(c)})).filter(x=>x.t).map(x=>x.c.id+'\u0000'+x.t));
+  const origOwner=new Map();cards.forEach(c=>{const t=origTitle(c);if(t&&!origOwner.has(t))origOwner.set(t,c.id)});
+  const fixed=[],unknown=[];
+  for(const c of cand){const t=T(c);const dup=(curTitles.get(t)||0)>1,ownerId=origOwner.get(t);
+    const stolen=ownerId&&ownerId!==c.id; // 今の論点名が、もともと別のカードの論点名
+    if(!dup&&!stolen)continue;
+    if(ownerId===c.id)continue; // もともとこのカードの論点名なら本物
+    const hh=hist.get(c.id)||[];if(hh.length&&!hh.some(x=>T(x)!==t))continue; // 論点名が一度も変わっていない＝もともと同じ名前のカード
+    // 元の状態：論点名が今と違い、しかもほかのカードの今の論点名でもないもの（新しい順に探す）
+    const ok=x=>{const o=origOwner.get(T(x));return T(x)!==t&&(!o||o===c.id)};const h=(hist.get(c.id)||[]).find(ok)||(hist.get(c.id)||[]).slice(-1).find(x=>T(x)!==t);
+    if(!h){if(dup)unknown.push(c);continue}
+    const n={...c};['title','facts','issue','article','tags','ctype','use','subject'].forEach(k=>{if(h[k]!==undefined)n[k]=h[k];else delete n[k]});
+    putK(n,'fixdup');fixed.push({from:t,to:T(n)});curTitles.set(t,curTitles.get(t)-1);curTitles.set(T(n),(curTitles.get(T(n))||0)+1)}
+  return {fixed,unknown}}
+setTimeout(function chk(){if(!(mode==='cloud'||mode==='local')||!items.size){setTimeout(chk,2000);return}
+  if(ui.fixDup1)return;fixDupCards().then(r=>{ui.fixDup1=1;saveUi();if(!r||(!r.fixed.length&&!r.unknown.length))return;
+    openSheet(`<h2>カードを元に戻しました</h2><p class="note">前の版の不具合で、カードを続けて編集すると、先に編集したカードの論点名（と事案・問題提起・条文・タグ）が、あとのカードのもので上書きされていました。本文は無事です。ごめんなさい。直したうえで、上書きされたカードを元に戻しました。</p>
+      ${r.fixed.length?`<p><b>元に戻したカード（${r.fixed.length}枚）</b></p><ul class="tl">${r.fixed.map(f=>`<li>「${esc(f.from)}」→「${esc(f.to)}」</li>`).join('')}</ul>`:''}
+      ${r.unknown.length?`<p><b>元の内容が見つからなかったカード（${r.unknown.length}枚）</b></p><p class="note">次のカードは、ほかのカードと同じ内容になっています。中身を確認して、直してください。</p><ul class="tl">${r.unknown.map(c=>`<li>${esc(stripC(c.title))}</li>`).join('')}</ul>`:''}
+      <button class="btn primary" data-sheet-close>わかった</button>`,()=>{})})},4000);
 /* ---------- タイマー ---------- */
 let tm=Object.assign({run:false,start:0,acc:0,subj:'民法',pomo:false,lastPomo:0},loadJSON(LS_TM)||{});
 // タイマーの状態は端末だけでなく保存先（クラウド）にも残す。アプリが読み込み直されても止まらない
