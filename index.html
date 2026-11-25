@@ -332,6 +332,7 @@ details.info .tbl+.note{margin-bottom:12px}
 .pf{position:relative}.pfm{position:absolute;left:4px;top:4px;width:6px;height:6px;border-radius:50%;background:var(--blue,#2b6cb0)}.pf-memos summary{cursor:pointer;padding:6px 0}
 .btn.photo{display:flex;align-items:center;justify-content:center;cursor:pointer}
 .tsum{display:grid;gap:10px}.tg summary{display:flex;gap:8px;align-items:center;cursor:pointer;padding:6px 0;border-top:1px solid var(--line)}.tl{margin:4px 0 8px;padding-left:4px;list-style:none;display:grid;gap:4px;font-size:.9rem}.tl .ty{font-size:.7rem;color:var(--muted);border:1px solid var(--line);border-radius:999px;padding:0 6px;margin-right:6px}
+.lsctl{display:grid;grid-template-columns:1fr 2fr 1fr;gap:8px}.lsctl .btn{font-size:1.1rem;min-height:52px}
 .qzrow{display:flex;gap:8px;align-items:flex-start;font-size:.92rem;line-height:1.5}.qzadd{justify-content:flex-start;text-align:left;font-size:.88rem}
 .dref{display:grid;gap:4px}.dref summary{font-size:.9rem;cursor:pointer}
 .dq{display:grid;gap:4px;padding:8px 0;border-top:1px solid var(--line)}.dqa{padding:6px 10px;background:var(--bg);border-radius:8px;margin-top:4px}.grades.three{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
@@ -479,6 +480,7 @@ details summary{cursor:pointer;font-size:.85rem;color:var(--muted)}
         <label class="f">覚え方<select id="c-mode"><option value="flip">めくる</option><option value="cloze">穴埋め</option><option value="write">書く</option><option value="say">声に出す</option></select></label>
       </div>
       <button class="btn primary" id="c-start">復習を始める</button>
+      <div class="row" style="gap:8px"><button class="btn wide" data-lis="listen">🎧 聞いて覚える</button><button class="btn wide" data-lis="ask">🗣 問いかけに声で答える</button></div>
       <button class="btn" id="c-aiq" hidden></button>
     </div>
     <div class="panel">
@@ -829,8 +831,8 @@ function openSheet(html,bind){if(sheetFlush){const f=sheetFlush;sheetFlush=null;
   // 前の画面の入力の見張り（自動保存など）が残らないよう、毎回まっさらな入れ物にする
   {const o=$('sheet'),n=o.cloneNode(false);o.replaceWith(n)}
   $('sheet').innerHTML='<div class="sheet-top"><button class="btn ghost" data-sheet-close>← 戻る</button></div>'+html;$('scrim').hidden=false;$('sheet').scrollTop=0;bind($('sheet'));const f=$('sheet').querySelector('input:not([type=checkbox]):not([type=file]),textarea,select');if(f)f.focus()}
-let sheetFlush=null;
-function closeSheet(fromPop){if($('scrim').hidden)return;if(sheetFlush){const f=sheetFlush;sheetFlush=null;try{f()}catch(e){}}stopRec();dictStop();if(fromPop!==true)ovPop();$('scrim').hidden=true;{const o=$('sheet'),n=o.cloneNode(false);o.replaceWith(n)}if(lastFocus&&lastFocus.focus)try{lastFocus.focus()}catch(e){}}
+let sheetFlush=null,LS_=null,lsTok=0;
+function closeSheet(fromPop){if($('scrim').hidden)return;if(LS_)lsStop();if(sheetFlush){const f=sheetFlush;sheetFlush=null;try{f()}catch(e){}}stopRec();dictStop();if(fromPop!==true)ovPop();$('scrim').hidden=true;{const o=$('sheet'),n=o.cloneNode(false);o.replaceWith(n)}if(lastFocus&&lastFocus.focus)try{lastFocus.focus()}catch(e){}}
 $('scrim').addEventListener('click',e=>{if(e.target.id==='scrim'||e.target.closest('[data-sheet-close]'))closeSheet()});
 const subjSel=(id,v)=>`<select id="${id}">${SUBJ.map(s=>`<option value="${s}"${s===v?' selected':''}>${esc(SL(s))}</option>`).join('')}</select>`;
 const exNote=kind=>mine(kind).length?'':'<p class="note" style="padding-bottom:6px"><span class="chip ex">例</span> は見本です。自分の項目を追加すると表示されなくなります。</p>';
@@ -1292,6 +1294,11 @@ function cForm(c,keep){
     q('#fs').onclick=()=>{const ok=save(true);sheetFlush=null;closeSheet();if(ok)toast('保存しました')};
   });
 }
+function cPickIds(){const subj=$('c-subj').value,scope=$('c-scope').value,ty=$('c-type').value,us=$('c-use').value;const pred=x=>cMatch(x,ty,us);
+  if(scope==='today')return todayIds(['c'],subj,pred);
+  let pool=list('c').filter(c=>(!subj||c.subject===subj)&&pred(c));
+  if(scope==='wrong')pool=pool.filter(c=>c.last===false);else if(scope==='flag')pool=pool.filter(c=>c.flag);else if(scope==='new')pool=pool.filter(isNew);
+  return shuffle(pool).map(c=>c.id)}
 function startC(){
   const subj=$('c-subj').value,scope=$('c-scope').value,ty=$('c-type').value,us=$('c-use').value;
   ui.cMode=$('c-mode').value;ui.cType=ty;ui.cUse=us;saveUi();
@@ -1654,6 +1661,77 @@ setTimeout(function chk(){if(!(mode==='cloud'||mode==='local')||!items.size){set
       ${r.fixed.length?`<p><b>元に戻したカード（${r.fixed.length}枚）</b></p><ul class="tl">${r.fixed.map(f=>`<li>「${esc(f.from)}」→「${esc(f.to)}」</li>`).join('')}</ul>`:''}
       ${r.unknown.length?`<p><b>元の内容が見つからなかったカード（${r.unknown.length}枚）</b></p><p class="note">次のカードは、ほかのカードと同じ内容になっています。中身を確認して、直してください。</p><ul class="tl">${r.unknown.map(c=>`<li>${esc(stripC(c.title))}</li>`).join('')}</ul>`:''}
       <button class="btn primary" data-sheet-close>わかった</button>`,()=>{})})},4000);
+/* ---------- 論証リスニング（聞いて覚える）と、問いかけに声で答える ---------- */
+function speakP(text){return new Promise(res=>{if(!canSpeak){res();return}try{if(!voices.length)loadVoices();speechSynthesis.cancel();const v=bestVoice(),segs=yomi(text).split(/(?<=[。！？])/).map(x=>x.trim()).filter(Boolean);
+  if(!segs.length){res();return}let left=segs.length,fin=false;const end=()=>{if(!fin){fin=true;res()}},done=()=>{if(--left<=0)end()};setTimeout(end,Math.max(3000,yomi(text).length*170/(+ui.rate||0.95))+4000);
+  segs.forEach(seg=>{const u=new SpeechSynthesisUtterance(seg);u.lang='ja-JP';if(v)u.voice=v;u.rate=+ui.rate||0.95;u.onend=done;u.onerror=done;speechSynthesis.speak(u)})}catch(e){res()}})}
+const waitMs=ms=>new Promise(r=>setTimeout(r,ms));
+let wakeL=null;async function wakeOn(){try{wakeL=await navigator.wakeLock.request('screen')}catch(e){wakeL=null}}function wakeOff(){try{wakeL&&wakeL.release()}catch(e){}wakeL=null}
+function lsText(x,what){const iss=ctOf(x)==='ronsho'?rsIssue(x):(x.issue||'');
+  if(what==='q')return `${stripC(x.title)}。${x.facts?'事案。'+x.facts+'。':''}${iss?'問題提起。'+iss:''}`;
+  return stripC(x.body).replace(/[【】《》]/g,'')}
+function lsStart(mode){const ids=cPickIds().filter(id=>{const x=getItem(id);return x&&x.body});if(!ids.length){toast('この範囲のカードがありません。範囲を「すべて」にしてみてください');return}
+  if(!canSpeak){toast('この画面では読み上げが使えません');return}
+  LS_={mode,ids:ids.slice(0,200),i:0,play:true,typed:'',phase:'q',res:[0,0,0]};wakeOn();lsRun()}
+function lsStop(){lsTok++;try{speechSynthesis.cancel()}catch(e){}stopRec();wakeOff();LS_=null}
+function lsView(extra){if(!LS_)return;const x=getItem(LS_.ids[LS_.i]);if(!x){LS_.i++;lsRun();return}const n=LS_.ids.length,iss=ctOf(x)==='ronsho'?rsIssue(x):'';
+  openSheet(`<div class="row" style="justify-content:space-between"><span class="meta">${LS_.mode==='ask'?'🗣 問いかけに答える':'🎧 聞いて覚える'}　${LS_.i+1} / ${n}</span><span class="chip">${esc(SL(x.subject))}</span></div>
+    <h2>${esc(stripC(x.title))}</h2>${x.facts?`<div class="p-case"><b>事案</b><div>${esc(x.facts)}</div></div>`:''}${iss?`<div class="p-issue rq"><b>問題提起</b>${esc(iss)}</div>`:''}
+    ${extra||''}
+    ${LS_.mode==='listen'?`<div class="lsctl"><button class="btn" data-ls="prev" aria-label="前へ">⏮</button><button class="btn primary" data-ls="pp">${LS_.play?'⏸ 止める':'▶ 再生'}</button><button class="btn" data-ls="next" aria-label="次へ">⏭</button></div>
+      <label class="f">読む速さ<input type="range" id="ls-rate" min="0.6" max="1.6" step="0.05" value="${+ui.rate||0.95}"></label>`:''}
+    <button class="btn" data-ls="end">おわる</button>`,sh=>{
+    const r=sh.querySelector('#ls-rate');if(r)r.onchange=()=>{ui.rate=+r.value;saveUi();toast('次の文から速さが変わります')};
+    sh.onclick=e=>{const b=e.target.closest('[data-ls]');if(!b||!LS_)return;const a=b.dataset.ls;
+      if(a==='end'){const m=LS_.mode,res=LS_.res;lsStop();closeSheet();if(m==='ask'&&res.some(Boolean))toast(`おつかれさま：覚えた ${res[2]}・あやふや ${res[1]}・忘れた ${res[0]}`);return}
+      if(a==='pp'){LS_.play=!LS_.play;if(LS_.play)lsRun();else{lsTok++;try{speechSynthesis.cancel()}catch(e){}lsView()}}
+      if(a==='next'){LS_.i=Math.min(LS_.ids.length-1,LS_.i+1);LS_.play=true;lsRun()}
+      if(a==='prev'){LS_.i=Math.max(0,LS_.i-1);LS_.play=true;lsRun()}
+      if(a==='done'){lsAnswer()}
+      if(a==='skip'){lsTok++;try{speechSynthesis.cancel()}catch(e){}lsReveal()}
+      if(a==='ai'){lsAi(b)}
+      if(a.startsWith('g')){const g=+a.slice(1),x=getItem(LS_.ids[LS_.i]);if(x){grade(x,g);dAuto('i:'+x.id,x.subject)}LS_.res[g]++;LS_.i++;LS_.typed='';if(LS_.i>=LS_.ids.length){const res=LS_.res;lsStop();openSheet(`<h2>おつかれさまでした</h2><p class="note">覚えた ${res[2]}・あやふや ${res[1]}・忘れた ${res[0]}</p><button class="btn primary" data-sheet-close>閉じる</button>`,()=>{});return}lsRun()}}})}
+// 聞いて覚える：論点→（事案・問題提起）→論証 を順に読み上げて、次のカードへ
+async function lsRun(){if(!LS_)return;const tok=++lsTok;try{speechSynthesis.cancel()}catch(e){}stopRec();
+  if(LS_.mode==='ask'){lsAsk(tok);return}
+  lsView();if(!LS_.play)return;const x=getItem(LS_.ids[LS_.i]);if(!x)return;
+  await speakP(lsText(x,'q'));if(tok!==lsTok)return;await waitMs(1200);if(tok!==lsTok)return;
+  await speakP(lsText(x,'a'));if(tok!==lsTok)return;await waitMs(1800);if(tok!==lsTok||!LS_)return;
+  if(LS_.i<LS_.ids.length-1){LS_.i++;lsRun()}else{LS_.play=false;lsView();toast('最後まで読みました')}}
+// 問いかけに声で答える：問いを読む → 話して答える → 正解を読む → 自己評価
+async function lsAsk(tok){const x=getItem(LS_.ids[LS_.i]);if(!x)return;LS_.phase='q';LS_.typed='';
+  lsView(`<p class="note" id="ls-st">🔈 問いかけを読んでいます…</p>`);
+  await speakP('問題。'+lsText(x,'q')+'。答えてください。');if(tok!==lsTok||!LS_)return;
+  LS_.phase='talk';
+  lsView(`<p class="note" id="ls-st">${srOk?'🎙 話してください。終わったら「答え終わった」':'🎙 キーボードのマイクで話して入力してください（このあと答えを読み上げます）'}</p>
+    <textarea id="ls-w" class="p-write say" placeholder="話した内容がここに出ます" aria-label="話した内容"></textarea>
+    <div class="row" style="gap:8px"><button class="btn primary wide" data-ls="done">答え終わった</button><button class="btn wide" data-ls="skip">わからない・答えを聞く</button></div>`);
+  const ta=$('ls-w');if(ta)ta.addEventListener('input',()=>{LS_.typed=ta.value});
+  if(srOk){try{const r=new SRC();r.lang='ja-JP';r.continuous=true;r.interimResults=true;REC=r;
+    r.onresult=ev=>{let t='';for(let i=0;i<ev.results.length;i++)t+=ev.results[i][0].transcript;LS_.typed=t;const w=$('ls-w');if(w)w.value=t};
+    r.onerror=ev=>{if(/not-allowed|audio-capture|service-not-allowed/.test(ev.error)){srOk=false;const st=$('ls-st');if(st)st.textContent='🎙 この画面では直接マイクが使えません。キーボードのマイクで話して入力してください'}};
+    r.onend=()=>{if(REC===r)REC=null};r.start()}catch(e){}}
+  else{const w=$('ls-w');if(w)w.focus()}}
+function lsAnswer(){const w=$('ls-w');if(w)LS_.typed=w.value;stopRec();lsReveal()}
+async function lsReveal(){if(!LS_)return;const tok=++lsTok;const x=getItem(LS_.ids[LS_.i]);if(!x)return;LS_.phase='a';
+  const said=LS_.typed||'',norm=nz(said),ks=parts(x.body).filter(p=>p.k),hit=ks.filter(p=>norm.includes(nz(p.k))).length;
+  lsView(`${said.trim()?`<details open><summary class="meta">あなたの答え</summary><div class="p-body mine">${esc(said)}</div></details>`:''}
+    ${ks.length&&said.trim()?`<div class="score-line">キーワード <b>${hit} / ${ks.length}</b> を言えた（${Math.round(hit/ks.length*100)}%）</div>`:''}
+    <div class="p-body">${fmt(x.body,said.trim()&&ks.length?'check':'plain',{norm})}</div>
+    ${inClaude&&said.trim()?'<button class="btn" data-ls="ai">AIに採点してもらう</button><div id="ls-ai"></div>':''}
+    <p class="note">🔈 正解を読み上げています。どのくらい言えた？</p>
+    <div class="grades three"><button class="btn" data-ls="g0">忘れた</button><button class="btn" data-ls="g1">あやふや</button><button class="btn primary" data-ls="g2">覚えた</button></div>`);
+  await speakP('正解。'+lsText(x,'a'));if(tok!==lsTok)return}
+async function lsAi(btn){const x=getItem(LS_.ids[LS_.i]),box=$('ls-ai');if(!x||!box)return;btn.disabled=true;box.innerHTML='<p class="note">採点しています…</p>';
+  const sample=await sampleP;if(!sample){box.innerHTML='<p class="note">ここではAIが使えません</p>';return}
+  try{const r=await sample.json(`司法試験の受験生が、論点について口頭で論証を答えました（音声認識の文字起こしなので誤変換は気にしない）。正解の論証と比べて採点してください。
+JSONだけで返す：{"score":0〜100の数,"good":"言えていた点（60字以内）","miss":"足りない・まちがっている点（80字以内）"}
+論点：${stripC(x.title)}
+正解の論証：${stripC(x.body).replace(/[【】《》]/g,'').slice(0,1500)}
+受験生の答え：${(LS_.typed||'').slice(0,1500)}`,{modelTier:'default'});
+    box.innerHTML=`<div class="explain"><b>${Math.round(+r.score||0)}点</b><br>✓ ${esc(r.good||'')}<br>△ ${esc(r.miss||'')}</div>`}
+  catch(e){box.innerHTML='<p class="note">採点できませんでした</p>';btn.disabled=false}}
+document.addEventListener('click',e=>{const b=e.target.closest('[data-lis]');if(b)lsStart(b.dataset.lis)});
 /* ---------- タイマー ---------- */
 let tm=Object.assign({run:false,start:0,acc:0,subj:'民法',pomo:false,lastPomo:0},loadJSON(LS_TM)||{});
 // タイマーの状態は端末だけでなく保存先（クラウド）にも残す。アプリが読み込み直されても止まらない
