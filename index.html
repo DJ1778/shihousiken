@@ -1195,7 +1195,7 @@ function cForm(c,keep){
    <div class="grid2" id="fc-hanrei"><label class="f">裁判所・年月日<input id="fc-r2" value="${esc(t0==='hanrei'?c.article:'')}" placeholder="例：最大判昭50.4.30"></label>
    <label class="f">争点（任意）<input id="fc-i" value="${esc(c.issue)}" placeholder="例：職業の許可制の合憲性の判断基準"></label></div>
    <div class="f" style="display:flex;flex-direction:column;gap:4px;font-size:.8rem;color:var(--muted)"><span id="fc-bl"></span><div id="fc-b" class="rich" contenteditable="true" role="textbox" aria-multiline="true" aria-labelledby="fc-bl">${toRich(c.body)}</div></div>
-   <div class="kwhelp"><span>ペンの色</span><div class="seg pen" role="group" aria-label="ペンの色"><button type="button" data-pen="k" aria-pressed="true">黒</button><button type="button" class="red" data-pen="r" aria-pressed="false">赤</button><button type="button" class="blue" data-pen="b" aria-pressed="false">青</button></div><button class="btn" id="fc-wrap" type="button">穴埋め</button>${DICT_BTN}<span id="fc-n"></span></div>
+   <div class="kwhelp"><span>ペンの色</span><div class="seg pen" role="group" aria-label="ペンの色"><button type="button" data-pen="k" aria-pressed="true">黒</button><button type="button" class="red" data-pen="r" aria-pressed="false">赤</button><button type="button" class="blue" data-pen="b" aria-pressed="false">青</button></div><button class="btn" id="fc-wrap" type="button">穴埋め</button>${DICT_BTN}<button type="button" class="btn undo" id="fc-un" disabled>↶ 戻す</button><button type="button" class="btn undo" id="fc-re" disabled>↷ 進む</button><span id="fc-n"></span></div>
    <p class="note" style="margin-top:-6px">色を選んでから書くと、その色になります。書いた語句を選んで色や「穴埋め」を押すと、あとから変えられます。</p>
    <label class="f" id="fc-qw"><span>問題提起（任意・表面に出ます）</span><input id="fc-q" value="${esc(t0==='ronsho'?c.issue||'':'')}" placeholder="例：取消し後の第三者との関係はどう処理すべきか。"></label>
    <label class="f" id="fc-fw"><span id="fc-fl">事案・ポイント（任意）</span><textarea id="fc-f" style="min-height:70px" placeholder="どんな事案で、結論はどうなったか">${esc(c.facts)}</textarea></label>
@@ -1204,7 +1204,7 @@ function cForm(c,keep){
    ${inClaude?'<button type="button" class="btn" id="fc-aiq">AIで事案と問題提起を作る</button>':''}
    ${inClaude?'<div class="f" style="display:grid;gap:6px;font-size:.8rem;color:var(--muted)"><span>図（任意・答えの側に出ます）</span><div id="fc-fig"></div></div>':''}
    <p class="note" style="margin:0">書いた内容は自動で保存されます。<span id="fc-as" class="meta"></span></p>
-   <div class="row">${editing?'<button class="btn wide" id="fx">閉じる</button>':'<button class="btn wide" id="fn">もう一枚作る</button>'}<button class="btn primary wide" id="fs">保存して閉じる</button></div>`,s=>{
+   <div class="row">${editing?'':'<button class="btn wide" id="fn">もう一枚作る</button>'}<button class="btn primary wide" id="fs">閉じる</button></div>`,s=>{
     const q=id=>s.querySelector(id),ed=q('#fc-b');
     const layout=()=>{const t=q('#fc-k').value,d=CT[t];q('#fc-tl').textContent=d.front+'（表面）';q('#fc-bl').textContent=d.back+'（裏面）';q('#fc-rl').textContent=d.src;
       q('#fc-t').placeholder=d.ph[0];ed.dataset.ph=d.ph[1].replace(/[【】]/g,'').replace('、覚えるべき語句を囲みます','').replace('、キーワードを囲みます','');const hr=t==='hanrei',rs=t==='ronsho';q('#fc-hanrei').hidden=!hr;q('#fc-qw').hidden=!rs;q('#fc-fw').hidden=!(hr||rs);q('#fc-rw').hidden=hr;
@@ -1269,9 +1269,21 @@ function cForm(c,keep){
     s.addEventListener('input',auto);s.addEventListener('change',auto);
     try{new MutationObserver(auto).observe(ed,{childList:true,subtree:true,characterData:true,attributes:true})}catch(e){}
     sheetFlush=()=>{clearTimeout(asT);save(true)};
+    // 書いている内容の「戻す・進む」（間違えて消した文字を戻せる）
+    const fids=['#fc-t','#fc-f','#fc-q','#fc-r','#fc-r2','#fc-i','#fc-g'];
+    const snap=()=>JSON.stringify({b:ed.innerHTML,v:fids.map(id=>{const e=q(id);return e?e.value:''}),fig});
+    let hist=[snap()],hi=0,hT=null,restoring=false;const un=q('#fc-un'),re=q('#fc-re');
+    const hBtns=()=>{un.disabled=hi<=0;re.disabled=hi>=hist.length-1};
+    const hRec=()=>{if(restoring)return;clearTimeout(hT);hT=setTimeout(()=>{const v=snap();if(v===hist[hi])return;hist=hist.slice(0,hi+1);hist.push(v);if(hist.length>100)hist.shift();hi=hist.length-1;hBtns()},400)};
+    const hApply=v=>{restoring=true;const o=JSON.parse(v);ed.innerHTML=o.b;fids.forEach((id,i)=>{const e=q(id);if(e)e.value=o.v[i]});fig=o.fig;drawFig();cnt();
+      setTimeout(()=>{restoring=false;auto()},0)};
+    const hFlush=()=>{clearTimeout(hT);const v=snap();if(v!==hist[hi]){hist=hist.slice(0,hi+1);hist.push(v);hi=hist.length-1}};
+    un.onclick=()=>{hFlush();if(hi>0){hi--;hApply(hist[hi]);hBtns();toast('ひとつ戻しました')}};
+    re.onclick=()=>{if(hi<hist.length-1){hi++;hApply(hist[hi]);hBtns()}};
+    s.addEventListener('input',hRec);try{new MutationObserver(hRec).observe(ed,{childList:true,subtree:true,characterData:true,attributes:true})}catch(e){}
     const fx=q('#fx');if(fx)fx.onclick=closeSheet;
     const fn=q('#fn');if(fn)fn.onclick=()=>{const k=save();if(k){sheetFlush=null;toast('保存しました。もう一枚どうぞ');cForm(null,k)}};
-    q('#fs').onclick=()=>{if(save()){sheetFlush=null;closeSheet();toast('保存しました')}};
+    q('#fs').onclick=()=>{const ok=save(true);sheetFlush=null;closeSheet();if(ok)toast('保存しました')};
   });
 }
 function startC(){
