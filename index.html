@@ -329,6 +329,7 @@ details.info .tbl+.note{margin-bottom:12px}
 .dtest{background:var(--bg);border-radius:10px;padding:10px 12px;display:grid;gap:6px}.dchip{font-size:.72rem;border:1px solid var(--line);border-radius:999px;padding:1px 7px;color:var(--muted)}.dchip.r2{color:var(--ok,#2e7d4f);border-color:currentColor}.dchip.r1{color:var(--warn);border-color:currentColor}.dchip.r0{color:var(--ng,#b23b3b);border-color:currentColor}.btn.undo{min-height:32px;padding:4px 12px;font-size:.85rem;border:1px solid var(--line);border-radius:999px}.btn.undo:disabled{opacity:.45}
 .undo-fab{position:fixed;right:max(14px,env(safe-area-inset-right,0px));bottom:calc(140px + env(safe-area-inset-bottom,0px));z-index:60;background:var(--surface);border:1px solid var(--line);box-shadow:0 4px 14px rgba(0,0,0,.18);border-radius:999px;min-height:40px;padding:6px 14px;font-size:.9rem}
 .btn.line{background:#06c755;border-color:#06c755;color:#fff;text-align:center;text-decoration:none;display:flex;align-items:center;justify-content:center;font-weight:700}
+.pf{position:relative}.pfm{position:absolute;left:4px;top:4px;width:6px;height:6px;border-radius:50%;background:var(--blue,#2b6cb0)}.pf-memos summary{cursor:pointer;padding:6px 0}
 .qzrow{display:flex;gap:8px;align-items:flex-start;font-size:.92rem;line-height:1.5}.qzadd{justify-content:flex-start;text-align:left;font-size:.88rem}
 .dref{display:grid;gap:4px}.dref summary{font-size:.9rem;cursor:pointer}
 .dq{display:grid;gap:4px;padding:8px 0;border-top:1px solid var(--line)}.dqa{padding:6px 10px;background:var(--bg);border-radius:8px;margin-top:4px}.grades.three{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
@@ -1438,6 +1439,7 @@ function refItem(r){const [k,a,b]=r.split(':');if(k==='i'){const x=getItem(r.sli
     if(x.kind==='q')return {t:'短答：'+stripC(x.text).slice(0,24)+'…',x:`【短答】${stripC(x.text)}\n正解：${x.answer?'○':'×'}${x.explain?'\n解説：'+stripC(x.explain):''}`};
     const tl={ronsho:'論証',hanrei:'判例',teigi:'定義',qa:'一問一答'}[ctOf(x)]||'カード';
     return {t:tl+'：'+stripC(x.title),x:`【${tl}】${stripC(x.title)}${x.issue?'\n問題提起：'+stripC(x.issue):''}${x.facts?'\n事案：'+x.facts:''}${x.article?'\n'+x.article:''}\n${stripC(x.body).replace(/[【】《》]/g,'')}`}}
+  if(k==='p'){const bk=pfBook(a),m=bk.m[b]||{},nm=(PF_BOOKS.find(x=>x[0]===a)||[a,a])[1];return {t:`短答 ${nm}No.${b}`+(m.t?' '+m.t:''),x:`【短答のまちがい】パーフェクト${nm} No.${b}${m.t?'　'+m.t:''}${m.why?'\n理由：'+m.why:''}${m.memo?'\n正しい知識：'+m.memo:''}${m.ref?'\n'+m.ref:''}`}}
   if(k==='h'){const bk=hsBook(a),m=bk.m[b]||{};return {t:hsTag(a,b)+(m.t?' '+m.t:''),x:`【判例】${hsName(a)} ${hsNo(b)}${m.t?' '+m.t:''}${m.d?'（'+m.d+'）':''}${m.f?'\n事案：'+stripC(m.f):''}${m.memo?'\n判旨・メモ：'+stripC(m.memo):''}${m.ro?'\n論点：'+stripC(m.ro):''}${m.sh?'\n射程：'+stripC(m.sh):''}`}}
   return null}
 function dAutoTitle(refs){const ts=refs.map(refItem).filter(Boolean).map(r=>r.t);return ts.slice(0,2).join('、')+(ts.length>2?` ほか${ts.length-2}件`:'')}
@@ -1524,6 +1526,8 @@ function qzFromRef(r){const [k,a,b]=r.split(':');
   if(k==='i'){const x=getItem(r.slice(2));if(!x||isEx(x))return null;
     if(x.kind==='q')return {k:'ox',s:x.subject,t:stripC(x.text),a:x.answer?1:0,e:stripC(x.explain||'').slice(0,400)};
     if(x.kind==='c')return {k:'c',ct:ctOf(x),s:x.subject,t:stripC(x.title),f:(x.facts||'').slice(0,300),i:stripC(rsIssue(x)||x.issue||'').slice(0,200),b:String(x.body||'').slice(0,900)}}
+  if(k==='p'){const bk=pfBook(a),m=bk.m[b]||{},nm=(PF_BOOKS.find(x=>x[0]===a)||[a,a])[1];if(!m.memo)return null;
+    return {k:'c',ct:'qa',s:PF_SUBJ[a]||'民法',t:`短答 ${nm}No.${b}${m.t?'　'+m.t:''}`,f:'',i:'',b:(m.memo+(m.ref?'\n'+m.ref:'')).slice(0,900)}}
   if(k==='h'){const bk=hsBook(a),m=bk.m[b]||{};const body=[m.memo&&'判旨・メモ：'+stripC(m.memo),m.ro&&'論点：'+stripC(m.ro),m.sh&&'射程：'+stripC(m.sh)].filter(Boolean).join('\n');if(!body)return null;
     return {k:'c',ct:'hanrei',s:HS_SUBJ[a]||'選択',t:hsTag(a,b)+(m.t?' '+m.t:''),f:stripC(m.f||'').slice(0,300),i:'',b:body.slice(0,900)}}
   return null}
@@ -2634,7 +2638,26 @@ const PF_BOOKS=[['kenpo','憲法'],['minpo1','民法Ⅰ'],['minpo2','民法Ⅱ']
 const PF_MARK={o:'○',t:'△',x:'×'},PF_NEXT={'':'o',o:'t',t:'x',x:''};
 const pfDoc=()=>items.get('perfect')||{id:'perfect',kind:'pf',books:{}};
 const pfKey=()=>PF_BOOKS.some(b=>b[0]===ui.pfb)?ui.pfb:'kenpo';
-const pfBook=k=>{const b=(pfDoc().books||{})[k]||{};return {n:+b.n||100,r:b.r||{}}};
+const pfBook=k=>{const b=(pfDoc().books||{})[k]||{};return {n:+b.n||100,r:b.r||{},m:b.m||{}}};
+const PF_SUBJ={kenpo:'憲法',minpo1:'民法',minpo2:'民法',keiho:'刑法',gyosei:'行政法',shoho:'商法',minso:'民訴',keiso:'刑訴'};
+const PF_WHY=['知識があやふや','知らなかった','勘違い・混同','問題文の読み違い','時間が足りない'];
+const pfHasMemo=(b,i)=>{const m=b.m[i];return !!(m&&(m.t||m.memo||m.ref||m.why))};
+// まちがえた問題のメモ（百選と同じように1問ずつ残す）
+function pfMemoSheet(k,i){const b=pfBook(k),m=b.m[i]||{},bk=PF_BOOKS.find(x=>x[0]===k);if(pfHasMemo(b,i))dAuto('p:'+k+':'+i,PF_SUBJ[k]||'民法');
+  const marks=[1,2,3].map(r=>(b.r[i]||{})[r]).map((v,j)=>v?`${j+1}周目 ${PF_MARK[v]}`:'').filter(Boolean).join('・');
+  openSheet(`<h2>パーフェクト ${esc(bk[1])} No.${esc(i)}</h2>${marks?`<p class="meta">${marks}</p>`:''}
+    <label class="f">どの肢・テーマ<input id="pm-t" value="${esc(m.t||'')}" placeholder="例：肢3　中止犯の任意性"></label>
+    <label class="f">まちがえた理由<select id="pm-w"><option value="">選ぶ</option>${PF_WHY.map(w=>`<option${w===m.why?' selected':''}>${w}</option>`).join('')}</select></label>
+    <label class="f">正しい知識・覚えること<textarea id="pm-m" style="min-height:110px" placeholder="例：中止犯は「自己の意思により」＝外部的障害によらない。刑は必要的減免（43条ただし書）。">${esc(m.memo||'')}</textarea></label>
+    <label class="f">条文・判例（任意）<input id="pm-r" value="${esc(m.ref||'')}" placeholder="例：刑法43条ただし書、最判昭32.9.10"></label>
+    <div class="row">${DICT_BTN}</div>
+    <div class="row">${pfHasMemo(b,i)?'<button class="btn" id="pm-x">メモを消す</button>':''}<button class="btn" id="pm-c">カードにする</button><button class="btn primary wide" id="pm-s">保存</button></div>`,sh=>{
+    const q=id=>sh.querySelector(id),val=()=>({t:q('#pm-t').value.trim(),why:q('#pm-w').value,memo:q('#pm-m').value.trim(),ref:q('#pm-r').value.trim(),d:today()});
+    const save=()=>{const v=val();pfSave(bb=>{if(v.t||v.why||v.memo||v.ref)bb.m[i]=v;else delete bb.m[i]},k);dAuto('p:'+k+':'+i,PF_SUBJ[k]||'民法')};
+    sheetFlush=()=>{const v=val(),o=b.m[i]||{};if(v.t!==(o.t||'')||v.why!==(o.why||'')||v.memo!==(o.memo||'')||v.ref!==(o.ref||''))save()};
+    q('#pm-s').onclick=()=>{save();sheetFlush=null;closeSheet();toast('メモを保存しました')};
+    const x=q('#pm-x');if(x)x.onclick=()=>{pfSave(bb=>{delete bb.m[i]},k);sheetFlush=null;closeSheet();toast('メモを消しました')};
+    q('#pm-c').onclick=()=>{const v=val();save();sheetFlush=null;cForm({ctype:'qa',use:'tanto',subject:PF_SUBJ[k]||'民法',title:v.t||'',body:v.memo||'',article:v.ref||'',tags:`パーフェクト${bk[1]}No.${i}`})}})}
 let pfLast=null;
 const pfRound=()=>[1,2,3].includes(ui.pfr)?ui.pfr:1;
 function renderPF(){
@@ -2643,20 +2666,26 @@ function renderPF(){
   const mk=i=>(b.r[i]||{})[rd]||'',prevBad=i=>{for(let r=rd-1;r>=1;r--){const m=(b.r[i]||{})[r];if(m)return m!=='o'}return false};
   let o=0,t=0,x=0;for(let i=1;i<=b.n;i++){const m=mk(i);if(m==='o')o++;else if(m==='t')t++;else if(m==='x')x++}
   const done=o+t+x;
-  const nums=Array.from({length:b.n},(_,i)=>i+1).filter(i=>f==='all'?true:f==='redo'?(rd===1?['t','x'].includes(mk(i)):prevBad(i)||['t','x'].includes(mk(i))):!mk(i));
+  const nums=Array.from({length:b.n},(_,i)=>i+1).filter(i=>f==='memo'?pfHasMemo(b,i):f==='all'?true:f==='redo'?(rd===1?['t','x'].includes(mk(i)):prevBad(i)||['t','x'].includes(mk(i))):!mk(i));
   el.innerHTML=`<div class="spread"><h2>短答過去問パーフェクト</h2><span class="meta">${done} / ${b.n}問</span></div>
     <div class="hs-top"><label class="f">本<select id="pf-b">${PF_BOOKS.map(([key,l])=>{const bb=pfBook(key);let d=0;for(const v of Object.values(bb.r))if(v&&v[rd])d++;return `<option value="${key}"${key===k?' selected':''}>${l}${d?`（${d}/${bb.n}）`:''}</option>`}).join('')}</select></label>
     <label class="f">問題数<input type="number" id="pf-n" min="1" max="999" inputmode="numeric" value="${b.n}"></label></div>
     <div class="seg" role="group" aria-label="周回">${[1,2,3].map(r=>`<button data-pfr="${r}" aria-pressed="${r===rd}">${r}周目</button>`).join('')}</div>
     <div class="meter"><i style="width:${Math.round(done/b.n*100)}%"></i></div>
     <div class="pf-stats"><div><b>${done}</b><span>解いた</span></div><div><b style="color:var(--ok)">${o}</b><span>○ 正解</span></div><div><b style="color:var(--warn)">${t}</b><span>△ あやふや</span></div><div><b style="color:var(--ng)">${x}</b><span>× まちがい</span></div></div>
-    <div class="filters">${[['all','すべて'],['redo','×と△だけ'],['todo','まだ解いていない']].map(([v,l])=>`<button class="fchip" data-pff="${v}" aria-pressed="${f===v}">${l}</button>`).join('')}</div>
-    ${pfLast?`<div class="reco" style="background:var(--ng-soft);border-radius:8px;padding:10px 12px;border:0"><span>No.${pfLast.i} を${PF_MARK[pfLast.m]}にしました。まちがえたポイントをカードにしますか？</span><div class="row" style="gap:6px"><button class="btn primary" data-pf-card>カードにする</button><button class="btn ghost" data-pf-skip>しない</button></div></div>`:''}
-    <div class="pf-grid">${nums.map(i=>{const m=mk(i);return `<button class="pf${m?' '+m:''}${!m&&prevBad(i)?' prev':''}" data-pf="${i}" aria-label="No.${i} ${m?PF_MARK[m]:'未記入'}">${i}${m?`<b>${PF_MARK[m]}</b>`:''}</button>`}).join('')||'<p class="note">該当する問題はありません。</p>'}</div>
-    <p class="note">番号を押すたびに ○→△→×→消す。赤い点は、前の周で×か△だった問題です。</p>`;
+    <div class="filters">${[['all','すべて'],['redo','×と△だけ'],['todo','まだ解いていない'],['memo','メモあり']].map(([v,l])=>`<button class="fchip" data-pff="${v}" aria-pressed="${f===v}">${l}</button>`).join('')}</div>
+    <div class="seg" role="group" aria-label="番号を押したとき"><button data-pfmode="mark" aria-pressed="${!ui.pfMemo}">押して ○△× をつける</button><button data-pfmode="memo" aria-pressed="${!!ui.pfMemo}">押してメモを書く</button></div>
+    ${pfLast?`<div class="reco" style="background:var(--ng-soft);border-radius:8px;padding:10px 12px;border:0"><span>No.${pfLast.i} を${PF_MARK[pfLast.m]}にしました。まちがえたところをメモしますか？</span><div class="row" style="gap:6px"><button class="btn primary" data-pf-memo>メモする</button><button class="btn" data-pf-card>カードにする</button><button class="btn ghost" data-pf-skip>しない</button></div></div>`:''}
+    <div class="pf-grid">${nums.map(i=>{const m=mk(i);return `<button class="pf${m?' '+m:''}${!m&&prevBad(i)?' prev':''}" data-pf="${i}" aria-label="No.${i} ${m?PF_MARK[m]:'未記入'}">${i}${m?`<b>${PF_MARK[m]}</b>`:''}${pfHasMemo(b,i)?'<i class="pfm" aria-label="メモあり"></i>':''}</button>`}).join('')||'<p class="note">該当する問題はありません。</p>'}</div>
+    <p class="note">${ui.pfMemo?'番号を押すと、その問題のメモが開きます。':'番号を押すたびに ○→△→×→消す。'}赤い点は前の周で×か△だった問題、青い点はメモがある問題です。</p>
+    ${(()=>{const ms=Object.keys(b.m).filter(i=>pfHasMemo(b,i)).sort((a,c)=>(b.m[c].d||'').localeCompare(b.m[a].d||'')||(+a)-(+c));return ms.length?`<details class="pf-memos"${f==='memo'?' open':''}><summary><b>まちがえた問題のメモ（${ms.length}）</b></summary><div class="list">${ms.map(i=>{const mm=b.m[i];return `<div class="item" data-pfm="${esc(i)}" role="button" tabindex="0"><div class="row" style="gap:6px"><b>No.${esc(i)}</b>${mm.why?`<span class="chip">${esc(mm.why)}</span>`:''}<span>${esc(mm.t||'')}</span></div>${mm.memo?`<div class="meta">${esc(mm.memo.slice(0,70))}${mm.memo.length>70?'…':''}</div>`:''}</div>`}).join('')}</div></details>`:''})()}`;
 }
-function pfSave(fn){const k=pfKey(),d=pfDoc(),books={...(d.books||{})},b=pfBook(k),nb={n:b.n,r:JSON.parse(JSON.stringify(b.r))};fn(nb);books[k]=nb;put({...d,id:'perfect',kind:'pf',books})}
+function pfSave(fn,key){const k=key||pfKey(),d=pfDoc(),books={...(d.books||{})},b=pfBook(k),nb={n:b.n,r:JSON.parse(JSON.stringify(b.r)),m:JSON.parse(JSON.stringify(b.m))};fn(nb);books[k]=nb;put({...d,id:'perfect',kind:'pf',books})}
 document.addEventListener('click',e=>{
+  const pm=e.target.closest('[data-pfmode]');if(pm){ui.pfMemo=pm.dataset.pfmode==='memo';saveUi();renderPF();return}
+  const pmo=e.target.closest('[data-pfm]');if(pmo){pfMemoSheet(pfKey(),pmo.dataset.pfm);return}
+  if(e.target.closest('[data-pf-memo]')&&pfLast){const i=pfLast.i;pfLast=null;renderPF();pfMemoSheet(pfKey(),i);return}
+  const c0=e.target.closest('[data-pf]');if(c0&&ui.pfMemo){pfMemoSheet(pfKey(),c0.dataset.pf);return}
   const c=e.target.closest('[data-pf]');if(c){const i=c.dataset.pf,rd=pfRound();let nx='';pfSave(b=>{const cur=(b.r[i]||{})[rd]||'';nx=PF_NEXT[cur];b.r[i]={...(b.r[i]||{})};if(nx)b.r[i][rd]=nx;else delete b.r[i][rd];if(!Object.keys(b.r[i]).length)delete b.r[i]});
     pfLast=(nx==='x'||nx==='t')?{i,m:nx}:null;renderPF();return}
   if(e.target.closest('[data-pf-card]')&&pfLast){const k=pfKey(),bk=PF_BOOKS.find(b=>b[0]===k),subj={kenpo:'憲法',minpo1:'民法',minpo2:'民法',keiho:'刑法',gyosei:'行政法',shoho:'商法',minso:'民訴',keiso:'刑訴'}[k]||'民法',tag=`パーフェクト${bk[1]}No.${pfLast.i}`;
