@@ -330,6 +330,7 @@ details.info .tbl+.note{margin-bottom:12px}
 .undo-fab{position:fixed;right:max(14px,env(safe-area-inset-right,0px));bottom:calc(140px + env(safe-area-inset-bottom,0px));z-index:60;background:var(--surface);border:1px solid var(--line);box-shadow:0 4px 14px rgba(0,0,0,.18);border-radius:999px;min-height:40px;padding:6px 14px;font-size:.9rem}
 .btn.line{background:#06c755;border-color:#06c755;color:#fff;text-align:center;text-decoration:none;display:flex;align-items:center;justify-content:center;font-weight:700}
 .pf{position:relative}.pfm{position:absolute;left:4px;top:4px;width:6px;height:6px;border-radius:50%;background:var(--blue,#2b6cb0)}.pf-memos summary{cursor:pointer;padding:6px 0}
+.btn.photo{display:flex;align-items:center;justify-content:center;cursor:pointer}
 .qzrow{display:flex;gap:8px;align-items:flex-start;font-size:.92rem;line-height:1.5}.qzadd{justify-content:flex-start;text-align:left;font-size:.88rem}
 .dref{display:grid;gap:4px}.dref summary{font-size:.9rem;cursor:pointer}
 .dq{display:grid;gap:4px;padding:8px 0;border-top:1px solid var(--line)}.dqa{padding:6px 10px;background:var(--bg);border-radius:8px;margin-top:4px}.grades.three{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
@@ -1439,7 +1440,7 @@ function refItem(r){const [k,a,b]=r.split(':');if(k==='i'){const x=getItem(r.sli
     if(x.kind==='q')return {t:'短答：'+stripC(x.text).slice(0,24)+'…',x:`【短答】${stripC(x.text)}\n正解：${x.answer?'○':'×'}${x.explain?'\n解説：'+stripC(x.explain):''}`};
     const tl={ronsho:'論証',hanrei:'判例',teigi:'定義',qa:'一問一答'}[ctOf(x)]||'カード';
     return {t:tl+'：'+stripC(x.title),x:`【${tl}】${stripC(x.title)}${x.issue?'\n問題提起：'+stripC(x.issue):''}${x.facts?'\n事案：'+x.facts:''}${x.article?'\n'+x.article:''}\n${stripC(x.body).replace(/[【】《》]/g,'')}`}}
-  if(k==='p'){const bk=pfBook(a),m=bk.m[b]||{},nm=(PF_BOOKS.find(x=>x[0]===a)||[a,a])[1];return {t:`短答 ${nm}No.${b}`+(m.t?' '+m.t:''),x:`【短答のまちがい】パーフェクト${nm} No.${b}${m.t?'　'+m.t:''}${m.why?'\n理由：'+m.why:''}${m.memo?'\n正しい知識：'+m.memo:''}${m.ref?'\n'+m.ref:''}`}}
+  if(k==='p'){const bk=pfBook(a),m=bk.m[b]||{},nm=(PF_BOOKS.find(x=>x[0]===a)||[a,a])[1];return {t:`短答 ${nm}No.${b}`+(m.t?' '+m.t:''),x:`【短答のまちがい】パーフェクト${nm} No.${b}${m.t?'　'+m.t:''}${m.q?'\n問題文：'+m.q.slice(0,400):''}${m.why?'\n理由：'+m.why:''}${m.memo?'\n正しい知識：'+m.memo:''}${m.ref?'\n'+m.ref:''}`}}
   if(k==='h'){const bk=hsBook(a),m=bk.m[b]||{};return {t:hsTag(a,b)+(m.t?' '+m.t:''),x:`【判例】${hsName(a)} ${hsNo(b)}${m.t?' '+m.t:''}${m.d?'（'+m.d+'）':''}${m.f?'\n事案：'+stripC(m.f):''}${m.memo?'\n判旨・メモ：'+stripC(m.memo):''}${m.ro?'\n論点：'+stripC(m.ro):''}${m.sh?'\n射程：'+stripC(m.sh):''}`}}
   return null}
 function dAutoTitle(refs){const ts=refs.map(refItem).filter(Boolean).map(r=>r.t);return ts.slice(0,2).join('、')+(ts.length>2?` ほか${ts.length-2}件`:'')}
@@ -1527,7 +1528,7 @@ function qzFromRef(r){const [k,a,b]=r.split(':');
     if(x.kind==='q')return {k:'ox',s:x.subject,t:stripC(x.text),a:x.answer?1:0,e:stripC(x.explain||'').slice(0,400)};
     if(x.kind==='c')return {k:'c',ct:ctOf(x),s:x.subject,t:stripC(x.title),f:(x.facts||'').slice(0,300),i:stripC(rsIssue(x)||x.issue||'').slice(0,200),b:String(x.body||'').slice(0,900)}}
   if(k==='p'){const bk=pfBook(a),m=bk.m[b]||{},nm=(PF_BOOKS.find(x=>x[0]===a)||[a,a])[1];if(!m.memo)return null;
-    return {k:'c',ct:'qa',s:PF_SUBJ[a]||'民法',t:`短答 ${nm}No.${b}${m.t?'　'+m.t:''}`,f:'',i:'',b:(m.memo+(m.ref?'\n'+m.ref:'')).slice(0,900)}}
+    return {k:'c',ct:'qa',s:PF_SUBJ[a]||'民法',t:`短答 ${nm}No.${b}${m.t?'　'+m.t:''}`,f:(m.q||'').slice(0,300),i:'',b:(m.memo+(m.ref?'\n'+m.ref:'')).slice(0,900)}}
   if(k==='h'){const bk=hsBook(a),m=bk.m[b]||{};const body=[m.memo&&'判旨・メモ：'+stripC(m.memo),m.ro&&'論点：'+stripC(m.ro),m.sh&&'射程：'+stripC(m.sh)].filter(Boolean).join('\n');if(!body)return null;
     return {k:'c',ct:'hanrei',s:HS_SUBJ[a]||'選択',t:hsTag(a,b)+(m.t?' '+m.t:''),f:stripC(m.f||'').slice(0,300),i:'',b:body.slice(0,900)}}
   return null}
@@ -2641,20 +2642,35 @@ const pfKey=()=>PF_BOOKS.some(b=>b[0]===ui.pfb)?ui.pfb:'kenpo';
 const pfBook=k=>{const b=(pfDoc().books||{})[k]||{};return {n:+b.n||100,r:b.r||{},m:b.m||{}}};
 const PF_SUBJ={kenpo:'憲法',minpo1:'民法',minpo2:'民法',keiho:'刑法',gyosei:'行政法',shoho:'商法',minso:'民訴',keiso:'刑訴'};
 const PF_WHY=['知識があやふや','知らなかった','勘違い・混同','問題文の読み違い','時間が足りない'];
-const pfHasMemo=(b,i)=>{const m=b.m[i];return !!(m&&(m.t||m.memo||m.ref||m.why))};
+const pfHasMemo=(b,i)=>{const m=b.m[i];return !!(m&&(m.q||m.t||m.memo||m.ref||m.why))};
 // まちがえた問題のメモ（百選と同じように1問ずつ残す）
 function pfMemoSheet(k,i){const b=pfBook(k),m=b.m[i]||{},bk=PF_BOOKS.find(x=>x[0]===k);if(pfHasMemo(b,i))dAuto('p:'+k+':'+i,PF_SUBJ[k]||'民法');
   const marks=[1,2,3].map(r=>(b.r[i]||{})[r]).map((v,j)=>v?`${j+1}周目 ${PF_MARK[v]}`:'').filter(Boolean).join('・');
   openSheet(`<h2>パーフェクト ${esc(bk[1])} No.${esc(i)}</h2>${marks?`<p class="meta">${marks}</p>`:''}
+    ${inClaude?`<label class="btn photo">📷 問題を写真で読み込む（AI）<input type="file" id="pm-ph" accept="image/*" hidden></label><p class="note" id="pm-pn" style="margin-top:-4px">本の問題を撮ると、AIが問題文を読み取って、テーマ・正しい知識・条文も下書きします。</p>`:''}
+    <label class="f">問題文（任意）<textarea id="pm-q" style="min-height:80px" placeholder="問題文や、まちがえた肢を書き写す">${esc(m.q||'')}</textarea></label>
     <label class="f">どの肢・テーマ<input id="pm-t" value="${esc(m.t||'')}" placeholder="例：肢3　中止犯の任意性"></label>
     <label class="f">まちがえた理由<select id="pm-w"><option value="">選ぶ</option>${PF_WHY.map(w=>`<option${w===m.why?' selected':''}>${w}</option>`).join('')}</select></label>
     <label class="f">正しい知識・覚えること<textarea id="pm-m" style="min-height:110px" placeholder="例：中止犯は「自己の意思により」＝外部的障害によらない。刑は必要的減免（43条ただし書）。">${esc(m.memo||'')}</textarea></label>
     <label class="f">条文・判例（任意）<input id="pm-r" value="${esc(m.ref||'')}" placeholder="例：刑法43条ただし書、最判昭32.9.10"></label>
     <div class="row">${DICT_BTN}</div>
     <div class="row">${pfHasMemo(b,i)?'<button class="btn" id="pm-x">メモを消す</button>':''}<button class="btn" id="pm-c">カードにする</button><button class="btn primary wide" id="pm-s">保存</button></div>`,sh=>{
-    const q=id=>sh.querySelector(id),val=()=>({t:q('#pm-t').value.trim(),why:q('#pm-w').value,memo:q('#pm-m').value.trim(),ref:q('#pm-r').value.trim(),d:today()});
-    const save=()=>{const v=val();pfSave(bb=>{if(v.t||v.why||v.memo||v.ref)bb.m[i]=v;else delete bb.m[i]},k);dAuto('p:'+k+':'+i,PF_SUBJ[k]||'民法')};
-    sheetFlush=()=>{const v=val(),o=b.m[i]||{};if(v.t!==(o.t||'')||v.why!==(o.why||'')||v.memo!==(o.memo||'')||v.ref!==(o.ref||''))save()};
+    const q=id=>sh.querySelector(id),val=()=>({q:q('#pm-q').value.trim(),t:q('#pm-t').value.trim(),why:q('#pm-w').value,memo:q('#pm-m').value.trim(),ref:q('#pm-r').value.trim(),d:today()});
+    const save=()=>{const v=val();if(!v.q)delete v.q;pfSave(bb=>{if(v.q||v.t||v.why||v.memo||v.ref)bb.m[i]=v;else delete bb.m[i]},k);dAuto('p:'+k+':'+i,PF_SUBJ[k]||'民法')};
+    const ph=q('#pm-ph');if(ph)ph.onchange=async()=>{const f=ph.files[0];ph.value='';if(!f)return;const pn=q('#pm-pn');
+      const sample=await sampleP,caps=sample?await sample.limits().catch(()=>null):null;if(!sample||!caps||!caps.images){toast('ここでは写真を読み込めません');return}
+      pn.textContent='写真を読み取っています…（20秒ほど）';
+      try{const img=await shrink(f),mk=[1,2,3].map(r=>(b.r[i]||{})[r]).filter(Boolean).pop();
+        const r=await sample.json(`司法試験・短答式の問題集（短答過去問パーフェクト ${bk[1]} No.${i}）のページの写真です。受験生はこの問題を${mk?PF_MARK[mk]:'まちがい'}にしました。
+次をJSONだけで返してください：{"q":"問題文と各肢の文字起こし","t":"テーマ（20字以内。まちがえやすい肢がわかれば肢番号も）","memo":"正しい知識（各肢の正誤とその理由を、判例・条文に基づいて簡潔に。200字以内）","ref":"関係する条文・判例"}
+- 文字起こしは写真の通り正確に。読めない部分は［判読不能］と書く。
+- 解説の正誤に自信がない部分は「要確認」と書く。写真にない問題を作らない。`,{images:[img],modelTier:'default'});
+        if(!r||typeof r!=='object')throw 0;
+        const put1=(id,v)=>{const e=q(id);if(e&&v&&!e.value.trim())e.value=String(v)};
+        if(r.q){const e=q('#pm-q');e.value=String(r.q)}put1('#pm-t',r.t);put1('#pm-m',r.memo);put1('#pm-r',r.ref);
+        pn.textContent='読み取りました。AIの下書きなので、まちがいがないか確かめてから保存してください。'}
+      catch(e){pn.textContent='読み取れませんでした。明るい場所で、問題全体が入るように撮り直してください。'}};
+    sheetFlush=()=>{const v=val(),o=b.m[i]||{};if(v.q!==(o.q||'')||v.t!==(o.t||'')||v.why!==(o.why||'')||v.memo!==(o.memo||'')||v.ref!==(o.ref||''))save()};
     q('#pm-s').onclick=()=>{save();sheetFlush=null;closeSheet();toast('メモを保存しました')};
     const x=q('#pm-x');if(x)x.onclick=()=>{pfSave(bb=>{delete bb.m[i]},k);sheetFlush=null;closeSheet();toast('メモを消しました')};
     q('#pm-c').onclick=()=>{const v=val();save();sheetFlush=null;cForm({ctype:'qa',use:'tanto',subject:PF_SUBJ[k]||'民法',title:v.t||'',body:v.memo||'',article:v.ref||'',tags:`パーフェクト${bk[1]}No.${i}`})}})}
