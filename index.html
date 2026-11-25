@@ -986,6 +986,7 @@ function renderPlayer(){
   }
   const e=P.q[P.i],x=getItem(e.id);
   if(!x){P.i++;renderPlayer();return}
+  if(!isEx(x))dAuto('i:'+x.id,x.subject);
   const chips=`<div class="row" style="gap:6px"><span class="chip">${esc(SL(x.subject))}</span>${x.kind==='c'?`<span class="chip t">${CT[ctOf(x)].l}</span><span class="chip u">${USE[useOf(x)]}</span>`:''}${x.article&&!(x.kind==='c'&&ctOf(x)==='hanrei')?`<span class="meta">${esc(x.article)}</span>`:''}${isEx(x)?'<span class="chip ex">例</span>':''}${e.re?'<span class="chip re">再確認</span>':isNew(x)?'<span class="chip ex">初めて</span>':''}${tagsHtml(x)}</div>`;
   let h=`<div class="p-top"><button class="btn ghost navback" data-p="close">← 戻る</button><div class="p-bar"><i style="width:${Math.round(P.i/total*100)}%"></i></div><span class="progress">${P.i+1} / ${total}</span><button class="btn ghost star${x.flag?' on':''}" data-p="flag" aria-pressed="${!!x.flag}" aria-label="苦手に登録">${x.flag?'★':'☆'}</button></div>`;
   h+=x.kind==='q'?qCard(x,e,chips):cCard(x,e,chips);
@@ -1394,8 +1395,12 @@ function dDueStep(d,t){t=t||today();let r=0;for(const n of D_STEPS){if(!dTests(d
 const dDue=()=>mine('d').filter(d=>dDueStep(d)).sort((a,b)=>a.date.localeCompare(b.date));
 function dNext(d){for(const n of D_STEPS)if(!dTests(d)[n])return {n,date:addDays(d.date,n)};return null}
 function dRes(d){return D_STEPS.map(n=>{const r=dTests(d)[n];return `<span class="dchip${r?' r'+r.s:''}" title="${D_LBL[n]}">${D_LBL[n]} ${r?D_MARK[r.s]:'–'}</span>`}).join('')}
-function renderDiary(){const el=$('t-diary');if(!el)return;const t=today(),due=dDue(),td=mine('d').filter(d=>d.date===t);
+const todayRefs=()=>{const t=today();return [...new Set(mine('d').filter(d=>d.date===t).flatMap(d=>d.refs||[]))].filter(r=>qzFromRef(r))};
+function renderDiary(){const el=$('t-diary');if(!el)return;const t=today(),due=dDue(),td=mine('d').filter(d=>d.date===t),tr=todayRefs();
   el.innerHTML=`<div class="spread"><h2>今日やったこと</h2><button class="btn" data-dnew>＋ 記録する</button></div>
+  ${tr.length?`<div class="dtest"><b>今日の問題（${tr.length}問）</b><p class="note">今日開いたカード・短答・判例から、自動で問題にしました。</p>
+    <div class="row" style="gap:8px"><button class="btn primary wide" data-tq="self">まとめて確認</button>${inClaude?'<button class="btn wide" data-tq="ai">AIで確認問題</button>':''}</div>
+    <button class="btn line" data-tq="line">LINEで友だちに出す</button></div>`:''}
   <div class="row" style="gap:8px"><button class="btn wide" data-share-today>友だちに共有</button><button class="btn wide" data-quiz>問題を出し合う</button></div>
   ${due.length?`<div class="dtest"><b>記憶テストの日です（${due.length}件）</b><p class="note">${due.slice(0,3).map(d=>`${md(d.date)} ${esc(SL(d.subject))}「${esc(d.title)}」の${D_LBL[dDueStep(d)]}`).join('<br>')}${due.length>3?'<br>ほか'+(due.length-3)+'件':''}</p><button class="btn primary" data-dtest>記憶テストを始める</button></div>`:''}
   ${td.length?`<div class="list">${td.map(d=>`<div class="item" data-dview="${esc(d.id)}" role="button" tabindex="0"><div class="row" style="gap:6px"><span class="chip">${esc(SL(d.subject))}</span>${d.auto?'<span class="chip u">自動</span>':''}<b>${esc(d.title)}</b></div></div>`).join('')}</div><p class="note">明日・3日後・1週間後に、ここで記憶テストが出ます。</p>`
@@ -1523,8 +1528,8 @@ function qzFromRef(r){const [k,a,b]=r.split(':');
     return {k:'c',ct:'hanrei',s:HS_SUBJ[a]||'選択',t:hsTag(a,b)+(m.t?' '+m.t:''),f:stripC(m.f||'').slice(0,300),i:'',b:body.slice(0,900)}}
   return null}
 const qzLabel=r=>{const x=refItem(r);return x?x.t:r};
-function qzCompose(){const t=today(),todayRefs=[...new Set(mine('d').filter(d=>d.date===t||d.date===addDays(t,-1)).flatMap(d=>d.refs||[]))].filter(r=>qzFromRef(r));
-  const sel=new Set(todayRefs.slice(0,5));let extra=[];
+function qzCompose(all){const t=today(),todayRefs=[...new Set(mine('d').filter(d=>d.date===t||d.date===addDays(t,-1)).sort((a,b)=>b.date.localeCompare(a.date)).flatMap(d=>d.refs||[]))].filter(r=>qzFromRef(r));
+  const sel=new Set(todayRefs.slice(0,all?10:5));let extra=[];
   openSheet(`<h2>友だちに問題を出す</h2>
    <label class="f">あなたの名前（友だちに表示）<input id="qz-n" value="${esc(ui.nick||'')}" placeholder="例：たろう"></label>
    <p class="note">出す問題を選んでください（10問まで）。今日・昨日使ったカードや短答が並んでいます。</p>
@@ -1552,7 +1557,7 @@ function qzCompose(){const t=today(),todayRefs=[...new Set(mine('d').filter(d=>d
 let QZ=null;
 function qzPlay(o){QZ={o,i:0,res:[],back:false,ans:null};qzShow()}
 function qzShow(){const o=QZ.o,n=o.q.length;if(QZ.i>=n){qzEnd();return}const x=o.q[QZ.i];
-  let h=`<div class="row" style="justify-content:space-between"><span class="meta">${esc(o.from)}さんの問題　${QZ.i+1} / ${n}</span><span class="chip">${esc(SL(x.s))}</span></div>`;
+  let h=`<div class="row" style="justify-content:space-between"><span class="meta">${o.self?'今日の問題':esc(o.from)+'さんの問題'}　${QZ.i+1} / ${n}</span><span class="chip">${esc(SL(x.s))}</span></div>`;
   if(x.k==='ox'){h+=`<div class="p-card"><div class="p-body q">${esc(x.t)}</div></div>`;
     if(QZ.ans===null)h+=`<div class="ox"><button class="btn" data-qa="1">○</button><button class="btn" data-qa="0">×</button></div>`;
     else{const ok=QZ.ans===x.a;h+=`<div class="verdict ${ok?'ok':'ng'}">${ok?'正解':'不正解'}<span>正答は ${x.a?'○':'×'}</span></div>${x.e?`<div class="explain">${esc(x.e)}</div>`:''}<button class="btn primary" data-qn>次へ</button>`}}
@@ -1567,18 +1572,33 @@ function qzShow(){const o=QZ.o,n=o.q.length;if(QZ.i>=n){qzEnd();return}const x=o
       else if('qf' in b.dataset){QZ.back=true;qzShow()}
       else if(b.dataset.qg!=null){QZ.res[QZ.i]=+b.dataset.qg;QZ.i++;QZ.back=false;qzShow()}}})}
 function qzEnd(){const o=QZ.o,n=o.q.length,ok=QZ.res.filter(r=>r===2).length,me=ui.nick||'';
-  const txt=`${o.from}さんの問題、${n}問中 ${ok}問できました！${me?'（'+me+'）':''}\n`+o.q.map((x,i)=>`${QZ.res[i]===2?'○':QZ.res[i]===1?'△':'×'} ${x.t.slice(0,30)}`).join('\n');
+  const txt=(o.self?`${md(today())}に勉強した${n}問を確認して、${ok}問できました！${me?'（'+me+'）':''}\n`:`${o.from}さんの問題、${n}問中 ${ok}問できました！${me?'（'+me+'）':''}\n`)+o.q.map((x,i)=>`${QZ.res[i]===2?'○':QZ.res[i]===1?'△':'×'} ${x.t.slice(0,30)}`).join('\n');
   openSheet(`<h2>おつかれさま！</h2><p class="body" style="margin:0"><b style="font-size:1.6rem;color:var(--acc,var(--ink))">${ok}</b> / ${n}問 できた</p>
    <div class="list">${o.q.map((x,i)=>`<div class="meta">${QZ.res[i]===2?'○':QZ.res[i]===1?'△':'×'} ${esc(x.t)}</div>`).join('')}</div>
-   <button class="btn primary" id="qe-s">結果を送る</button><button class="btn" id="qe-i">この問題を自分のカードに入れる</button><button class="btn" id="qe-m">自分も問題を出す</button><button class="btn" data-sheet-close>閉じる</button>`,sh=>{
+   ${o.self?'<button class="btn line" id="qe-l">この問題をLINEで友だちに出す</button><button class="btn" id="qe-s">結果を共有する</button>':'<button class="btn primary" id="qe-s">結果を送る</button><button class="btn" id="qe-i">この問題を自分のカードに入れる</button><button class="btn" id="qe-m">自分も問題を出す</button>'}<button class="btn" data-sheet-close>閉じる</button>`,sh=>{
+    const ql=sh.querySelector('#qe-l');if(ql)ql.onclick=()=>qzCompose(true);
     sh.querySelector('#qe-s').onclick=()=>shareSheet(txt,'結果を送る');
-    sh.querySelector('#qe-m').onclick=()=>qzCompose();
-    sh.querySelector('#qe-i').onclick=e=>{let c=0;o.q.forEach(x=>{if(x.k==='ox')put({id:'q_'+uid(),kind:'q',subject:SUBJ.includes(x.s)?x.s:'民法',text:x.t,answer:!!x.a,explain:x.e||'',tags:'友だち',stats:{c:0,w:0}});
+    const qm=sh.querySelector('#qe-m');if(qm)qm.onclick=()=>qzCompose();
+    const qi=sh.querySelector('#qe-i');if(qi)qi.onclick=e=>{let c=0;o.q.forEach(x=>{if(x.k==='ox')put({id:'q_'+uid(),kind:'q',subject:SUBJ.includes(x.s)?x.s:'民法',text:x.t,answer:!!x.a,explain:x.e||'',tags:'友だち',stats:{c:0,w:0}});
         else put({id:'c_'+uid(),kind:'c',ctype:CT[x.ct]?x.ct:'ronsho',use:'ronbun',subject:SUBJ.includes(x.s)?x.s:'民法',title:x.t,body:x.b,facts:x.f||'',issue:x.i||'',article:'',tags:'友だち'});c++});
       e.target.disabled=true;e.target.textContent=c+'問を入れました（タグ：友だち）'}});QZ=null}
 // もらったリンク（?quiz=…）で開いたとき
 setTimeout(async()=>{try{const u=new URL(location.href),z=u.searchParams.get('quiz');if(!z)return;u.searchParams.delete('quiz');history.replaceState(null,'',u.pathname+u.search+u.hash);
   const o=await qzDec(z);setTimeout(()=>qzPlay(o),600)}catch(e){toast('問題のリンクを読み込めませんでした')}},300);
+async function todayAiQuiz(){const refs=todayRefs(),t=today();if(!refs.length){toast('今日開いたものがまだありません');return}
+  const pts=mine('d').filter(d=>d.date===t&&d.pts).map(d=>SL(d.subject)+'：'+d.title+'\n'+d.pts).join('\n\n');
+  const d={id:'today',date:t,subject:'',title:'今日のまとめ',pts,refs};
+  openSheet('<h2>今日の確認問題</h2><p class="note">今日開いたものから問題を作っています…</p>',()=>{});
+  const k=refs.join('|')+'#'+pts.length;let qs=todayAiQuiz.c&&todayAiQuiz.k===k?todayAiQuiz.c:null;
+  if(!qs){const sample=await sampleP;try{const r=sample?await sample.json(dPrompt(d).replace('2〜4問','5〜8問').replace('3〜5問','5〜8問'),{modelTier:'default'}):null;qs=(Array.isArray(r)?r:[]).filter(x=>x&&x.q&&x.a).slice(0,8).map(x=>({q:String(x.q),a:String(x.a)}))}catch(e){qs=null}
+    if(qs&&qs.length){todayAiQuiz.c=qs;todayAiQuiz.k=k}}
+  if($('scrim').hidden)return;
+  if(!qs||!qs.length){openSheet('<h2>今日の確認問題</h2><p class="note">問題を作れませんでした。少し時間をおいてもう一度押してください。</p><button class="btn" data-sheet-close>閉じる</button>',()=>{});return}
+  openSheet(`<h2>今日の確認問題</h2><p class="note">答えを思い出してから「答え」を押してください。</p>${dQHtml(qs)}
+    <div class="row"><button class="btn wide" id="ta-r">別の問題を作る</button><button class="btn primary wide" data-sheet-close>閉じる</button></div>`,sh=>{sh.querySelector('#ta-r').onclick=()=>{todayAiQuiz.c=null;todayAiQuiz()}})}
+document.addEventListener('click',e=>{const tq=e.target.closest('[data-tq]');if(!tq)return;const m=tq.dataset.tq;
+  if(m==='self'){const qs=todayRefs().map(qzFromRef).filter(Boolean);if(!qs.length){toast('今日開いたものがまだありません');return}qzPlay({v:1,self:1,from:'',q:shuffle(qs).slice(0,20)})}
+  else if(m==='ai')todayAiQuiz();else if(m==='line')qzCompose(true)});
 document.addEventListener('click',e=>{if(e.target.closest('[data-share-today]')){shareSheet(todayText(),'今日の勉強を共有');return}if(e.target.closest('[data-quiz]')){qzCompose();return}});
 
 /* ---------- タイマー ---------- */
@@ -2555,7 +2575,7 @@ ${sjSubjectRef(sj)||'（なし）'}
 【受験生の口頭説明】${said}
 JSONだけを返してください：{"score":0〜100の整数,"grade":2（言えた：規範の要素と結論が合っている）か1（あやふや：方向は合うが要素の抜け・不正確がある）か0（言えなかった）,"good":"言えていた点（60字以内）","missing":"抜けていた・違っていた点（80字以内、なければ空）","sj":"採点実感・出題趣旨のどの指摘から見て、この説明がどう評価されるか（年度を挙げて80字以内）","tip":"次に説明するときのひと言アドバイス（50字以内）"}`};
 function hsStep(){
-  stopRec();const {k,ids}=HP;
+  stopRec();const {k,ids}=HP;if(HP.i<ids.length)dAuto('h:'+k+':'+ids[HP.i],HS_SUBJ[k]||'選択');
   if(HP.i>=ids.length){const [ng,mid,ok]=HP.res;HP=null;
     openSheet(`<h2>おつかれさまでした</h2><div class="stats"><div class="stat"><b>${ok}</b><span>言えた</span></div><div class="stat"><b>${mid}</b><span>あやふや</span></div><div class="stat"><b>${ng}</b><span>言えなかった</span></div></div>
       <p class="note">言えなかった判例は、次の練習で先に出ます。</p><button class="btn primary" data-sheet-close>閉じる</button>`,()=>{});renderHS();return}
