@@ -328,6 +328,7 @@ details.info .tbl+.note{margin-bottom:12px}
 .c-fig{margin:10px 0;border:1px solid var(--line);border-radius:10px;overflow:hidden;background:#fff}.c-fig img{display:block;width:100%;height:auto}
 .dtest{background:var(--bg);border-radius:10px;padding:10px 12px;display:grid;gap:6px}.dchip{font-size:.72rem;border:1px solid var(--line);border-radius:999px;padding:1px 7px;color:var(--muted)}.dchip.r2{color:var(--ok,#2e7d4f);border-color:currentColor}.dchip.r1{color:var(--warn);border-color:currentColor}.dchip.r0{color:var(--ng,#b23b3b);border-color:currentColor}.btn.undo{min-height:32px;padding:4px 12px;font-size:.85rem;border:1px solid var(--line);border-radius:999px}.btn.undo:disabled{opacity:.45}
 .undo-fab{position:fixed;right:max(14px,env(safe-area-inset-right,0px));bottom:calc(140px + env(safe-area-inset-bottom,0px));z-index:60;background:var(--surface);border:1px solid var(--line);box-shadow:0 4px 14px rgba(0,0,0,.18);border-radius:999px;min-height:40px;padding:6px 14px;font-size:.9rem}
+.btn.line{background:#06c755;border-color:#06c755;color:#fff;text-align:center;text-decoration:none;display:flex;align-items:center;justify-content:center;font-weight:700}
 .qzrow{display:flex;gap:8px;align-items:flex-start;font-size:.92rem;line-height:1.5}.qzadd{justify-content:flex-start;text-align:left;font-size:.88rem}
 .dref{display:grid;gap:4px}.dref summary{font-size:.9rem;cursor:pointer}
 .dq{display:grid;gap:4px;padding:8px 0;border-top:1px solid var(--line)}.dqa{padding:6px 10px;background:var(--bg);border-radius:8px;margin-top:4px}.grades.three{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
@@ -1490,8 +1491,9 @@ document.addEventListener('click',e=>{if(e.target.closest('[data-dnew]')){dForm(
 /* ---------- 友だちと：今日の勉強を共有・問題を出し合う ---------- */
 const SITE_URL='https://dj1778.github.io/shihousiken/';
 function copyText(t,okMsg){try{navigator.clipboard.writeText(t).then(()=>toast(okMsg||'コピーしました'),()=>shareSheet(t))}catch(e){shareSheet(t)}}
-function shareSheet(t,title){openSheet(`<h2>${esc(title||'共有する')}</h2><p class="note">下の文を全部コピーして、LINEなどに貼り付けてください。</p><textarea id="sh-t" readonly style="min-height:180px">${esc(t)}</textarea>
-  <div class="row">${!inClaude&&navigator.share?'<button class="btn wide" id="sh-s">ほかのアプリで送る</button>':''}<button class="btn primary wide" id="sh-c">コピー</button></div><button class="btn" data-sheet-close>閉じる</button>`,sh=>{
+function shareSheet(t,title){openSheet(`<h2>${esc(title||'共有する')}</h2><p class="note">「LINEで送る」を押すと、LINEが開いて送る相手を選べます。</p><textarea id="sh-t" readonly style="min-height:180px">${esc(t)}</textarea>
+  <a class="btn primary line" href="https://line.me/R/share?text=${encodeURIComponent(t)}" target="_blank" rel="noopener">LINEで送る</a>
+  <div class="row">${!inClaude&&navigator.share?'<button class="btn wide" id="sh-s">ほかのアプリで送る</button>':''}<button class="btn wide" id="sh-c">コピー</button></div><button class="btn" data-sheet-close>閉じる</button>`,sh=>{
   const ta=sh.querySelector('#sh-t');sh.querySelector('#sh-c').onclick=()=>{try{navigator.clipboard.writeText(t).then(()=>toast('コピーしました'),()=>{ta.focus();ta.select();toast('選ばれた文をコピーしてください')})}catch(e){ta.focus();ta.select();toast('選ばれた文をコピーしてください')}};
   const ss=sh.querySelector('#sh-s');if(ss)ss.onclick=()=>navigator.share({text:t}).catch(()=>{})})}
 function todayText(){const t=today(),logs=mine('l').filter(l=>l.date===t),tot=logs.reduce((a,l)=>a+(+l.min||0),0),r=histOn(t);
