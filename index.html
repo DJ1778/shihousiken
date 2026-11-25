@@ -326,6 +326,7 @@ details.info .tbl+.note{margin-bottom:12px}
 .p-card{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:20px;display:flex;flex-direction:column;gap:14px;min-width:0}
 .p-title{font-family:var(--f-display);font-weight:800;font-size:1.3rem;line-height:1.5;text-wrap:balance}
 .c-fig{margin:10px 0;border:1px solid var(--line);border-radius:10px;overflow:hidden;background:#fff}.c-fig img{display:block;width:100%;height:auto}
+.dtest{background:var(--bg);border-radius:10px;padding:10px 12px;display:grid;gap:6px}.dchip{font-size:.72rem;border:1px solid var(--line);border-radius:999px;padding:1px 7px;color:var(--muted)}.dchip.r2{color:var(--ok,#2e7d4f);border-color:currentColor}.dchip.r1{color:var(--warn);border-color:currentColor}.dchip.r0{color:var(--ng,#b23b3b);border-color:currentColor}.dq{display:grid;gap:4px;padding:8px 0;border-top:1px solid var(--line)}.dqa{padding:6px 10px;background:var(--bg);border-radius:8px;margin-top:4px}.grades.three{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
 .p-issue.rq{display:grid;gap:2px}.p-issue.rq b{font-size:.75rem;color:var(--muted)}
 .p-body{white-space:pre-wrap;overflow-wrap:anywhere;font-size:1.02rem;line-height:2}
 .p-body.q{font-size:1.08rem;line-height:1.9}
@@ -391,6 +392,7 @@ details summary{cursor:pointer;font-size:.85rem;color:var(--muted)}
     <section class="count" id="count" aria-label="試験までの日数"></section>
     <div class="panel" id="t-backup" hidden></div>
     <div class="panel gone" id="t-elective" hidden></div>
+    <div class="panel" id="t-diary"></div>
     <div class="panel" id="t-plan"></div>
     <div class="panel gone" id="t-review"></div>
     <div class="panel gone" id="t-reco"></div>
@@ -520,6 +522,7 @@ details summary{cursor:pointer;font-size:.85rem;color:var(--muted)}
       </form>
       <details><summary>記録したものを直す・消す</summary><div class="list" id="l-list"></div></details>
     </div>
+    <div class="panel" id="d-panel"></div>
     <div class="panel" id="hs-panel"></div>
     <div class="gone"><div id="l-stats"></div><div id="l-heat"></div><div id="l-chart"></div><div id="l-weak"></div><div id="l-review"></div><div id="l-subjbars"></div><div id="l-badges"></div></div>
   </section>
@@ -1328,7 +1331,7 @@ function renderToday(){
   $('t-goal').innerHTML=`<div class="spread"><h3>今日の目標</h3><span class="meta">連続 <b style="color:var(--ink)">${st}日</b></span></div>
     <div class="goal"><div class="spread"><span>復習</span><span><b>${r.n}</b> / ${rg}問${r.n?`（正答 ${Math.round(r.ok/r.n*100)}%）`:''}</span></div><div class="meter"><i style="width:${rg?Math.min(100,r.n/rg*100):0}%"></i></div></div>
     <div class="goal"><div class="spread"><span>学習時間</span><span><b>${hm(mins)}</b> / ${hm(mg)}</span></div><div class="meter"><i style="width:${mg?Math.min(100,mins/mg*100):0}%"></i></div></div>`;
-  renderTimer();renderReco();renderWeek();
+  renderTimer();renderReco();renderWeek();renderDiary();
   // 7日予測
   const days=[...Array(7)].map((_,i)=>addDays(t,i)),cnt=days.map(()=>0);
   [...mine('q'),...mine('c')].forEach(x=>{const sr=srsOf(x);if(!sr)return;const i=Math.max(0,daysTo(sr.due));if(i<7)cnt[i]++});
@@ -1336,6 +1339,81 @@ function renderToday(){
   $('t-forecast').innerHTML=mine('q').length+mine('c').length?`<div class="fc" style="height:110px">${days.map((d,i)=>`<div><b>${cnt[i]}</b><span class="col${cnt[i]?'':' zero'}" style="height:${Math.round(cnt[i]/mx*64)+2}px"></span><span>${i===0?'今日':md(d)}</span></div>`).join('')}</div>`
     :'<div class="empty">問題や論証を登録して復習すると、いつ何問出るかがここに出ます。</div>';
 }
+
+/* ---------- 今日やったこと と 記憶テスト（1日後・3日後・1週間後） ---------- */
+const D_STEPS=[1,3,7],D_LBL={1:'1日後',3:'3日後',7:'1週間後'},D_MARK=['×','△','○'];
+const dTests=d=>d.tests||{};
+function dDueStep(d,t){t=t||today();let r=0;for(const n of D_STEPS){if(!dTests(d)[n]&&addDays(d.date,n)<=t)r=n}return r}
+const dDue=()=>mine('d').filter(d=>dDueStep(d)).sort((a,b)=>a.date.localeCompare(b.date));
+function dNext(d){for(const n of D_STEPS)if(!dTests(d)[n])return {n,date:addDays(d.date,n)};return null}
+function dRes(d){return D_STEPS.map(n=>{const r=dTests(d)[n];return `<span class="dchip${r?' r'+r.s:''}" title="${D_LBL[n]}">${D_LBL[n]} ${r?D_MARK[r.s]:'–'}</span>`}).join('')}
+function renderDiary(){const el=$('t-diary');if(!el)return;const t=today(),due=dDue(),td=mine('d').filter(d=>d.date===t);
+  el.innerHTML=`<div class="spread"><h2>今日やったこと</h2><button class="btn" data-dnew>＋ 記録する</button></div>
+  ${due.length?`<div class="dtest"><b>記憶テストの日です（${due.length}件）</b><p class="note">${due.slice(0,3).map(d=>`${md(d.date)} ${esc(SL(d.subject))}「${esc(d.title)}」の${D_LBL[dDueStep(d)]}`).join('<br>')}${due.length>3?'<br>ほか'+(due.length-3)+'件':''}</p><button class="btn primary" data-dtest>記憶テストを始める</button></div>`:''}
+  ${td.length?`<div class="list">${td.map(d=>`<div class="item" data-dview="${esc(d.id)}" role="button" tabindex="0"><div class="row" style="gap:6px"><span class="chip">${esc(SL(d.subject))}</span><b>${esc(d.title)}</b></div></div>`).join('')}</div><p class="note">明日・3日後・1週間後に、ここで記憶テストが出ます。</p>`
+    :due.length?'':'<p class="note">勉強したことを記録すると、1日後・3日後・1週間後に記憶テストが出ます。</p>'}`}
+function renderDiaryList(){const el=$('d-panel');if(!el)return;const ds=mine('d').sort((a,b)=>b.date.localeCompare(a.date)||(b.updated||0)-(a.updated||0));
+  el.innerHTML=`<div class="spread"><h2>やったことの記録</h2><button class="btn" data-dnew>＋ 記録する</button></div>
+  ${ds.length?`<div class="list">${ds.slice(0,60).map(d=>{const nx=dNext(d);return `<div class="item" data-dview="${esc(d.id)}" role="button" tabindex="0"><div class="row" style="gap:6px"><span class="meta">${md(d.date)}</span><span class="chip">${esc(SL(d.subject))}</span><b>${esc(d.title)}</b></div><div class="row" style="gap:4px">${dRes(d)}${nx?`<span class="meta">次 ${md(nx.date)}</span>`:''}</div></div>`}).join('')}</div>${ds.length>60?`<p class="note">ほか${ds.length-60}件</p>`:''}`:'<div class="empty">まだ記録がありません。</div>'}`}
+function dForm(d){const n=!d;d=d||{id:'d_'+uid(),kind:'d',date:today(),subject:ui.dSubj||'民法',title:'',pts:''};
+  openSheet(`<h2>${n?'今日やったことを記録':'記録を直す'}</h2>
+   <div class="grid2"><label class="f">日付<input type="date" id="df-d" value="${esc(d.date)}"></label><label class="f">科目${subjSel('df-s',d.subject)}</label></div>
+   <label class="f">やったこと<input id="df-t" value="${esc(d.title)}" placeholder="例：94条2項類推適用、百選45の判例"></label>
+   <label class="f">覚えておきたいこと<textarea id="df-p" style="min-height:140px" placeholder="例：意思的関与＋外観作出→94条2項類推。帰責性が大きいときは110条も併せて類推（最判平18.2.23）。">${esc(d.pts)}</textarea></label>
+   <div class="row">${DICT_BTN}</div>
+   <p class="note">ここに書いた内容から、1日後・3日後・1週間後に記憶テストを出します。</p>
+   <div class="row">${n?'':'<button class="btn" id="df-x">削除</button>'}<button class="btn wide" id="df-c">やめる</button><button class="btn primary wide" id="df-s2">保存</button></div>`,sh=>{
+    const q=id=>sh.querySelector(id);q('#df-c').onclick=closeSheet;
+    const x=q('#df-x');if(x)x.onclick=()=>{if(x.dataset.sure){del(d.id);closeSheet();toast('削除しました')}else{x.dataset.sure=1;x.textContent='本当に削除';}};
+    q('#df-s2').onclick=()=>{const t=q('#df-t').value.trim(),p2=q('#df-p').value.trim();if(!t){toast('やったことを書いてください');return}
+      const nd={...d,date:q('#df-d').value||today(),subject:q('#df-s').value,title:t,pts:p2};if(nd.pts!==d.pts||nd.title!==d.title)delete nd.qs;
+      ui.dSubj=nd.subject;saveUi();put(nd);closeSheet();toast(n?'記録しました。明日、記憶テストが出ます':'直しました')}})}
+function dView(d){const nx=dNext(d);
+  openSheet(`<div class="row" style="gap:6px"><span class="meta">${md(d.date)}</span><span class="chip">${esc(SL(d.subject))}</span></div><h2>${esc(d.title)}</h2>
+   ${d.pts?`<div class="p-body">${esc(d.pts)}</div>`:''}
+   <div class="row" style="gap:4px">${dRes(d)}</div>${nx?`<p class="note">次の記憶テスト：${md(nx.date)}（${D_LBL[nx.n]}）</p>`:'<p class="note">3回の記憶テストが終わりました。</p>'}
+   <div class="row"><button class="btn wide" id="dv-e">直す</button><button class="btn primary wide" id="dv-c">閉じる</button></div>`,sh=>{sh.querySelector('#dv-c').onclick=closeSheet;sh.querySelector('#dv-e').onclick=()=>dForm(d)})}
+// AIが記録から問題を作る（Claude版）。使えなければ「思い出して書く」テストにする
+function dPrompt(d){return `あなたは司法試験の受験指導をしている講師です。受験生が勉強した内容の記録から、記憶を確かめる短い問題を作ってください。
+
+# 作り方
+- 記録に書いてある内容を思い出せるかを確かめる問題を2〜4問。記録にないことは聞かない。
+- 1問は短く（60字以内）。答えも短く（80字以内）、記録の言葉を使う。
+- 規範・要件・結論・判例の名前など、覚えておくべき核心を聞く。
+
+# 出力
+JSONの配列だけ。形：[{"q":"問題","a":"答え"}]
+
+# 記録
+科目：${SL(d.subject)}
+やったこと：${d.title}
+覚えておきたいこと：
+${d.pts||'（なし）'}`}
+async function dQs(d){if(d.qs&&d.qs.length)return d.qs;const sample=await sampleP;if(!sample||!(d.pts||'').trim())return null;
+  try{const r=await sample.json(dPrompt(d),{modelTier:'default'});const qs=(Array.isArray(r)?r:[]).filter(x=>x&&x.q&&x.a).slice(0,4).map(x=>({q:String(x.q),a:String(x.a)}));
+    if(qs.length){const cur=getItem(d.id)||d;put({...cur,qs});return qs}}catch(e){}return null}
+let DT=null;
+function dStart(){const due=dDue();if(!due.length){toast('今日の記憶テストはありません');return}DT={ids:due.map(d=>d.id),i:0,res:[]};dShow()}
+async function dShow(){if(!DT)return;if(DT.i>=DT.ids.length){const ok=DT.res.filter(r=>r===2).length;
+    openSheet(`<h2>記憶テスト おわり</h2><p class="note">${DT.res.length}件中 ○ ${ok}・△ ${DT.res.filter(r=>r===1).length}・× ${DT.res.filter(r=>r===0).length}</p><p class="note">×や△だったものは、もう一度記録を読み直しておきましょう。</p><button class="btn primary" id="dt-c">閉じる</button>`,sh=>{sh.querySelector('#dt-c').onclick=closeSheet});DT=null;render();return}
+  const d=getItem(DT.ids[DT.i]);if(!d){DT.i++;dShow();return}const n=dDueStep(d)||1;
+  const head=`<div class="row" style="justify-content:space-between"><span class="meta">${DT.i+1} / ${DT.ids.length}</span><span class="chip t">${D_LBL[n]}のテスト</span></div>
+   <div class="row" style="gap:6px"><span class="meta">${md(d.date)}にやったこと</span><span class="chip">${esc(SL(d.subject))}</span></div><h2>${esc(d.title)}</h2>`;
+  openSheet(head+(inClaude&&d.pts?'<p class="note">問題を作っています…</p>':''),()=>{});
+  const qs=inClaude?await dQs(d):null;if(!DT||DT.ids[DT.i]!==d.id)return;if($('scrim').hidden){DT=null;return}
+  const body=qs?`<p class="note">答えを思い出してから「答え」を押してください。</p>${qs.map((x,i)=>`<div class="dq"><div><b>問${i+1}</b> ${esc(x.q)}</div><details><summary>答え</summary><div class="dqa">${esc(x.a)}</div></details></div>`).join('')}`
+    :`<p class="note">この日に覚えたことを、思い出して書いてください（話して入力もできます）。</p><textarea id="dt-w" style="min-height:110px" placeholder="思い出せることを書く"></textarea><div class="row">${DICT_BTN}</div>`;
+  openSheet(head+body+`<details id="dt-r"${qs?'':' hidden'}><summary>記録を見る</summary><div class="p-body">${esc(d.pts||'（覚えておきたいことは書かれていません）')}</div></details>
+   ${qs?'':'<button class="btn" id="dt-show">記録と見比べる</button>'}
+   <p class="note">どのくらい覚えていた？</p><div class="grades three"><button class="btn" data-dg="0">忘れた</button><button class="btn" data-dg="1">あやふや</button><button class="btn primary" data-dg="2">覚えていた</button></div>
+   <button class="btn" id="dt-q">やめる</button>`,sh=>{
+    const sw=sh.querySelector('#dt-show');if(sw)sw.onclick=()=>{const r=sh.querySelector('#dt-r');r.hidden=false;r.open=true;sw.remove()};
+    sh.querySelector('#dt-q').onclick=()=>{DT=null;closeSheet()};
+    sh.querySelectorAll('[data-dg]').forEach(b=>b.onclick=()=>{const g=+b.dataset.dg,cur=getItem(d.id)||d,t=today(),tests={...dTests(cur)};
+      D_STEPS.forEach(k=>{if(!tests[k]&&addDays(cur.date,k)<=t)tests[k]={d:t,s:g}});
+      const w=sh.querySelector('#dt-w');put({...cur,tests,...(w&&w.value.trim()?{lastRecall:w.value.trim()}:{})});DT.res.push(g);DT.i++;dShow()})})}
+document.addEventListener('click',e=>{if(e.target.closest('[data-dnew]')){dForm();return}if(e.target.closest('[data-dtest]')){dStart();return}
+  const v=e.target.closest('[data-dview]');if(v){const d=getItem(v.dataset.dview);if(d)dView(d)}});
 
 /* ---------- タイマー ---------- */
 let tm=Object.assign({run:false,start:0,acc:0,subj:'民法',pomo:false,lastPomo:0},loadJSON(LS_TM)||{});
@@ -1381,7 +1459,7 @@ function heatmap(logs){
   return `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="18週間の学習カレンダー">${g}</svg><p class="note">1時間未満・2時間未満・4時間未満・4時間以上の4段階</p>`;
 }
 function renderKiroku(){
-  renderTimer();
+  renderTimer();renderDiaryList();
   {const P={week:'今週',month:'今月',all:'全部'},per=P[ui.tb]?ui.tb:'week',t=today();
     $('tb-p').innerHTML=Object.entries(P).map(([k,l])=>`<button data-tb="${k}" aria-pressed="${k===per}">${l}</button>`).join('');
     const from=per==='week'?monday():per==='month'?t.slice(0,8)+'01':'0000';
