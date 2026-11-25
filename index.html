@@ -326,7 +326,9 @@ details.info .tbl+.note{margin-bottom:12px}
 .p-card{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:20px;display:flex;flex-direction:column;gap:14px;min-width:0}
 .p-title{font-family:var(--f-display);font-weight:800;font-size:1.3rem;line-height:1.5;text-wrap:balance}
 .c-fig{margin:10px 0;border:1px solid var(--line);border-radius:10px;overflow:hidden;background:#fff}.c-fig img{display:block;width:100%;height:auto}
-.dtest{background:var(--bg);border-radius:10px;padding:10px 12px;display:grid;gap:6px}.dchip{font-size:.72rem;border:1px solid var(--line);border-radius:999px;padding:1px 7px;color:var(--muted)}.dchip.r2{color:var(--ok,#2e7d4f);border-color:currentColor}.dchip.r1{color:var(--warn);border-color:currentColor}.dchip.r0{color:var(--ng,#b23b3b);border-color:currentColor}.dref{display:grid;gap:4px}.dref summary{font-size:.9rem;cursor:pointer}
+.dtest{background:var(--bg);border-radius:10px;padding:10px 12px;display:grid;gap:6px}.dchip{font-size:.72rem;border:1px solid var(--line);border-radius:999px;padding:1px 7px;color:var(--muted)}.dchip.r2{color:var(--ok,#2e7d4f);border-color:currentColor}.dchip.r1{color:var(--warn);border-color:currentColor}.dchip.r0{color:var(--ng,#b23b3b);border-color:currentColor}.btn.undo{min-height:32px;padding:4px 10px;font-size:.85rem}
+.undo-fab{position:fixed;right:max(14px,env(safe-area-inset-right,0px));bottom:calc(76px + env(safe-area-inset-bottom,0px));z-index:60;background:var(--surface);border:1px solid var(--line);box-shadow:0 4px 14px rgba(0,0,0,.18);border-radius:999px;min-height:40px;padding:6px 14px;font-size:.9rem}
+.dref{display:grid;gap:4px}.dref summary{font-size:.9rem;cursor:pointer}
 .dq{display:grid;gap:4px;padding:8px 0;border-top:1px solid var(--line)}.dqa{padding:6px 10px;background:var(--bg);border-radius:8px;margin-top:4px}.grades.three{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
 .p-issue.rq{display:grid;gap:2px}.p-issue.rq b{font-size:.75rem;color:var(--muted)}
 .p-body{white-space:pre-wrap;overflow-wrap:anywhere;font-size:1.02rem;line-height:2}
@@ -385,6 +387,7 @@ details summary{cursor:pointer;font-size:.85rem;color:var(--muted)}
     <button class="btn ghost navback" id="nav-back" hidden>← 戻る</button>
     <h1>司法試験 学習帳</h1>
     <span class="hd-count" id="hd-count"></span>
+    <button class="btn ghost undo" id="undo-btn" hidden aria-label="ひとつ戻す">↶ 戻す</button>
     <span id="store" class="store">保存先に接続中…</span>
   </header>
 
@@ -540,6 +543,7 @@ details summary{cursor:pointer;font-size:.85rem;color:var(--muted)}
   </section>
 </div>
 
+<button class="btn undo-fab" id="undo-fab" hidden>↶ ひとつ戻す</button>
 <nav class="tabs" aria-label="画面">
   <div class="in">
     <a class="tab" href="#today" data-v="today"><b>今</b>今日<span class="badge gone" id="badge" hidden></span></a>
@@ -707,8 +711,25 @@ function setStore(){const e=$('store');
 function loadLocal(){const a=loadJSON(LS);if(Array.isArray(a))a.forEach(x=>items.set(x.id,x))}
 function saveLocal(){try{localStorage.setItem(LS,JSON.stringify([...items.values()]))}catch(e){toast('この端末では保存できませんでした')}}
 const chains={};
+/* ---------- ひとつ戻す（直前の変更・削除を元に戻す） ---------- */
+let NOUNDO=0,UKEY=null;const UNDO=[];const LS_UNDO='shiho_undo';
+try{const a=JSON.parse(localStorage.getItem(LS_UNDO)||'[]');a.forEach(g=>UNDO.push({...g,ops:new Map(g.ops)}))}catch(e){}
+function undoSave(){try{const s=JSON.stringify(UNDO.slice(-10).map(g=>({...g,ops:[...g.ops]})));if(s.length<1500000)localStorage.setItem(LS_UNDO,s);else localStorage.removeItem(LS_UNDO)}catch(e){}}
+function undoLabel(x,isDel){if(!x)return '追加';const n=x.kind==='c'?'カード「'+stripC(x.title||'').slice(0,18)+'」':x.kind==='q'?'短答の問題':x.kind==='d'?'やったこと「'+String(x.title||'').slice(0,14)+'」':x.kind==='h'?'百選のメモ':x.kind==='l'?'勉強時間':x.kind==='a'?'答案の記録':x.kind==='k'?'過去問の記録':'設定・記録';return n+(isDel?'の削除':'の変更')}
+function undoRec(id,prev,next){if(NOUNDO)return;const now=Date.now();let g=UNDO[UNDO.length-1];
+  if(!g||(UKEY?g.key!==UKEY:(g.key||now-g.t>1500))){g={t:now,key:UKEY,ops:new Map(),label:''};UNDO.push(g);if(UNDO.length>30)UNDO.shift()}
+  g.t=now;if(!g.ops.has(id))g.ops.set(id,prev?JSON.parse(JSON.stringify(prev)):null);if(!g.label||!next)g.label=prev?undoLabel(prev,!next):undoLabel(next).replace('の変更','の追加');
+  clearTimeout(undoRec.t);undoRec.t=setTimeout(undoSave,500);renderUndo()}
+function renderUndo(){const b=$('undo-btn'),f=$('undo-fab');const g=UNDO[UNDO.length-1];if(b){b.hidden=!g;if(g)b.title='元に戻す：'+g.label}
+  if(f){const left=g?120000-(Date.now()-g.t):0;f.hidden=left<=0||!$('player').hidden||!$('scrim').hidden;if(g)f.title='元に戻す：'+g.label;clearTimeout(renderUndo.t);if(left>0)renderUndo.t=setTimeout(renderUndo,left+50)}}
+function undoLast(){const g=UNDO.pop();if(!g){toast('戻せる操作はありません');return}NOUNDO++;try{g.ops.forEach((prev,id)=>{if(prev)put(prev);else if(items.has(id))del(id)})}finally{NOUNDO--}
+  undoSave();renderUndo();toast(g.label+'を元に戻しました');if(P)renderPlayer()}
+setTimeout(()=>{try{const mo=new MutationObserver(()=>renderUndo());['player','scrim'].forEach(id=>mo.observe($(id),{attributes:true,attributeFilter:['hidden']}))}catch(e){}},0);
+const putK=(item,key)=>{UKEY=key;try{return put(item)}finally{UKEY=null}};
+const quiet=fn=>{NOUNDO++;try{return fn()}finally{NOUNDO--}};
 function put(item){
   if(isEx(item))return Promise.resolve();
+  {const prev=items.get(item.id);if(!prev||JSON.stringify(prev)!==JSON.stringify(item))undoRec(item.id,prev,item)}
   items.set(item.id,item);render();schedSnap();
   if(mode==='cloud'){
     const {id,...rest}=item;const body=JSON.parse(JSON.stringify(rest));
@@ -718,6 +739,7 @@ function put(item){
   saveLocal();return Promise.resolve();
 }
 function del(id){
+  if(items.has(id))undoRec(id,items.get(id),null);
   items.delete(id);render();
   if(mode==='cloud'){chains[id]=(chains[id]||Promise.resolve()).then(()=>col.doc(id).delete()).catch(()=>toast('削除に失敗しました'))}else saveLocal();
 }
@@ -800,9 +822,10 @@ let lastFocus=null;
 let ovN=0,popSkip=0;
 function ovPush(){if(inClaude)return;try{history.pushState({ov:1},'');ovN++}catch(e){}}
 function ovPop(){if(inClaude||ovN<=0)return;ovN--;popSkip++;try{history.back()}catch(e){popSkip--}}
-function openSheet(html,bind){const was=!$('scrim').hidden;if(!was){lastFocus=document.activeElement;ovPush()}
+function openSheet(html,bind){if(sheetFlush){const f=sheetFlush;sheetFlush=null;try{f()}catch(e){}}const was=!$('scrim').hidden;if(!was){lastFocus=document.activeElement;ovPush()}
   $('sheet').innerHTML='<div class="sheet-top"><button class="btn ghost" data-sheet-close>← 戻る</button></div>'+html;$('scrim').hidden=false;$('sheet').scrollTop=0;bind($('sheet'));const f=$('sheet').querySelector('input:not([type=checkbox]):not([type=file]),textarea,select');if(f)f.focus()}
-function closeSheet(fromPop){if($('scrim').hidden)return;stopRec();dictStop();if(fromPop!==true)ovPop();$('scrim').hidden=true;$('sheet').innerHTML='';if(lastFocus&&lastFocus.focus)try{lastFocus.focus()}catch(e){}}
+let sheetFlush=null;
+function closeSheet(fromPop){if($('scrim').hidden)return;if(sheetFlush){const f=sheetFlush;sheetFlush=null;try{f()}catch(e){}}stopRec();dictStop();if(fromPop!==true)ovPop();$('scrim').hidden=true;$('sheet').innerHTML='';if(lastFocus&&lastFocus.focus)try{lastFocus.focus()}catch(e){}}
 $('scrim').addEventListener('click',e=>{if(e.target.id==='scrim'||e.target.closest('[data-sheet-close]'))closeSheet()});
 const subjSel=(id,v)=>`<select id="${id}">${SUBJ.map(s=>`<option value="${s}"${s===v?' selected':''}>${esc(SL(s))}</option>`).join('')}</select>`;
 const exNote=kind=>mine(kind).length?'':'<p class="note" style="padding-bottom:6px"><span class="chip ex">例</span> は見本です。自分の項目を追加すると表示されなくなります。</p>';
@@ -816,7 +839,7 @@ document.addEventListener('click',e=>{
   const ask=e.target.closest('[data-ask]');
   if(ask){ask.parentElement.innerHTML='<span>削除しますか？</span><button class="btn ghost ng" data-yes>削除する</button><button class="btn ghost" data-no>やめる</button>';return}
   if(e.target.closest('[data-no]')){e.target.closest('[data-del]').innerHTML='<button class="btn ghost" data-ask>削除</button>';return}
-  if(e.target.closest('[data-yes]')){del(e.target.closest('[data-del]').dataset.del);toast('削除しました');return}
+  if(e.target.closest('[data-yes]')){del(e.target.closest('[data-del]').dataset.del);toast('削除しました（右上の「↶ 戻す」で元に戻せます）');return}
   const a=e.target.closest('[data-act]');
   if(a){const x=getItem(a.dataset.id);if(!x)return;
     if(a.dataset.act==='flag')toggleFlag(x);
@@ -1180,7 +1203,8 @@ function cForm(c,keep){
    <label class="f">タグ（任意・空白区切り）<input id="fc-g" value="${esc(c.tags)}" placeholder="例：重要 R6"></label></div>
    ${inClaude?'<button type="button" class="btn" id="fc-aiq">AIで事案と問題提起を作る</button>':''}
    ${inClaude?'<div class="f" style="display:grid;gap:6px;font-size:.8rem;color:var(--muted)"><span>図（任意・答えの側に出ます）</span><div id="fc-fig"></div></div>':''}
-   <div class="row">${editing?'<button class="btn wide" id="fx">キャンセル</button>':'<button class="btn wide" id="fn">もう一枚作る</button>'}<button class="btn primary wide" id="fs">保存</button></div>`,s=>{
+   <p class="note" style="margin:0">書いた内容は自動で保存されます。<span id="fc-as" class="meta"></span></p>
+   <div class="row">${editing?'<button class="btn wide" id="fx">閉じる</button>':'<button class="btn wide" id="fn">もう一枚作る</button>'}<button class="btn primary wide" id="fs">保存して閉じる</button></div>`,s=>{
     const q=id=>s.querySelector(id),ed=q('#fc-b');
     const layout=()=>{const t=q('#fc-k').value,d=CT[t];q('#fc-tl').textContent=d.front+'（表面）';q('#fc-bl').textContent=d.back+'（裏面）';q('#fc-rl').textContent=d.src;
       q('#fc-t').placeholder=d.ph[0];ed.dataset.ph=d.ph[1].replace(/[【】]/g,'').replace('、覚えるべき語句を囲みます','').replace('、キーワードを囲みます','');const hr=t==='hanrei',rs=t==='ronsho';q('#fc-hanrei').hidden=!hr;q('#fc-qw').hidden=!rs;q('#fc-fw').hidden=!(hr||rs);q('#fc-rw').hidden=hr;
@@ -1232,14 +1256,22 @@ function cForm(c,keep){
       aq.disabled=true;aq.textContent='作っています…';const r=await aiCase([{id:'x',subject:q('#fc-s').value,title:t,body:b}]);aq.disabled=false;aq.textContent='AIで事案と問題提起を作る';
       const v=r&&r.x;if(!v){toast('うまく作れませんでした。もう一度押してください');return}
       if(v.facts)q('#fc-f').value=v.facts;if(v.issue)q('#fc-q').value=v.issue;toast('入れました。確認して保存してください')};
-    const save=()=>{const t=q('#fc-t').value.trim(),b=fromRich(ed),k=q('#fc-k').value;if(!t||!b){toast(`${CT[k].front}と${CT[k].back}を入力してください`);return null}
-      const hr=k==='hanrei',out={...(editing?c:{}),id:editing?c.id:'c_'+uid(),kind:'c',ctype:k,use:q('#fc-u').value,subject:q('#fc-s').value,title:t,body:b,
+    let cid=editing?c.id:null;
+    const save=silent=>{const t=q('#fc-t').value.trim(),b=fromRich(ed),k=q('#fc-k').value;if(!t||!b){if(!silent)toast(`${CT[k].front}と${CT[k].back}を入力してください`);return null}
+      if(!cid)cid='c_'+uid();
+      const hr=k==='hanrei',out={...(items.get(cid)||(editing?c:{})),id:cid,kind:'c',ctype:k,use:q('#fc-u').value,subject:q('#fc-s').value,title:t,body:b,
         article:(hr?q('#fc-r2'):q('#fc-r')).value.trim(),issue:hr?q('#fc-i').value.trim():k==='ronsho'?q('#fc-q').value.trim():'',facts:hr||k==='ronsho'?q('#fc-f').value.trim():'',tags:q('#fc-g').value.trim()};
       if(fig)out.fig=fig;else delete out.fig;
-      put(out);ui.lastCt=k;saveUi();return {t:k,u:out.use,s:out.subject,g:out.tags}};
+      const prev=items.get(cid);if(!prev||JSON.stringify(prev)!==JSON.stringify(out))putK(out,'cf:'+cid+':'+openT);ui.lastCt=k;saveUi();return {t:k,u:out.use,s:out.subject,g:out.tags}};
+    // 自動保存：書いている途中でも、少し手を止めると保存する。閉じるときも保存する
+    const openT=Date.now();let asT=null;const asEl=q('#fc-as');
+    const auto=()=>{clearTimeout(asT);if(asEl)asEl.textContent='';asT=setTimeout(()=>{if(!s.isConnected)return;if(save(true)&&asEl)asEl.textContent='自動保存しました'},1200)};
+    s.addEventListener('input',auto);s.addEventListener('change',auto);
+    try{new MutationObserver(auto).observe(ed,{childList:true,subtree:true,characterData:true,attributes:true})}catch(e){}
+    sheetFlush=()=>{clearTimeout(asT);save(true)};
     const fx=q('#fx');if(fx)fx.onclick=closeSheet;
-    const fn=q('#fn');if(fn)fn.onclick=()=>{const k=save();if(k){toast('保存しました。もう一枚どうぞ');cForm(null,k)}};
-    q('#fs').onclick=()=>{if(save()){closeSheet();toast('保存しました')}};
+    const fn=q('#fn');if(fn)fn.onclick=()=>{const k=save();if(k){sheetFlush=null;toast('保存しました。もう一枚どうぞ');cForm(null,k)}};
+    q('#fs').onclick=()=>{if(save()){sheetFlush=null;closeSheet();toast('保存しました')}};
   });
 }
 function startC(){
@@ -1380,7 +1412,7 @@ const D_PEND=new Map();let dPendT=null;
 function dAuto(ref,subject){if(!ref||!subject)return;const k=subject;if(!D_PEND.has(k))D_PEND.set(k,new Set());D_PEND.get(k).add(ref);clearTimeout(dPendT);dPendT=setTimeout(dFlush,2500)}
 function dFlush(){const t=today();D_PEND.forEach((set,subj)=>{const id='d_a_'+t+'_'+subj,cur=items.get(id)||{id,kind:'d',auto:1,date:t,subject:subj,pts:'',refs:[]};
     const refs=[...new Set([...(cur.refs||[]),...set])].slice(-80);if(refs.length===(cur.refs||[]).length&&items.has(id))return;
-    put({...cur,refs,title:cur.ttl&&cur.title?cur.title:dAutoTitle(refs)})});D_PEND.clear()}
+    quiet(()=>put({...cur,refs,title:cur.ttl&&cur.title?cur.title:dAutoTitle(refs)}))});D_PEND.clear()}
 addEventListener('pagehide',()=>{if(D_PEND.size)dFlush()});
 function refItem(r){const [k,a,b]=r.split(':');if(k==='i'){const x=getItem(r.slice(2));if(!x)return null;
     if(x.kind==='q')return {t:'短答：'+stripC(x.text).slice(0,24)+'…',x:`【短答】${stripC(x.text)}\n正解：${x.answer?'○':'×'}${x.explain?'\n解説：'+stripC(x.explain):''}`};
@@ -1409,7 +1441,7 @@ ${d.pts||'（なし）'}${d.refs&&d.refs.length?'\n\n勉強したもの（カー
 const dQk=d=>(d.pts||'').length+'/'+(d.refs||[]).length;
 async function dQs(d){if(d.qs&&d.qs.length&&d.qk===dQk(d))return d.qs;const sample=await sampleP;if(!sample||!((d.pts||'').trim()||(d.refs||[]).length))return null;
   try{const r=await sample.json(dPrompt(d),{modelTier:'default'});const qs=(Array.isArray(r)?r:[]).filter(x=>x&&x.q&&x.a).slice(0,5).map(x=>({q:String(x.q),a:String(x.a)}));
-    if(qs.length){const cur=getItem(d.id)||d;put({...cur,qs,qk:dQk(d)});return qs}}catch(e){}return null}
+    if(qs.length){const cur=getItem(d.id)||d;quiet(()=>put({...cur,qs,qk:dQk(d)}));return qs}}catch(e){}return null}
 const dQHtml=qs=>qs.map((x,i)=>`<div class="dq"><div><b>問${i+1}</b> ${esc(x.q)}</div><details><summary>答え</summary><div class="dqa">${esc(x.a)}</div></details></div>`).join('');
 const dRecHtml=d=>`${d.pts?`<div class="p-body">${esc(d.pts)}</div>`:''}${d.refs&&d.refs.length?`<div class="dref">${d.refs.map(refItem).filter(Boolean).map(r=>`<details><summary>${esc(r.t)}</summary><div class="p-body">${esc(r.x.replace(/^【[^】]*】/,''))}</div></details>`).join('')}</div>`:''}`;
 async function dPractice(d){openSheet(`<h2>${esc(d.title)}</h2><p class="note">確認問題を作っています…</p>`,()=>{});const qs=await dQs(d);if($('scrim').hidden)return;
@@ -1437,6 +1469,7 @@ async function dShow(){if(!DT)return;if(DT.i>=DT.ids.length){const ok=DT.res.fil
     sh.querySelectorAll('[data-dg]').forEach(b=>b.onclick=()=>{const g=+b.dataset.dg,cur=getItem(d.id)||d,t=today(),tests={...dTests(cur)};
       D_STEPS.forEach(k=>{if(!tests[k]&&addDays(cur.date,k)<=t)tests[k]={d:t,s:g}});
       const w=sh.querySelector('#dt-w');put({...cur,tests,...(w&&w.value.trim()?{lastRecall:w.value.trim()}:{})});DT.res.push(g);DT.i++;dShow()})})}
+document.addEventListener('click',e=>{if(e.target.closest('#undo-btn,#undo-fab')){undoLast();return}});
 document.addEventListener('click',e=>{if(e.target.closest('[data-dnew]')){dForm();return}if(e.target.closest('[data-dtest]')){dStart();return}
   const v=e.target.closest('[data-dview]');if(v){const d=getItem(v.dataset.dview);if(d)dView(d)}});
 
@@ -1835,7 +1868,7 @@ function submitExam(){
   E.ids.forEach((id,k)=>{const x=getItem(id),a=E.ans[k],good=a!=null&&a===x.answer;if(good)ok++;else wrong.push(id);
     const b=by[x.subject]||(by[x.subject]={n:0,ok:0});b.n++;if(good)b.ok++;grade(x,good?2:0,good)});
   E.res={ok,n:E.ids.length,secs,by,wrong};
-  if(E.ids.some(id=>!isEx(getItem(id))))put({id:'m_'+uid(),kind:'m',date:today(),subj:E.subj||'',n:E.ids.length,ok,secs,by});
+  if(E.ids.some(id=>!isEx(getItem(id))))quiet(()=>put({id:'m_'+uid(),kind:'m',date:today(),subj:E.subj||'',n:E.ids.length,ok,secs,by}));
   renderExam();
 }
 function examResultHtml(){
@@ -2199,7 +2232,7 @@ async function caseBulk(){
   CASEJOB={stop:false,done:0,total:todo.length};renderCaseBtn();
   for(let i=0;i<todo.length&&!CASEJOB.stop;i+=8){const part=todo.slice(i,i+8),r=await aiCase(part.map(c=>({id:c.id,subject:c.subject,title:c.title,body:c.body})));
     if(!r)break;
-    for(const c of part){const v=r[c.id],cur=items.get(c.id);if(!cur)continue;if(v&&v.issue){await put({...cur,issue:cur.issue||v.issue,facts:cur.facts||v.facts,aiq:1})}CASEJOB.done++}
+    for(const c of part){const v=r[c.id],cur=items.get(c.id);if(!cur)continue;if(v&&v.issue){await putK({...cur,issue:cur.issue||v.issue,facts:cur.facts||v.facts,aiq:1},'aiq-bulk')}CASEJOB.done++}
     renderCaseBtn()}
   const d=CASEJOB.done;CASEJOB=null;renderCaseBtn();toast(d+'枚に事案と問題提起を入れました')}
 function renderCaseBtn(){const el=$('c-aiq');if(!el)return;const n=caseTodo().length;el.hidden=!inClaude||(!n&&!CASEJOB);
@@ -2544,7 +2577,7 @@ const current=()=>{const h=location.hash.slice(1);return VIEWS.includes(h)?h:'to
 let rq=0;
 function render(){if(rq)return;rq=requestAnimationFrame(()=>{rq=0;doRender()});setTimeout(()=>{if(rq){cancelAnimationFrame(rq);rq=0;doRender()}},120)}
 let lastEl=null;
-function doRender(){
+function doRender(){renderUndo();
   if(S().elective!==lastEl){if(lastEl!==null)refreshSubj();lastEl=S().elective}
   const v=current(),c=exam(),n=daysTo(c.date);
   if(!(Wt&&Wt.run)&&!tm.run)$('hd-count').textContent=n>0?`${c.label.replace(/^令和\d+年\s*/,'')}まであと${n}日`:'';
