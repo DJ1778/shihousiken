@@ -328,6 +328,7 @@ details.info .tbl+.note{margin-bottom:12px}
 .c-fig{margin:10px 0;border:1px solid var(--line);border-radius:10px;overflow:hidden;background:#fff}.c-fig img{display:block;width:100%;height:auto}
 .dtest{background:var(--bg);border-radius:10px;padding:10px 12px;display:grid;gap:6px}.dchip{font-size:.72rem;border:1px solid var(--line);border-radius:999px;padding:1px 7px;color:var(--muted)}.dchip.r2{color:var(--ok,#2e7d4f);border-color:currentColor}.dchip.r1{color:var(--warn);border-color:currentColor}.dchip.r0{color:var(--ng,#b23b3b);border-color:currentColor}.btn.undo{min-height:32px;padding:4px 12px;font-size:.85rem;border:1px solid var(--line);border-radius:999px}.btn.undo:disabled{opacity:.45}
 .undo-fab{position:fixed;right:max(14px,env(safe-area-inset-right,0px));bottom:calc(140px + env(safe-area-inset-bottom,0px));z-index:60;background:var(--surface);border:1px solid var(--line);box-shadow:0 4px 14px rgba(0,0,0,.18);border-radius:999px;min-height:40px;padding:6px 14px;font-size:.9rem}
+.qzrow{display:flex;gap:8px;align-items:flex-start;font-size:.92rem;line-height:1.5}.qzadd{justify-content:flex-start;text-align:left;font-size:.88rem}
 .dref{display:grid;gap:4px}.dref summary{font-size:.9rem;cursor:pointer}
 .dq{display:grid;gap:4px;padding:8px 0;border-top:1px solid var(--line)}.dqa{padding:6px 10px;background:var(--bg);border-radius:8px;margin-top:4px}.grades.three{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
 .p-issue.rq{display:grid;gap:2px}.p-issue.rq b{font-size:.75rem;color:var(--muted)}
@@ -1394,6 +1395,7 @@ function dNext(d){for(const n of D_STEPS)if(!dTests(d)[n])return {n,date:addDays
 function dRes(d){return D_STEPS.map(n=>{const r=dTests(d)[n];return `<span class="dchip${r?' r'+r.s:''}" title="${D_LBL[n]}">${D_LBL[n]} ${r?D_MARK[r.s]:'–'}</span>`}).join('')}
 function renderDiary(){const el=$('t-diary');if(!el)return;const t=today(),due=dDue(),td=mine('d').filter(d=>d.date===t);
   el.innerHTML=`<div class="spread"><h2>今日やったこと</h2><button class="btn" data-dnew>＋ 記録する</button></div>
+  <div class="row" style="gap:8px"><button class="btn wide" data-share-today>友だちに共有</button><button class="btn wide" data-quiz>問題を出し合う</button></div>
   ${due.length?`<div class="dtest"><b>記憶テストの日です（${due.length}件）</b><p class="note">${due.slice(0,3).map(d=>`${md(d.date)} ${esc(SL(d.subject))}「${esc(d.title)}」の${D_LBL[dDueStep(d)]}`).join('<br>')}${due.length>3?'<br>ほか'+(due.length-3)+'件':''}</p><button class="btn primary" data-dtest>記憶テストを始める</button></div>`:''}
   ${td.length?`<div class="list">${td.map(d=>`<div class="item" data-dview="${esc(d.id)}" role="button" tabindex="0"><div class="row" style="gap:6px"><span class="chip">${esc(SL(d.subject))}</span>${d.auto?'<span class="chip u">自動</span>':''}<b>${esc(d.title)}</b></div></div>`).join('')}</div><p class="note">明日・3日後・1週間後に、ここで記憶テストが出ます。</p>`
     :due.length?'':'<p class="note">勉強したことを記録すると、1日後・3日後・1週間後に記憶テストが出ます。</p>'}`}
@@ -1484,6 +1486,98 @@ async function dShow(){if(!DT)return;if(DT.i>=DT.ids.length){const ok=DT.res.fil
 document.addEventListener('click',e=>{if(e.target.closest('#undo-btn,#undo-fab')){undoLast();return}});
 document.addEventListener('click',e=>{if(e.target.closest('[data-dnew]')){dForm();return}if(e.target.closest('[data-dtest]')){dStart();return}
   const v=e.target.closest('[data-dview]');if(v){const d=getItem(v.dataset.dview);if(d)dView(d)}});
+
+/* ---------- 友だちと：今日の勉強を共有・問題を出し合う ---------- */
+const SITE_URL='https://dj1778.github.io/shihousiken/';
+function copyText(t,okMsg){try{navigator.clipboard.writeText(t).then(()=>toast(okMsg||'コピーしました'),()=>shareSheet(t))}catch(e){shareSheet(t)}}
+function shareSheet(t,title){openSheet(`<h2>${esc(title||'共有する')}</h2><p class="note">下の文を全部コピーして、LINEなどに貼り付けてください。</p><textarea id="sh-t" readonly style="min-height:180px">${esc(t)}</textarea>
+  <div class="row">${!inClaude&&navigator.share?'<button class="btn wide" id="sh-s">ほかのアプリで送る</button>':''}<button class="btn primary wide" id="sh-c">コピー</button></div><button class="btn" data-sheet-close>閉じる</button>`,sh=>{
+  const ta=sh.querySelector('#sh-t');sh.querySelector('#sh-c').onclick=()=>{try{navigator.clipboard.writeText(t).then(()=>toast('コピーしました'),()=>{ta.focus();ta.select();toast('選ばれた文をコピーしてください')})}catch(e){ta.focus();ta.select();toast('選ばれた文をコピーしてください')}};
+  const ss=sh.querySelector('#sh-s');if(ss)ss.onclick=()=>navigator.share({text:t}).catch(()=>{})})}
+function todayText(){const t=today(),logs=mine('l').filter(l=>l.date===t),tot=logs.reduce((a,l)=>a+(+l.min||0),0),r=histOn(t);
+  const per={};logs.forEach(l=>per[l.subject]=(per[l.subject]||0)+(+l.min||0));
+  const ds=mine('d').filter(d=>d.date===t);
+  let x=`📚 ${md(t)}の勉強\n`;
+  x+=`勉強時間：${tot?hm(tot):'記録なし'}${Object.keys(per).length?'（'+Object.entries(per).map(([k,v])=>SL(k)+' '+hm(v)).join('、')+'）':''}\n`;
+  if(r.n)x+=`復習：${r.n}問（覚えていた ${Math.round(r.ok/r.n*100)}%）\n`;
+  if(ds.length){x+='やったこと：\n';ds.forEach(d=>{x+=`・${SL(d.subject)}　${d.auto?(d.refs||[]).map(refItem).filter(Boolean).slice(0,5).map(r=>r.t).join('、')+((d.refs||[]).length>5?` ほか${d.refs.length-5}件`:''):d.title}\n`})}
+  const st=streak();if(st>1)x+=`連続 ${st}日目\n`;
+  return x.trim()}
+// 問題を文字にしてリンクに入れる（短く圧縮）
+const b64u=u8=>{let s='';u8.forEach(c=>s+=String.fromCharCode(c));return btoa(s).replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,'')};
+const ub64=t=>{const s=atob(t.replace(/-/g,'+').replace(/_/g,'/'));return Uint8Array.from(s,c=>c.charCodeAt(0))};
+async function qzEnc(o){const raw=new TextEncoder().encode(JSON.stringify(o));
+  if(window.CompressionStream){try{const z=new Uint8Array(await new Response(new Blob([raw]).stream().pipeThrough(new CompressionStream('deflate-raw'))).arrayBuffer());return 'z'+b64u(z)}catch(e){}}
+  return 'b'+b64u(raw)}
+async function qzDec(t){t=String(t||'').trim();const m=t.match(/[?&#]quiz=([A-Za-z0-9_-]+)/);if(m)t=m[1];
+  const k=t[0],u8=ub64(t.slice(1));let raw=u8;
+  if(k==='z'){if(!window.DecompressionStream)throw new Error('old');raw=new Uint8Array(await new Response(new Blob([u8]).stream().pipeThrough(new DecompressionStream('deflate-raw'))).arrayBuffer())}
+  const o=JSON.parse(new TextDecoder().decode(raw));if(!o||!Array.isArray(o.q))throw new Error('bad');return o}
+function qzFromRef(r){const [k,a,b]=r.split(':');
+  if(k==='i'){const x=getItem(r.slice(2));if(!x||isEx(x))return null;
+    if(x.kind==='q')return {k:'ox',s:x.subject,t:stripC(x.text),a:x.answer?1:0,e:stripC(x.explain||'').slice(0,400)};
+    if(x.kind==='c')return {k:'c',ct:ctOf(x),s:x.subject,t:stripC(x.title),f:(x.facts||'').slice(0,300),i:stripC(rsIssue(x)||x.issue||'').slice(0,200),b:String(x.body||'').slice(0,900)}}
+  if(k==='h'){const bk=hsBook(a),m=bk.m[b]||{};const body=[m.memo&&'判旨・メモ：'+stripC(m.memo),m.ro&&'論点：'+stripC(m.ro),m.sh&&'射程：'+stripC(m.sh)].filter(Boolean).join('\n');if(!body)return null;
+    return {k:'c',ct:'hanrei',s:HS_SUBJ[a]||'選択',t:hsTag(a,b)+(m.t?' '+m.t:''),f:stripC(m.f||'').slice(0,300),i:'',b:body.slice(0,900)}}
+  return null}
+const qzLabel=r=>{const x=refItem(r);return x?x.t:r};
+function qzCompose(){const t=today(),todayRefs=[...new Set(mine('d').filter(d=>d.date===t||d.date===addDays(t,-1)).flatMap(d=>d.refs||[]))].filter(r=>qzFromRef(r));
+  const sel=new Set(todayRefs.slice(0,5));let extra=[];
+  openSheet(`<h2>友だちに問題を出す</h2>
+   <label class="f">あなたの名前（友だちに表示）<input id="qz-n" value="${esc(ui.nick||'')}" placeholder="例：たろう"></label>
+   <p class="note">出す問題を選んでください（10問まで）。今日・昨日使ったカードや短答が並んでいます。</p>
+   <div class="list" id="qz-l"></div>
+   <input type="search" id="qz-q" placeholder="ほかのカード・短答を検索して足す" aria-label="問題を検索">
+   <div class="list" id="qz-r"></div>
+   <div class="row"><button class="btn primary wide" id="qz-go">リンクを作って送る</button></div>
+   <details><summary>友だちの問題を開く（もらったリンクを貼る）</summary><textarea id="qz-in" style="min-height:70px" placeholder="もらったリンクをここに貼り付け"></textarea><button class="btn" id="qz-open">開く</button></details>
+   <button class="btn" data-sheet-close>閉じる</button>`,sh=>{
+    const q=id=>sh.querySelector(id);
+    const row=r=>`<label class="check qzrow"><input type="checkbox" data-qr="${esc(r)}"${sel.has(r)?' checked':''}> ${esc(qzLabel(r))}</label>`;
+    const draw=()=>{const all=[...new Set([...todayRefs,...extra])];q('#qz-l').innerHTML=all.length?all.map(row).join(''):'<p class="note">今日使ったものがまだありません。下で検索して選んでください。</p>';q('#qz-go').textContent=`リンクを作って送る（${sel.size}問）`};
+    sh.addEventListener('change',e=>{const r=e.target.dataset&&e.target.dataset.qr;if(!r)return;if(e.target.checked){if(sel.size>=10){e.target.checked=false;toast('10問までです');return}sel.add(r)}else sel.delete(r);draw()});
+    q('#qz-q').oninput=()=>{const w=nz(q('#qz-q').value);if(!w){q('#qz-r').innerHTML='';return}
+      const hits=[...mine('c'),...mine('q')].filter(x=>nz(stripC(x.title||x.text||'')+' '+SL(x.subject)).includes(w)).slice(0,15);
+      q('#qz-r').innerHTML=hits.map(x=>`<button type="button" class="btn ghost qzadd" data-add="i:${esc(x.id)}">＋ ${esc(qzLabel('i:'+x.id))}</button>`).join('')||'<p class="note">見つかりません</p>'};
+    q('#qz-r').onclick=e=>{const b=e.target.closest('[data-add]');if(!b)return;const r=b.dataset.add;if(sel.size>=10){toast('10問までです');return}if(!extra.includes(r))extra.push(r);sel.add(r);b.remove();draw()};
+    q('#qz-go').onclick=async()=>{const nick=q('#qz-n').value.trim();ui.nick=nick;saveUi();const qs=[...sel].map(qzFromRef).filter(Boolean);if(!qs.length){toast('問題を選んでください');return}
+      let o={v:1,from:nick||'友だち',d:today(),q:qs},code=await qzEnc(o);
+      while(code.length>7000&&o.q.some(x=>x.b&&x.b.length>200)){o={...o,q:o.q.map(x=>x.b?{...x,b:x.b.slice(0,Math.floor(x.b.length*.7))}:x)};code=await qzEnc(o)}
+      const url=SITE_URL+'?quiz='+code;
+      shareSheet(`${nick||'友だち'}から司法試験の問題が${qs.length}問届きました。解いてみて！\n${url}`,'問題のリンクができました')};
+    q('#qz-open').onclick=async()=>{try{const o=await qzDec(q('#qz-in').value);qzPlay(o)}catch(e){toast(e&&e.message==='old'?'この画面では開けません。新しいブラウザで開いてください':'リンクを読み込めませんでした')}};
+    draw()})}
+let QZ=null;
+function qzPlay(o){QZ={o,i:0,res:[],back:false,ans:null};qzShow()}
+function qzShow(){const o=QZ.o,n=o.q.length;if(QZ.i>=n){qzEnd();return}const x=o.q[QZ.i];
+  let h=`<div class="row" style="justify-content:space-between"><span class="meta">${esc(o.from)}さんの問題　${QZ.i+1} / ${n}</span><span class="chip">${esc(SL(x.s))}</span></div>`;
+  if(x.k==='ox'){h+=`<div class="p-card"><div class="p-body q">${esc(x.t)}</div></div>`;
+    if(QZ.ans===null)h+=`<div class="ox"><button class="btn" data-qa="1">○</button><button class="btn" data-qa="0">×</button></div>`;
+    else{const ok=QZ.ans===x.a;h+=`<div class="verdict ${ok?'ok':'ng'}">${ok?'正解':'不正解'}<span>正答は ${x.a?'○':'×'}</span></div>${x.e?`<div class="explain">${esc(x.e)}</div>`:''}<button class="btn primary" data-qn>次へ</button>`}}
+  else{h+=`<div class="p-card"><span class="chip t">${esc((CT[x.ct]||CT.ronsho).l)}</span><h2>${esc(x.t)}</h2>${x.f?`<div class="p-case"><b>事案</b><div>${esc(x.f)}</div></div>`:''}${x.i?`<div class="p-issue rq"><b>問題提起</b>${esc(x.i)}</div>`:''}
+    ${QZ.back?`<hr class="p-hr"><div class="p-body">${fmt(x.b,'plain')}</div>`:'<p class="note">答えを思い出してから「答えを見る」を押してください。</p>'}</div>`;
+    h+=QZ.back?`<div class="grades three"><button class="btn" data-qg="0">忘れた</button><button class="btn" data-qg="1">あやふや</button><button class="btn primary" data-qg="2">覚えていた</button></div>`:`<button class="btn primary" data-qf>答えを見る</button>`}
+  h+='<button class="btn" id="qz-x">やめる</button>';
+  openSheet(h,sh=>{sh.querySelector('#qz-x').onclick=()=>{QZ=null;closeSheet()};
+    sh.onclick=e=>{const b=e.target.closest('button');if(!b||!QZ)return;
+      if(b.dataset.qa!=null&&QZ.ans===null){QZ.ans=+b.dataset.qa;QZ.res[QZ.i]=QZ.ans===x.a?2:0;qzShow()}
+      else if('qn' in b.dataset){QZ.i++;QZ.ans=null;qzShow()}
+      else if('qf' in b.dataset){QZ.back=true;qzShow()}
+      else if(b.dataset.qg!=null){QZ.res[QZ.i]=+b.dataset.qg;QZ.i++;QZ.back=false;qzShow()}}})}
+function qzEnd(){const o=QZ.o,n=o.q.length,ok=QZ.res.filter(r=>r===2).length,me=ui.nick||'';
+  const txt=`${o.from}さんの問題、${n}問中 ${ok}問できました！${me?'（'+me+'）':''}\n`+o.q.map((x,i)=>`${QZ.res[i]===2?'○':QZ.res[i]===1?'△':'×'} ${x.t.slice(0,30)}`).join('\n');
+  openSheet(`<h2>おつかれさま！</h2><p class="body" style="margin:0"><b style="font-size:1.6rem;color:var(--acc,var(--ink))">${ok}</b> / ${n}問 できた</p>
+   <div class="list">${o.q.map((x,i)=>`<div class="meta">${QZ.res[i]===2?'○':QZ.res[i]===1?'△':'×'} ${esc(x.t)}</div>`).join('')}</div>
+   <button class="btn primary" id="qe-s">結果を送る</button><button class="btn" id="qe-i">この問題を自分のカードに入れる</button><button class="btn" id="qe-m">自分も問題を出す</button><button class="btn" data-sheet-close>閉じる</button>`,sh=>{
+    sh.querySelector('#qe-s').onclick=()=>shareSheet(txt,'結果を送る');
+    sh.querySelector('#qe-m').onclick=()=>qzCompose();
+    sh.querySelector('#qe-i').onclick=e=>{let c=0;o.q.forEach(x=>{if(x.k==='ox')put({id:'q_'+uid(),kind:'q',subject:SUBJ.includes(x.s)?x.s:'民法',text:x.t,answer:!!x.a,explain:x.e||'',tags:'友だち',stats:{c:0,w:0}});
+        else put({id:'c_'+uid(),kind:'c',ctype:CT[x.ct]?x.ct:'ronsho',use:'ronbun',subject:SUBJ.includes(x.s)?x.s:'民法',title:x.t,body:x.b,facts:x.f||'',issue:x.i||'',article:'',tags:'友だち'});c++});
+      e.target.disabled=true;e.target.textContent=c+'問を入れました（タグ：友だち）'}});QZ=null}
+// もらったリンク（?quiz=…）で開いたとき
+setTimeout(async()=>{try{const u=new URL(location.href),z=u.searchParams.get('quiz');if(!z)return;u.searchParams.delete('quiz');history.replaceState(null,'',u.pathname+u.search+u.hash);
+  const o=await qzDec(z);setTimeout(()=>qzPlay(o),600)}catch(e){toast('問題のリンクを読み込めませんでした')}},300);
+document.addEventListener('click',e=>{if(e.target.closest('[data-share-today]')){shareSheet(todayText(),'今日の勉強を共有');return}if(e.target.closest('[data-quiz]')){qzCompose();return}});
 
 /* ---------- タイマー ---------- */
 let tm=Object.assign({run:false,start:0,acc:0,subj:'民法',pomo:false,lastPomo:0},loadJSON(LS_TM)||{});
