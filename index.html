@@ -663,7 +663,7 @@ const ivlLabel=n=>n<30?n+'日後':n<365?Math.round(n/30)+'か月後':'1年後';
 function grade(x,g,ok){
   if(!x||isEx(x))return;
   const prev=srsOf(x),s=sched(prev,g);s.first=prev?(prev.first||''):today();
-  const upd={...x,srs:s,hist:[...(x.hist||[]),{d:today(),g}].slice(-30)};
+  const upd={...x,srs:s,hist:[...(x.hist||[]),{d:today(),g}].slice(-30),lu:Date.now()};
   if(x.kind==='q'){const st={c:0,w:0,...(x.stats||{})};ok?st.c++:st.w++;upd.stats=st;upd.last=!!ok}
   else upd.last=g>0;
   put(upd);
@@ -1259,7 +1259,7 @@ function cForm(c,keep){
       if(!cid)cid='c_'+uid();
       const hr=k==='hanrei',out={...(items.get(cid)||(editing?c:{})),id:cid,kind:'c',ctype:k,use:q('#fc-u').value,subject:q('#fc-s').value,title:t,body:b,
         article:(hr?q('#fc-r2'):q('#fc-r')).value.trim(),issue:hr?q('#fc-i').value.trim():k==='ronsho'?q('#fc-q').value.trim():'',facts:hr||k==='ronsho'?q('#fc-f').value.trim():'',tags:q('#fc-g').value.trim()};
-      if(fig)out.fig=fig;else delete out.fig;
+      if(fig)out.fig=fig;else delete out.fig;{const pv=items.get(cid);out.lu=pv&&JSON.stringify({...pv,lu:0})===JSON.stringify({...out,lu:0})?pv.lu:Date.now();if(out.lu===undefined)delete out.lu}
       const prev=items.get(cid);if(!prev||JSON.stringify(prev)!==JSON.stringify(out))putK(out,'cf:'+cid+':'+openT);ui.lastCt=k;saveUi();return {t:k,u:out.use,s:out.subject,g:out.tags}};
     // 自動保存：書いている途中でも、少し手を止めると保存する。閉じるときも保存する
     const openT=Date.now();let asT=null;const asEl=q('#fc-as');
@@ -1329,7 +1329,9 @@ function renderCTop(){
 }
 document.addEventListener('input',e=>{if(e.target.id==='c-top-q')renderCTop()});
 function renderCList(){
-  const xs=filtered('c').slice().sort((a,b)=>{const sa=srsOf(a),sb=srsOf(b);return (sa?sa.due:'9999').localeCompare(sb?sb.due:'9999')});
+  // 直近で使った（復習した・編集した）カードを上に。使っていないものは次の復習日順
+  const used=x=>x.lu||(x.hist&&x.hist.length?Date.parse(x.hist[x.hist.length-1].d+'T12:00:00')||0:0);
+  const xs=filtered('c').slice().sort((a,b)=>{const ua=used(a),ub=used(b);if(ua!==ub)return ub-ua;const sa=srsOf(a),sb=srsOf(b);return (sa?sa.due:'9999').localeCompare(sb?sb.due:'9999')});
   $('c-list').innerHTML=exNote('c')+(LF.c.q.trim()?`<p class="meta">${xs.length}件見つかりました</p>`:'')+(xs.length?xs.slice(0,LF.c.limit).map(c=>`<div class="item"><div class="body cview" data-cview="${esc(c.id)}" role="button" tabindex="0" aria-label="${esc(stripC(c.title))}を開く">
     <div class="row" style="gap:6px"><span class="chip">${esc(SL(c.subject))}</span><span class="chip t">${CT[ctOf(c)].l}</span><span class="chip u">${USE[useOf(c)]}</span>${isEx(c)?'<span class="chip ex">例</span>':''}${lvHtml(c)}</div>
     <div style="font-weight:700">${tint(esc(c.title))}</div>
@@ -1485,11 +1487,13 @@ document.addEventListener('click',e=>{if(e.target.closest('[data-dnew]')){dForm(
 
 /* ---------- タイマー ---------- */
 let tm=Object.assign({run:false,start:0,acc:0,subj:'民法',pomo:false,lastPomo:0},loadJSON(LS_TM)||{});
-const saveTm=()=>saveJSON(LS_TM,tm);
+// タイマーの状態は端末だけでなく保存先（クラウド）にも残す。アプリが読み込み直されても止まらない
+const saveTm=()=>{tm.ts=Date.now();saveJSON(LS_TM,tm);const {run,start,acc,subj,pomo,lastPomo,ts}=tm;quiet(()=>put({id:'timer',kind:'tm',run,start,acc,subj,pomo,lastPomo,ts}))};
+function tmSync(){const it=items.get('timer');if(it&&(+it.ts||0)>(+tm.ts||0)){const {id,kind,updated,...rest}=it;tm={...tm,...rest};saveJSON(LS_TM,tm)}}
 const tmElapsed=()=>tm.acc+(tm.run?Date.now()-tm.start:0);
 const clock=ms=>{const s=Math.floor(ms/1000);return pad(Math.floor(s/3600))+':'+pad(Math.floor(s/60)%60)+':'+pad(s%60)};
 function renderTimer(){
-  const el=$('t-timer');if(!el)return;
+  tmSync();const el=$('t-timer');if(!el)return;
   el.innerHTML=`<div class="spread"><h2>学習タイマー</h2><label class="check"><input type="checkbox" id="tm-pomo"${tm.pomo?' checked':''}>25分ごとに休憩を知らせる</label></div>
     <div class="spread"><span class="clock${tm.run?' run':''}" id="tm-clock">${clock(tmElapsed())}</span><select id="tm-subj" style="width:auto;min-width:7em" aria-label="タイマーの科目">${SUBJ.map(s=>`<option value="${s}"${s===tm.subj?' selected':''}>${esc(SL(s))}</option>`).join('')}</select></div>
     <div class="row"><button class="btn${tm.run?'':' primary'} wide" data-tm="toggle">${tm.run?'一時停止':tmElapsed()?'再開':'開始'}</button><button class="btn wide" data-tm="stop"${tmElapsed()?'':' disabled'}>止めて記録</button>${tmElapsed()&&!tm.run?'<button class="btn ghost" data-tm="reset">リセット</button>':''}</div>`;
@@ -1505,7 +1509,7 @@ function timerAct(a){
   saveTm();renderTimer();
 }
 setInterval(()=>{
-  if(!tm.run)return;const c=$('tm-clock');if(c)c.textContent=clock(tmElapsed());
+  tmSync();if(!tm.run)return;const c=$('tm-clock');if(c)c.textContent=clock(tmElapsed());
   if(!(Wt&&Wt.run))$('hd-count').textContent='勉強中 '+clock(tmElapsed());
   if(tm.pomo){const n=Math.floor(tmElapsed()/1500000);if(n>(tm.lastPomo||0)){tm.lastPomo=n;saveTm();toast(`${n*25}分たちました。5分休憩しましょう`)}}
 },1000);
