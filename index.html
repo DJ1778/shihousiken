@@ -326,7 +326,8 @@ details.info .tbl+.note{margin-bottom:12px}
 .p-card{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:20px;display:flex;flex-direction:column;gap:14px;min-width:0}
 .p-title{font-family:var(--f-display);font-weight:800;font-size:1.3rem;line-height:1.5;text-wrap:balance}
 .c-fig{margin:10px 0;border:1px solid var(--line);border-radius:10px;overflow:hidden;background:#fff}.c-fig img{display:block;width:100%;height:auto}
-.dtest{background:var(--bg);border-radius:10px;padding:10px 12px;display:grid;gap:6px}.dchip{font-size:.72rem;border:1px solid var(--line);border-radius:999px;padding:1px 7px;color:var(--muted)}.dchip.r2{color:var(--ok,#2e7d4f);border-color:currentColor}.dchip.r1{color:var(--warn);border-color:currentColor}.dchip.r0{color:var(--ng,#b23b3b);border-color:currentColor}.dq{display:grid;gap:4px;padding:8px 0;border-top:1px solid var(--line)}.dqa{padding:6px 10px;background:var(--bg);border-radius:8px;margin-top:4px}.grades.three{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.dtest{background:var(--bg);border-radius:10px;padding:10px 12px;display:grid;gap:6px}.dchip{font-size:.72rem;border:1px solid var(--line);border-radius:999px;padding:1px 7px;color:var(--muted)}.dchip.r2{color:var(--ok,#2e7d4f);border-color:currentColor}.dchip.r1{color:var(--warn);border-color:currentColor}.dchip.r0{color:var(--ng,#b23b3b);border-color:currentColor}.dref{display:grid;gap:4px}.dref summary{font-size:.9rem;cursor:pointer}
+.dq{display:grid;gap:4px;padding:8px 0;border-top:1px solid var(--line)}.dqa{padding:6px 10px;background:var(--bg);border-radius:8px;margin-top:4px}.grades.three{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
 .p-issue.rq{display:grid;gap:2px}.p-issue.rq b{font-size:.75rem;color:var(--muted)}
 .p-body{white-space:pre-wrap;overflow-wrap:anywhere;font-size:1.02rem;line-height:2}
 .p-body.q{font-size:1.08rem;line-height:1.9}
@@ -860,7 +861,7 @@ function startRec(){
 function resetCard(){stopRec();Object.assign(P,{phase:'front',ans:null,revealed:new Set(),hint:false,typed:''})}
 function closePlayer(fromPop){stopRec();try{speechSynthesis.cancel()}catch(e){}if(fromPop!==true&&!$('player').hidden)ovPop();P=null;$('player').hidden=true;document.body.style.overflow='';render()}
 function advance(g){
-  const e=P.q[P.i],x=getItem(e.id);
+  const e=P.q[P.i],x=getItem(e.id);if(x&&!isEx(x))dAuto('i:'+x.id,x.subject);
   if(!e.re){grade(x,g,x.kind==='q'?P.ans===x.answer:null);P.res[g]++}
   if(g===0){P.wrong.add(e.id);const n=P.reN[e.id]||0;if(n<3){P.reN[e.id]=n+1;P.q.splice(Math.min(P.q.length,P.i+4),0,{id:e.id,re:true})}}
   try{speechSynthesis.cancel()}catch(err){}
@@ -1252,7 +1253,7 @@ function startC(){
     ids=shuffle(pool).map(c=>c.id)}
   startSession(ids,(ty?CT[ty].l:'暗記カード')+' '+(subj?SL(subj):'全科目'));
 }
-function cView(c){
+function cView(c){if(c&&!isEx(c))dAuto('i:'+c.id,c.subject);
   const t=ctOf(c),hr=t==='hanrei';
   openSheet(`<div class="row" style="gap:6px"><span class="chip">${esc(SL(c.subject))}</span><span class="chip t">${CT[t].l}</span><span class="chip u">${USE[useOf(c)]}</span>${lvHtml(c)}</div>
     <h2 style="margin:0">${tint(esc(c.title))}</h2>
@@ -1350,11 +1351,11 @@ function dRes(d){return D_STEPS.map(n=>{const r=dTests(d)[n];return `<span class
 function renderDiary(){const el=$('t-diary');if(!el)return;const t=today(),due=dDue(),td=mine('d').filter(d=>d.date===t);
   el.innerHTML=`<div class="spread"><h2>今日やったこと</h2><button class="btn" data-dnew>＋ 記録する</button></div>
   ${due.length?`<div class="dtest"><b>記憶テストの日です（${due.length}件）</b><p class="note">${due.slice(0,3).map(d=>`${md(d.date)} ${esc(SL(d.subject))}「${esc(d.title)}」の${D_LBL[dDueStep(d)]}`).join('<br>')}${due.length>3?'<br>ほか'+(due.length-3)+'件':''}</p><button class="btn primary" data-dtest>記憶テストを始める</button></div>`:''}
-  ${td.length?`<div class="list">${td.map(d=>`<div class="item" data-dview="${esc(d.id)}" role="button" tabindex="0"><div class="row" style="gap:6px"><span class="chip">${esc(SL(d.subject))}</span><b>${esc(d.title)}</b></div></div>`).join('')}</div><p class="note">明日・3日後・1週間後に、ここで記憶テストが出ます。</p>`
+  ${td.length?`<div class="list">${td.map(d=>`<div class="item" data-dview="${esc(d.id)}" role="button" tabindex="0"><div class="row" style="gap:6px"><span class="chip">${esc(SL(d.subject))}</span>${d.auto?'<span class="chip u">自動</span>':''}<b>${esc(d.title)}</b></div></div>`).join('')}</div><p class="note">明日・3日後・1週間後に、ここで記憶テストが出ます。</p>`
     :due.length?'':'<p class="note">勉強したことを記録すると、1日後・3日後・1週間後に記憶テストが出ます。</p>'}`}
 function renderDiaryList(){const el=$('d-panel');if(!el)return;const ds=mine('d').sort((a,b)=>b.date.localeCompare(a.date)||(b.updated||0)-(a.updated||0));
   el.innerHTML=`<div class="spread"><h2>やったことの記録</h2><button class="btn" data-dnew>＋ 記録する</button></div>
-  ${ds.length?`<div class="list">${ds.slice(0,60).map(d=>{const nx=dNext(d);return `<div class="item" data-dview="${esc(d.id)}" role="button" tabindex="0"><div class="row" style="gap:6px"><span class="meta">${md(d.date)}</span><span class="chip">${esc(SL(d.subject))}</span><b>${esc(d.title)}</b></div><div class="row" style="gap:4px">${dRes(d)}${nx?`<span class="meta">次 ${md(nx.date)}</span>`:''}</div></div>`}).join('')}</div>${ds.length>60?`<p class="note">ほか${ds.length-60}件</p>`:''}`:'<div class="empty">まだ記録がありません。</div>'}`}
+  ${ds.length?`<div class="list">${ds.slice(0,60).map(d=>{const nx=dNext(d);return `<div class="item" data-dview="${esc(d.id)}" role="button" tabindex="0"><div class="row" style="gap:6px"><span class="meta">${md(d.date)}</span><span class="chip">${esc(SL(d.subject))}</span>${d.auto?'<span class="chip u">自動</span>':''}<b>${esc(d.title)}</b></div><div class="row" style="gap:4px">${dRes(d)}${nx?`<span class="meta">次 ${md(nx.date)}</span>`:''}</div></div>`}).join('')}</div>${ds.length>60?`<p class="note">ほか${ds.length-60}件</p>`:''}`:'<div class="empty">まだ記録がありません。</div>'}`}
 function dForm(d){const n=!d;d=d||{id:'d_'+uid(),kind:'d',date:today(),subject:ui.dSubj||'民法',title:'',pts:''};
   openSheet(`<h2>${n?'今日やったことを記録':'記録を直す'}</h2>
    <div class="grid2"><label class="f">日付<input type="date" id="df-d" value="${esc(d.date)}"></label><label class="f">科目${subjSel('df-s',d.subject)}</label></div>
@@ -1366,18 +1367,34 @@ function dForm(d){const n=!d;d=d||{id:'d_'+uid(),kind:'d',date:today(),subject:u
     const q=id=>sh.querySelector(id);q('#df-c').onclick=closeSheet;
     const x=q('#df-x');if(x)x.onclick=()=>{if(x.dataset.sure){del(d.id);closeSheet();toast('削除しました')}else{x.dataset.sure=1;x.textContent='本当に削除';}};
     q('#df-s2').onclick=()=>{const t=q('#df-t').value.trim(),p2=q('#df-p').value.trim();if(!t){toast('やったことを書いてください');return}
-      const nd={...d,date:q('#df-d').value||today(),subject:q('#df-s').value,title:t,pts:p2};if(nd.pts!==d.pts||nd.title!==d.title)delete nd.qs;
+      const nd={...d,date:q('#df-d').value||today(),subject:q('#df-s').value,title:t,pts:p2};if(d.auto&&t!==d.title)nd.ttl=1;if(nd.pts!==d.pts||nd.title!==d.title)delete nd.qs;
       ui.dSubj=nd.subject;saveUi();put(nd);closeSheet();toast(n?'記録しました。明日、記憶テストが出ます':'直しました')}})}
 function dView(d){const nx=dNext(d);
-  openSheet(`<div class="row" style="gap:6px"><span class="meta">${md(d.date)}</span><span class="chip">${esc(SL(d.subject))}</span></div><h2>${esc(d.title)}</h2>
-   ${d.pts?`<div class="p-body">${esc(d.pts)}</div>`:''}
+  openSheet(`<div class="row" style="gap:6px"><span class="meta">${md(d.date)}</span><span class="chip">${esc(SL(d.subject))}</span></div><h2>${d.auto&&!d.ttl?`開いたもの（${(d.refs||[]).length}件）`:esc(d.title)}</h2>
+   ${d.auto?'<p class="note">開いたカード・短答・判例から自動で記録しました。押すと中身が見られます。</p>':''}${dRecHtml(d)}
+   ${inClaude&&(d.pts||(d.refs||[]).length)?'<button class="btn" id="dv-q">確認問題を解く</button>':''}
    <div class="row" style="gap:4px">${dRes(d)}</div>${nx?`<p class="note">次の記憶テスト：${md(nx.date)}（${D_LBL[nx.n]}）</p>`:'<p class="note">3回の記憶テストが終わりました。</p>'}
-   <div class="row"><button class="btn wide" id="dv-e">直す</button><button class="btn primary wide" id="dv-c">閉じる</button></div>`,sh=>{sh.querySelector('#dv-c').onclick=closeSheet;sh.querySelector('#dv-e').onclick=()=>dForm(d)})}
+   <div class="row"><button class="btn wide" id="dv-e">直す</button><button class="btn primary wide" id="dv-c">閉じる</button></div>`,sh=>{sh.querySelector('#dv-c').onclick=closeSheet;sh.querySelector('#dv-e').onclick=()=>dForm(d);const pq=sh.querySelector('#dv-q');if(pq)pq.onclick=()=>dPractice(d)})}
+// 開いたもの（復習したカード・短答・百選のメモ）を、その日の「やったこと」に自動で記録する
+const D_PEND=new Map();let dPendT=null;
+function dAuto(ref,subject){if(!ref||!subject)return;const k=subject;if(!D_PEND.has(k))D_PEND.set(k,new Set());D_PEND.get(k).add(ref);clearTimeout(dPendT);dPendT=setTimeout(dFlush,2500)}
+function dFlush(){const t=today();D_PEND.forEach((set,subj)=>{const id='d_a_'+t+'_'+subj,cur=items.get(id)||{id,kind:'d',auto:1,date:t,subject:subj,pts:'',refs:[]};
+    const refs=[...new Set([...(cur.refs||[]),...set])].slice(-80);if(refs.length===(cur.refs||[]).length&&items.has(id))return;
+    put({...cur,refs,title:cur.ttl&&cur.title?cur.title:dAutoTitle(refs)})});D_PEND.clear()}
+addEventListener('pagehide',()=>{if(D_PEND.size)dFlush()});
+function refItem(r){const [k,a,b]=r.split(':');if(k==='i'){const x=getItem(r.slice(2));if(!x)return null;
+    if(x.kind==='q')return {t:'短答：'+stripC(x.text).slice(0,24)+'…',x:`【短答】${stripC(x.text)}\n正解：${x.answer?'○':'×'}${x.explain?'\n解説：'+stripC(x.explain):''}`};
+    const tl={ronsho:'論証',hanrei:'判例',teigi:'定義',qa:'一問一答'}[ctOf(x)]||'カード';
+    return {t:tl+'：'+stripC(x.title),x:`【${tl}】${stripC(x.title)}${x.issue?'\n問題提起：'+stripC(x.issue):''}${x.facts?'\n事案：'+x.facts:''}${x.article?'\n'+x.article:''}\n${stripC(x.body).replace(/[【】《》]/g,'')}`}}
+  if(k==='h'){const bk=hsBook(a),m=bk.m[b]||{};return {t:hsTag(a,b)+(m.t?' '+m.t:''),x:`【判例】${hsName(a)} ${hsNo(b)}${m.t?' '+m.t:''}${m.d?'（'+m.d+'）':''}${m.f?'\n事案：'+stripC(m.f):''}${m.memo?'\n判旨・メモ：'+stripC(m.memo):''}${m.ro?'\n論点：'+stripC(m.ro):''}${m.sh?'\n射程：'+stripC(m.sh):''}`}}
+  return null}
+function dAutoTitle(refs){const ts=refs.map(refItem).filter(Boolean).map(r=>r.t);return ts.slice(0,2).join('、')+(ts.length>2?` ほか${ts.length-2}件`:'')}
+function dMaterial(d){const parts=(d.refs||[]).map(refItem).filter(Boolean);return parts.slice(0,12).map(r=>r.x.slice(0,500)).join('\n\n')}
 // AIが記録から問題を作る（Claude版）。使えなければ「思い出して書く」テストにする
 function dPrompt(d){return `あなたは司法試験の受験指導をしている講師です。受験生が勉強した内容の記録から、記憶を確かめる短い問題を作ってください。
 
 # 作り方
-- 記録に書いてある内容を思い出せるかを確かめる問題を2〜4問。記録にないことは聞かない。
+- 記録に書いてある内容を思い出せるかを確かめる問題を${d.refs&&d.refs.length?'3〜5':'2〜4'}問。記録にないことは聞かない。勉強したものが多いときは、大事なものから選ぶ。
 - 1問は短く（60字以内）。答えも短く（80字以内）、記録の言葉を使う。
 - 規範・要件・結論・判例の名前など、覚えておくべき核心を聞く。
 
@@ -1388,10 +1405,18 @@ JSONの配列だけ。形：[{"q":"問題","a":"答え"}]
 科目：${SL(d.subject)}
 やったこと：${d.title}
 覚えておきたいこと：
-${d.pts||'（なし）'}`}
-async function dQs(d){if(d.qs&&d.qs.length)return d.qs;const sample=await sampleP;if(!sample||!(d.pts||'').trim())return null;
-  try{const r=await sample.json(dPrompt(d),{modelTier:'default'});const qs=(Array.isArray(r)?r:[]).filter(x=>x&&x.q&&x.a).slice(0,4).map(x=>({q:String(x.q),a:String(x.a)}));
-    if(qs.length){const cur=getItem(d.id)||d;put({...cur,qs});return qs}}catch(e){}return null}
+${d.pts||'（なし）'}${d.refs&&d.refs.length?'\n\n勉強したもの（カード・判例など）：\n'+dMaterial(d):''}`}
+const dQk=d=>(d.pts||'').length+'/'+(d.refs||[]).length;
+async function dQs(d){if(d.qs&&d.qs.length&&d.qk===dQk(d))return d.qs;const sample=await sampleP;if(!sample||!((d.pts||'').trim()||(d.refs||[]).length))return null;
+  try{const r=await sample.json(dPrompt(d),{modelTier:'default'});const qs=(Array.isArray(r)?r:[]).filter(x=>x&&x.q&&x.a).slice(0,5).map(x=>({q:String(x.q),a:String(x.a)}));
+    if(qs.length){const cur=getItem(d.id)||d;put({...cur,qs,qk:dQk(d)});return qs}}catch(e){}return null}
+const dQHtml=qs=>qs.map((x,i)=>`<div class="dq"><div><b>問${i+1}</b> ${esc(x.q)}</div><details><summary>答え</summary><div class="dqa">${esc(x.a)}</div></details></div>`).join('');
+const dRecHtml=d=>`${d.pts?`<div class="p-body">${esc(d.pts)}</div>`:''}${d.refs&&d.refs.length?`<div class="dref">${d.refs.map(refItem).filter(Boolean).map(r=>`<details><summary>${esc(r.t)}</summary><div class="p-body">${esc(r.x.replace(/^【[^】]*】/,''))}</div></details>`).join('')}</div>`:''}`;
+async function dPractice(d){openSheet(`<h2>${esc(d.title)}</h2><p class="note">確認問題を作っています…</p>`,()=>{});const qs=await dQs(d);if($('scrim').hidden)return;
+  if(!qs){openSheet(`<h2>確認問題</h2><p class="note">問題を作れませんでした。少し時間をおいてもう一度押してください。</p><button class="btn primary" id="dp-c">閉じる</button>`,sh=>{sh.querySelector('#dp-c').onclick=closeSheet});return}
+  openSheet(`<div class="row" style="gap:6px"><span class="meta">${md(d.date)}</span><span class="chip">${esc(SL(d.subject))}</span></div><h2>確認問題</h2><p class="note">答えを思い出してから「答え」を押してください。</p>${dQHtml(qs)}
+   <div class="row"><button class="btn wide" id="dp-r">別の問題を作る</button><button class="btn primary wide" id="dp-c">閉じる</button></div>`,sh=>{sh.querySelector('#dp-c').onclick=closeSheet;
+    sh.querySelector('#dp-r').onclick=()=>{const cur=getItem(d.id)||d;const n={...cur};delete n.qs;put(n);dPractice(n)}})}
 let DT=null;
 function dStart(){const due=dDue();if(!due.length){toast('今日の記憶テストはありません');return}DT={ids:due.map(d=>d.id),i:0,res:[]};dShow()}
 async function dShow(){if(!DT)return;if(DT.i>=DT.ids.length){const ok=DT.res.filter(r=>r===2).length;
@@ -1399,11 +1424,11 @@ async function dShow(){if(!DT)return;if(DT.i>=DT.ids.length){const ok=DT.res.fil
   const d=getItem(DT.ids[DT.i]);if(!d){DT.i++;dShow();return}const n=dDueStep(d)||1;
   const head=`<div class="row" style="justify-content:space-between"><span class="meta">${DT.i+1} / ${DT.ids.length}</span><span class="chip t">${D_LBL[n]}のテスト</span></div>
    <div class="row" style="gap:6px"><span class="meta">${md(d.date)}にやったこと</span><span class="chip">${esc(SL(d.subject))}</span></div><h2>${esc(d.title)}</h2>`;
-  openSheet(head+(inClaude&&d.pts?'<p class="note">問題を作っています…</p>':''),()=>{});
+  openSheet(head+(inClaude&&(d.pts||(d.refs||[]).length)?'<p class="note">問題を作っています…</p>':''),()=>{});
   const qs=inClaude?await dQs(d):null;if(!DT||DT.ids[DT.i]!==d.id)return;if($('scrim').hidden){DT=null;return}
-  const body=qs?`<p class="note">答えを思い出してから「答え」を押してください。</p>${qs.map((x,i)=>`<div class="dq"><div><b>問${i+1}</b> ${esc(x.q)}</div><details><summary>答え</summary><div class="dqa">${esc(x.a)}</div></details></div>`).join('')}`
-    :`<p class="note">この日に覚えたことを、思い出して書いてください（話して入力もできます）。</p><textarea id="dt-w" style="min-height:110px" placeholder="思い出せることを書く"></textarea><div class="row">${DICT_BTN}</div>`;
-  openSheet(head+body+`<details id="dt-r"${qs?'':' hidden'}><summary>記録を見る</summary><div class="p-body">${esc(d.pts||'（覚えておきたいことは書かれていません）')}</div></details>
+  const body=qs?`<p class="note">答えを思い出してから「答え」を押してください。</p>${dQHtml(qs)}`
+    :`<p class="note">この日に${d.refs&&d.refs.length?'勉強したもの（'+esc(d.refs.map(refItem).filter(Boolean).slice(0,4).map(r=>r.t).join('、'))+'など）について、覚えていることを':'覚えたことを、思い出して'}書いてください（話して入力もできます）。</p><textarea id="dt-w" style="min-height:110px" placeholder="思い出せることを書く"></textarea><div class="row">${DICT_BTN}</div>`;
+  openSheet(head+body+`<details id="dt-r"${qs?'':' hidden'}><summary>記録を見る</summary>${dRecHtml(d)||'<p class="note">（覚えておきたいことは書かれていません）</p>'}</details>
    ${qs?'':'<button class="btn" id="dt-show">記録と見比べる</button>'}
    <p class="note">どのくらい覚えていた？</p><div class="grades three"><button class="btn" data-dg="0">忘れた</button><button class="btn" data-dg="1">あやふや</button><button class="btn primary" data-dg="2">覚えていた</button></div>
    <button class="btn" id="dt-q">やめる</button>`,sh=>{
@@ -2340,7 +2365,7 @@ function recToggle(ta,btn){
   btn.textContent='止める';btn.classList.add('on');
 }
 function hsMemoSheet(k,i){
-  const b=hsBook(k),m=b.m[i]||{},c=+b.r[i]||0,o=b.o[i];
+  const b=hsBook(k),m=b.m[i]||{},c=+b.r[i]||0,o=b.o[i];if(hsHasMemo(b,i))dAuto('h:'+k+':'+i,HS_SUBJ[k]||'選択');
   openSheet(`<h2>${esc(hsName(k))} ${hsNo(i)}</h2>
     <div class="f"><span>読んだ回数</span><div class="seg" role="group" aria-label="読んだ回数">${['未読','1回','2回','3回'].map((l,n)=>`<button type="button" data-hr="${n}" aria-pressed="${c===n}">${l}</button>`).join('')}</div></div>
     <div class="grid2"><label class="f">事件名<input id="hm-t" value="${esc(m.t||'')}" placeholder="例：クロロホルム事件"></label>
