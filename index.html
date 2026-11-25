@@ -331,6 +331,7 @@ details.info .tbl+.note{margin-bottom:12px}
 .btn.line{background:#06c755;border-color:#06c755;color:#fff;text-align:center;text-decoration:none;display:flex;align-items:center;justify-content:center;font-weight:700}
 .pf{position:relative}.pfm{position:absolute;left:4px;top:4px;width:6px;height:6px;border-radius:50%;background:var(--blue,#2b6cb0)}.pf-memos summary{cursor:pointer;padding:6px 0}
 .btn.photo{display:flex;align-items:center;justify-content:center;cursor:pointer}
+.tsum{display:grid;gap:10px}.tg summary{display:flex;gap:8px;align-items:center;cursor:pointer;padding:6px 0;border-top:1px solid var(--line)}.tl{margin:4px 0 8px;padding-left:4px;list-style:none;display:grid;gap:4px;font-size:.9rem}.tl .ty{font-size:.7rem;color:var(--muted);border:1px solid var(--line);border-radius:999px;padding:0 6px;margin-right:6px}
 .qzrow{display:flex;gap:8px;align-items:flex-start;font-size:.92rem;line-height:1.5}.qzadd{justify-content:flex-start;text-align:left;font-size:.88rem}
 .dref{display:grid;gap:4px}.dref summary{font-size:.9rem;cursor:pointer}
 .dq{display:grid;gap:4px;padding:8px 0;border-top:1px solid var(--line)}.dqa{padding:6px 10px;background:var(--bg);border-radius:8px;margin-top:4px}.grades.three{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
@@ -1397,16 +1398,27 @@ function dDueStep(d,t){t=t||today();let r=0;for(const n of D_STEPS){if(!dTests(d
 const dDue=()=>mine('d').filter(d=>dDueStep(d)).sort((a,b)=>a.date.localeCompare(b.date));
 function dNext(d){for(const n of D_STEPS)if(!dTests(d)[n])return {n,date:addDays(d.date,n)};return null}
 function dRes(d){return D_STEPS.map(n=>{const r=dTests(d)[n];return `<span class="dchip${r?' r'+r.s:''}" title="${D_LBL[n]}">${D_LBL[n]} ${r?D_MARK[r.s]:'–'}</span>`}).join('')}
+function refType(r){const k=r[0];if(k==='h')return '判例';if(k==='p')return '短答';const x=getItem(r.slice(2));if(!x)return 'その他';if(x.kind==='q')return '短答';return {ronsho:'論証',hanrei:'判例',teigi:'定義',qa:'一問一答'}[ctOf(x)]||'カード'}
+function todayGroups(){const t=today(),g={};mine('d').filter(d=>d.date===t&&d.auto).forEach(d=>{(d.refs||[]).forEach(r=>{const it=refItem(r);if(!it)return;const sj=d.subject;(g[sj]=g[sj]||[]).push({r,ty:refType(r),t:it.t.replace(/^(論証|判例|定義|一問一答|カード|短答)：/,'')})})});return g}
+async function todayQuizUrl(n){const qs=shuffle(todayRefs().map(qzFromRef).filter(Boolean)).slice(0,n||10);if(!qs.length)return null;let o={v:1,from:ui.nick||'友だち',d:today(),q:qs},code=await qzEnc(o);
+  while(code.length>7000&&o.q.some(x=>x.b&&x.b.length>200)){o={...o,q:o.q.map(x=>x.b?{...x,b:x.b.slice(0,Math.floor(x.b.length*.7))}:x)};code=await qzEnc(o)}return {url:SITE_URL+'?quiz='+code,n:qs.length}}
 const todayRefs=()=>{const t=today();return [...new Set(mine('d').filter(d=>d.date===t).flatMap(d=>d.refs||[]))].filter(r=>qzFromRef(r))};
-function renderDiary(){const el=$('t-diary');if(!el)return;const t=today(),due=dDue(),td=mine('d').filter(d=>d.date===t),tr=todayRefs();
+function renderDiary(){const el=$('t-diary');if(!el)return;const t=today(),due=dDue(),man=mine('d').filter(d=>d.date===t&&!d.auto),tr=todayRefs(),G=todayGroups(),sjs=Object.keys(G);
+  const mins=minutesOn(t)+(tm.run||tm.acc?Math.floor(tmElapsed()/60000):0),hr=histOn(t),nOpen=sjs.reduce((a,k)=>a+G[k].length,0);
+  const grp=sjs.map(sj=>{const xs=G[sj],cnt={};xs.forEach(x=>cnt[x.ty]=(cnt[x.ty]||0)+1);
+    return `<details class="tg"><summary><span class="chip">${esc(SL(sj))}</span><b>${xs.length}件</b><span class="meta">${Object.entries(cnt).map(([k,v])=>k+' '+v).join('・')}</span></summary>
+      <ul class="tl">${xs.map(x=>`<li><span class="ty">${esc(x.ty)}</span>${esc(x.t)}</li>`).join('')}</ul></details>`}).join('');
   el.innerHTML=`<div class="spread"><h2>今日やったこと</h2><button class="btn" data-dnew>＋ 記録する</button></div>
-  ${tr.length?`<div class="dtest"><b>今日の問題（${tr.length}問）</b><p class="note">今日開いたカード・短答・判例から、自動で問題にしました。</p>
-    <div class="row" style="gap:8px"><button class="btn primary wide" data-tq="self">まとめて確認</button>${inClaude?'<button class="btn wide" data-tq="ai">AIで確認問題</button>':''}</div>
-    <button class="btn line" data-tq="line">LINEで友だちに出す</button></div>`:''}
-  <div class="row" style="gap:8px"><button class="btn wide" data-share-today>友だちに共有</button><button class="btn wide" data-quiz>問題を出し合う</button></div>
   ${due.length?`<div class="dtest"><b>記憶テストの日です（${due.length}件）</b><p class="note">${due.slice(0,3).map(d=>`${md(d.date)} ${esc(SL(d.subject))}「${esc(d.title)}」の${D_LBL[dDueStep(d)]}`).join('<br>')}${due.length>3?'<br>ほか'+(due.length-3)+'件':''}</p><button class="btn primary" data-dtest>記憶テストを始める</button></div>`:''}
-  ${td.length?`<div class="list">${td.map(d=>`<div class="item" data-dview="${esc(d.id)}" role="button" tabindex="0"><div class="row" style="gap:6px"><span class="chip">${esc(SL(d.subject))}</span>${d.auto?'<span class="chip u">自動</span>':''}<b>${esc(d.title)}</b></div></div>`).join('')}</div><p class="note">明日・3日後・1週間後に、ここで記憶テストが出ます。</p>`
-    :due.length?'':'<p class="note">勉強したことを記録すると、1日後・3日後・1週間後に記憶テストが出ます。</p>'}`}
+  ${nOpen||man.length||mins||hr.n?`<div class="tsum">
+    <div class="stats"><div class="stat"><b>${hm(mins)}</b><span>勉強時間</span></div><div class="stat"><b>${nOpen}</b><span>開いたもの</span></div><div class="stat"><b>${hr.n?Math.round(hr.ok/hr.n*100)+'%':'–'}</b><span>覚えていた</span></div></div>
+    ${grp}
+    ${man.length?`<div class="list">${man.map(d=>`<div class="item" data-dview="${esc(d.id)}" role="button" tabindex="0"><div class="row" style="gap:6px"><span class="chip">${esc(SL(d.subject))}</span><span class="chip u">メモ</span><b>${esc(d.title)}</b></div></div>`).join('')}</div>`:''}
+    ${tr.length?`<div class="row" style="gap:8px"><button class="btn primary wide" data-tq="self">確認する（${Math.min(20,tr.length)}問）</button>${inClaude?'<button class="btn wide" data-tq="ai">AIで確認問題</button>':''}</div>
+    <button class="btn line" data-tq="share">LINEで友だちに共有（問題つき）</button>`:`<button class="btn line" data-share-today>LINEで友だちに共有</button>`}
+    <p class="note" style="margin:0">${tr.length?'開いたカード・短答・判例は自動でここにまとまります。明日・3日後・1週間後に記憶テストが出ます。':'カードや短答を開くと、自動でここにまとまります。'}</p></div>`
+    :'<p class="note">カードや短答・判例を開くと、自動でここにまとまります。1日後・3日後・1週間後に記憶テストも出ます。</p>'}
+  <button class="btn ghost" data-quiz>問題を選んで出す・友だちの問題を開く</button>`}
 function renderDiaryList(){const el=$('d-panel');if(!el)return;const ds=mine('d').sort((a,b)=>b.date.localeCompare(a.date)||(b.updated||0)-(a.updated||0));
   el.innerHTML=`<div class="spread"><h2>やったことの記録</h2><button class="btn" data-dnew>＋ 記録する</button></div>
   ${ds.length?`<div class="list">${ds.slice(0,60).map(d=>{const nx=dNext(d);return `<div class="item" data-dview="${esc(d.id)}" role="button" tabindex="0"><div class="row" style="gap:6px"><span class="meta">${md(d.date)}</span><span class="chip">${esc(SL(d.subject))}</span>${d.auto?'<span class="chip u">自動</span>':''}<b>${esc(d.title)}</b></div><div class="row" style="gap:4px">${dRes(d)}${nx?`<span class="meta">次 ${md(nx.date)}</span>`:''}</div></div>`}).join('')}</div>${ds.length>60?`<p class="note">ほか${ds.length-60}件</p>`:''}`:'<div class="empty">まだ記録がありません。</div>'}`}
@@ -1510,7 +1522,9 @@ function todayText(){const t=today(),logs=mine('l').filter(l=>l.date===t),tot=lo
   let x=`📚 ${md(t)}の勉強\n`;
   x+=`勉強時間：${tot?hm(tot):'記録なし'}${Object.keys(per).length?'（'+Object.entries(per).map(([k,v])=>SL(k)+' '+hm(v)).join('、')+'）':''}\n`;
   if(r.n)x+=`復習：${r.n}問（覚えていた ${Math.round(r.ok/r.n*100)}%）\n`;
-  if(ds.length){x+='やったこと：\n';ds.forEach(d=>{x+=`・${SL(d.subject)}　${d.auto?(d.refs||[]).map(refItem).filter(Boolean).slice(0,5).map(r=>r.t).join('、')+((d.refs||[]).length>5?` ほか${d.refs.length-5}件`:''):d.title}\n`})}
+  const G=todayGroups(),man=ds.filter(d=>!d.auto);
+  if(Object.keys(G).length||man.length){x+='\nやったこと：\n';Object.entries(G).forEach(([sj,xs])=>{const c={};xs.forEach(y=>c[y.ty]=(c[y.ty]||0)+1);x+=`【${SL(sj)}】${Object.entries(c).map(([k,v])=>k+v).join('・')}\n`+xs.slice(0,6).map(y=>`・${y.t}`).join('\n')+(xs.length>6?`\n　ほか${xs.length-6}件`:'')+'\n'});
+    man.forEach(d=>{x+=`・${SL(d.subject)}　${d.title}\n`})}
   const st=streak();if(st>1)x+=`連続 ${st}日目\n`;
   return x.trim()}
 // 問題を文字にしてリンクに入れる（短く圧縮）
@@ -1603,7 +1617,8 @@ async function todayAiQuiz(){const refs=todayRefs(),t=today();if(!refs.length){t
     <div class="row"><button class="btn wide" id="ta-r">別の問題を作る</button><button class="btn primary wide" data-sheet-close>閉じる</button></div>`,sh=>{sh.querySelector('#ta-r').onclick=()=>{todayAiQuiz.c=null;todayAiQuiz()}})}
 document.addEventListener('click',e=>{const tq=e.target.closest('[data-tq]');if(!tq)return;const m=tq.dataset.tq;
   if(m==='self'){const qs=todayRefs().map(qzFromRef).filter(Boolean);if(!qs.length){toast('今日開いたものがまだありません');return}qzPlay({v:1,self:1,from:'',q:shuffle(qs).slice(0,20)})}
-  else if(m==='ai')todayAiQuiz();else if(m==='line')qzCompose(true)});
+  else if(m==='ai')todayAiQuiz();else if(m==='line')qzCompose(true);
+  else if(m==='share'){tq.disabled=true;todayQuizUrl(10).then(q=>{tq.disabled=false;const txt=todayText()+(q?`\n\n今日の${q.n}問に挑戦してね👇\n${q.url}`:'');shareSheet(txt,'今日の勉強を共有')})}});
 document.addEventListener('click',e=>{if(e.target.closest('[data-share-today]')){shareSheet(todayText(),'今日の勉強を共有');return}if(e.target.closest('[data-quiz]')){qzCompose();return}});
 
 /* ---------- タイマー ---------- */
