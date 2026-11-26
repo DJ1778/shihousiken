@@ -2660,6 +2660,7 @@ function hsMemoSheet(k,i){
   const b=hsBook(k),m=b.m[i]||{},c=+b.r[i]||0,o=b.o[i];if(hsHasMemo(b,i))dAuto('h:'+k+':'+i,HS_SUBJ[k]||'選択');
   openSheet(`<h2>${esc(hsName(k))} ${hsNo(i)}</h2>
     <div class="f"><span>読んだ回数</span><div class="seg" role="group" aria-label="読んだ回数">${['未読','1回','2回','3回'].map((l,n)=>`<button type="button" data-hr="${n}" aria-pressed="${c===n}">${l}</button>`).join('')}</div></div>
+    ${inClaude?`<label class="btn photo">📷 百選のページを写真で読み込む（AI）<input type="file" id="hm-ph" accept="image/*" multiple hidden></label><p class="note" id="hm-pn" style="margin-top:-4px">見開きなら2枚まで選べます。AIが事件名・日付・事案・判旨・射程・論点にまとめて、空いている欄に入れます。</p>`:''}
     <div class="grid2"><label class="f">事件名<input id="hm-t" value="${esc(m.t||'')}" placeholder="例：クロロホルム事件"></label>
     <label class="f">裁判所・年月日<input id="hm-d" value="${esc(m.d||'')}" placeholder="例：最決平16.3.22"></label></div>
     <div class="f hm-ed"><span id="hm-fl">事案（練習で問題として出ます）</span><div id="hm-f" class="rich" contenteditable="true" role="textbox" aria-multiline="true" aria-labelledby="hm-fl" data-ph="例：XはAをクロロホルムで失神させ、車ごと海に転落させて殺害する計画を立て…">${toRich(m.f||'')}</div></div>
@@ -2678,6 +2679,20 @@ function hsMemoSheet(k,i){
     const save=()=>{const v=id=>sh.querySelector(id).value.trim(),t=v('#hm-t'),d=v('#hm-d'),f=fromRich(ef).trim(),memo=fromRich(em).trim(),shg=fromRich(es).trim(),ro=fromRich(er).trim();
       hsSave(k,bb=>{if(rc)bb.r[i]=rc;else delete bb.r[i];if(t||d||f||memo||shg||ro)bb.m[i]={t,d,f,memo,sh:shg,ro};else delete bb.m[i]});return t||f||memo};
     sh.querySelector('[data-hm-save]').onclick=()=>{save();closeSheet();toast('保存しました')};
+    const ph=sh.querySelector('#hm-ph');if(ph)ph.onchange=async()=>{const fs=[...ph.files].slice(0,2);ph.value='';if(!fs.length)return;const pn=sh.querySelector('#hm-pn');
+      const sample=await sampleP,caps=sample?await sample.limits().catch(()=>null):null;if(!sample||!caps||!caps.images){toast('ここでは写真を読み込めません');return}
+      pn.textContent='写真を読み取ってまとめています…（30秒ほど）';
+      try{const imgs=[];for(const f of fs)imgs.push(await shrink(f));
+        const r=await sample.json(`司法試験の受験生が使う判例集（${hsName(k)} ${hsNo(i)}）のページの写真です。この判例を、受験生の暗記用にまとめてください。
+JSONだけで返す：{"t":"事件名（通称があれば通称）","d":"裁判所・年月日（例：最決平16.3.22）","f":"事案（当事者・事実関係を、結論を書かずに100〜200字）","memo":"判旨（規範と結論。大事な語句は【】で囲む。200字以内）","sh":"判例の射程（どこまで及ぶか、事案の違いで結論が変わるところ。120字以内）","ro":"付随する論点（読点で区切る）"}
+- 写真に書いてあることに基づいて書く。写真にない判例を作らない。読めない部分は［判読不能］と書く。
+- 解説者の私見と判旨を混ぜない。自信がない部分は「要確認」と書く。`,{images:imgs,modelTier:'default'});
+        if(!r||typeof r!=='object')throw 0;let n=0;
+        const setI=(id,v)=>{const e=sh.querySelector(id);if(e&&v&&!e.value.trim()){e.value=String(v);n++}};
+        const setR=(el,v)=>{if(el&&v&&!fromRich(el).trim()){el.innerHTML=toRich(String(v));n++}};
+        setI('#hm-t',r.t);setI('#hm-d',r.d);setR(ef,r.f);setR(em,r.memo);setR(es,r.sh);setR(er,r.ro);
+        pn.textContent=n?'まとめました。AIの下書きなので、本と見比べてから「保存」を押してください。':'空いている欄がなかったので、何も変えていません。消してから読み込むと入ります。'}
+      catch(e){pn.textContent='読み取れませんでした。明るい場所で、ページ全体が入るように撮り直してください。'}};
     sh.querySelector('[data-hm-say]').onclick=()=>{if(!save()){toast('先に事案か事件名を書いてください');return}hsPractice(k,[String(i)])};
   });
   try{document.activeElement.blur()}catch(e){}
