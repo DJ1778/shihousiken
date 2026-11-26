@@ -333,6 +333,7 @@ details.info .tbl+.note{margin-bottom:12px}
 .btn.photo{display:flex;align-items:center;justify-content:center;cursor:pointer}
 .tsum{display:grid;gap:10px}.tg summary{display:flex;gap:8px;align-items:center;cursor:pointer;padding:6px 0;border-top:1px solid var(--line)}.tl{margin:4px 0 8px;padding-left:4px;list-style:none;display:grid;gap:4px;font-size:.9rem}.tl .ty{font-size:.7rem;color:var(--muted);border:1px solid var(--line);border-radius:999px;padding:0 6px;margin-right:6px}
 .lsctl{display:grid;grid-template-columns:1fr 2fr 1fr;gap:8px}.lsctl .btn{font-size:1.1rem;min-height:52px}
+.goal{display:grid}.grow{display:grid;grid-template-columns:2fr 1.2fr 1.2fr .8fr;gap:6px;align-items:center;padding:6px 0;border-bottom:1px solid var(--line);font-size:.92rem}.grow.gh{font-size:.75rem;color:var(--muted);padding:2px 0}.grow.sum{border-bottom:0}.grow input{width:100%;max-width:5em;min-height:36px;padding:4px 6px}.goal .ok{color:var(--ok,#2e7d4f);font-weight:700}.goal .ng{color:var(--ng,#b23b3b);font-weight:700}
 .qzrow{display:flex;gap:8px;align-items:flex-start;font-size:.92rem;line-height:1.5}.qzadd{justify-content:flex-start;text-align:left;font-size:.88rem}
 .dref{display:grid;gap:4px}.dref summary{font-size:.9rem;cursor:pointer}
 .dq{display:grid;gap:4px;padding:8px 0;border-top:1px solid var(--line)}.dqa{padding:6px 10px;background:var(--bg);border-radius:8px;margin-top:4px}.grades.three{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
@@ -517,6 +518,7 @@ details summary{cursor:pointer;font-size:.85rem;color:var(--muted)}
   <!-- 記録 -->
   <section id="v-kiroku" class="view" hidden>
     <div class="panel" id="t-timer"></div>
+    <div class="panel" id="goal-panel"></div>
     <div class="panel">
       <div class="spread"><h2>勉強時間</h2><div class="seg" id="tb-p" role="group" aria-label="期間"></div></div>
       <div id="tb-chart"></div>
@@ -1731,6 +1733,32 @@ JSONだけで返す：{"score":0〜100の数,"good":"言えていた点（60字�
     box.innerHTML=`<div class="explain"><b>${Math.round(+r.score||0)}点</b><br>✓ ${esc(r.good||'')}<br>△ ${esc(r.miss||'')}</div>`}
   catch(e){box.innerHTML='<p class="note">採点できませんでした</p>';btn.disabled=false}}
 document.addEventListener('click',e=>{const b=e.target.closest('[data-lis]');if(b)lsStart(b.dataset.lis)});
+/* ---------- 点数の目標（短答・論文） ---------- */
+const G_TANTO=[['憲法',50],['民法',75],['刑法',50]],G_RON=[['憲法',100],['行政法',100],['民法',100],['商法',100],['民訴',100],['刑法',100],['刑訴',100],['選択',100]];
+const goals=()=>items.get('goals')||{id:'goals',kind:'goal',tanto:{},ronbun:{}};
+// 過去問の記録から、いちばん新しい点数を読む（「58/75」「62点」「推定62点」など）
+function lastScore(ty,sj){let best=null;mine('k').filter(k=>k.ex==='shiho'&&k.ty===ty).forEach(k=>{const c=(k.cells||{})[sj];if(!c||!c.score)return;
+  const m=String(c.score).match(/推定\s*(\d+(?:\.\d+)?)\s*点/)||String(c.score).match(/(\d+(?:\.\d+)?)\s*(?:\/|／)\s*\d+/)||String(c.score).match(/(\d+(?:\.\d+)?)\s*点/)||String(c.score).match(/^\s*(\d+(?:\.\d+)?)\s*$/);if(!m)return;
+  const d=(c.dates||[]).slice(-1)[0]||String(k.y);if(!best||d>best.d)best={v:+m[1],d,y:k.y}});return best}
+function renderGoals(){const el=$('goal-panel');if(!el)return;const g=goals();
+  const row=(ty,[sj,mx])=>{const v=g[ty][sj],ls=lastScore(ty,sj),low=Math.ceil(mx*(ty==='tanto'?.4:.25));const diff=v!=null&&v!==''&&ls?ls.v-(+v):null;
+    return `<div class="grow"><span><b>${esc(sj==='選択'?'選択科目':sj)}</b><span class="meta">（${mx}点）</span></span><span><input type="number" inputmode="numeric" min="0" max="${mx}" data-goal="${ty}|${esc(sj)}" value="${v??''}" placeholder="—" aria-label="${esc(sj)}の目標点"></span>
+      <span>${ls?`${ls.v}<span class="meta">（${ERA(ls.y)}）</span>`:'<span class="meta">—</span>'}</span><span>${diff==null?'':diff>=0?`<span class="ok">+${Math.round(diff*10)/10}</span>`:`<span class="ng">${Math.round(diff*10)/10}</span>`}</span></div>`};
+  const sum=(ty,L)=>L.reduce((a,[sj])=>a+(+g[ty][sj]||0),0),sumL=(ty,L)=>{let n=0,a=0;L.forEach(([sj])=>{const l=lastScore(ty,sj);if(l){a+=l.v;n++}});return n?a:null};
+  const tg=sum('tanto',G_TANTO),rg=sum('ronbun',G_RON),tot=tg+rg*1400/800;
+  el.innerHTML=`<div class="spread"><h2>点数の目標</h2><span class="meta">${g.updated?(()=>{const d=new Date(g.updated);return '更新 '+(d.getMonth()+1)+'/'+d.getDate()})():''}</span></div>
+   <p class="note" style="margin:0">目標の点数を入れてください。過去問タブで点数を記録すると、「最近」に出て目標との差がわかります。</p>
+   <h3>短答式（175点満点）</h3>
+   <div class="goal"><div class="grow gh"><span>科目</span><span>目標</span><span>最近</span><span>差</span></div>${G_TANTO.map(x=>row('tanto',x)).join('')}
+     <div class="grow sum"><span><b>合計</b></span><span><b>${tg||'—'}</b></span><span>${sumL('tanto',G_TANTO)??'—'}</span><span></span></div></div>
+   <p class="note">足切り：各科目 満点の40%（憲法20・民法30・刑法20点）</p>
+   <h3>論文式（800点満点）</h3>
+   <div class="goal"><div class="grow gh"><span>科目</span><span>目標</span><span>最近</span><span>差</span></div>${G_RON.map(x=>row('ronbun',x)).join('')}
+     <div class="grow sum"><span><b>合計</b></span><span><b>${rg||'—'}</b></span><span>${sumL('ronbun',G_RON)??'—'}</span><span></span></div></div>
+   <p class="note">足切り：各科目 満点の25%（1科目100点なら25点）</p>
+   ${tg||rg?`<div class="dtest"><b>目標どおりなら総合点 ${Math.round(tot*100)/100}点</b><p class="note" style="margin:0">総合点 ＝ 短答 ${tg} ＋ 論文 ${rg} × 1400／800（法務省の基準の計算式）。合格点はその年の結果で決まります。</p></div>`:''}`}
+document.addEventListener('change',e=>{const t=e.target.closest&&e.target.closest('[data-goal]');if(!t)return;const [ty,sj]=t.dataset.goal.split('|'),g=JSON.parse(JSON.stringify(goals())),mx=(ty==='tanto'?G_TANTO:G_RON).find(x=>x[0]===sj)[1];
+  const v=t.value.trim();if(v==='')delete g[ty][sj];else g[ty][sj]=Math.max(0,Math.min(mx,Math.round(+v*10)/10));g.updated=Date.now();put(g);renderGoals()});
 /* ---------- タイマー ---------- */
 let tm=Object.assign({run:false,start:0,acc:0,subj:'民法',pomo:false,lastPomo:0},loadJSON(LS_TM)||{});
 // タイマーの状態は端末だけでなく保存先（クラウド）にも残す。アプリが読み込み直されても止まらない
@@ -1777,7 +1805,7 @@ function heatmap(logs){
   return `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="18週間の学習カレンダー">${g}</svg><p class="note">1時間未満・2時間未満・4時間未満・4時間以上の4段階</p>`;
 }
 function renderKiroku(){
-  renderTimer();renderDiaryList();
+  renderTimer();renderGoals();renderDiaryList();
   {const P={week:'今週',month:'今月',all:'全部'},per=P[ui.tb]?ui.tb:'week',t=today();
     $('tb-p').innerHTML=Object.entries(P).map(([k,l])=>`<button data-tb="${k}" aria-pressed="${k===per}">${l}</button>`).join('');
     const from=per==='week'?monday():per==='month'?t.slice(0,8)+'01':'0000';
