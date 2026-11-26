@@ -149,7 +149,7 @@ label.f>input,label.f>select,label.f>textarea{color:var(--ink);font-size:1rem}
 nav.tabs{position:fixed;left:0;right:0;bottom:0;z-index:20;background:var(--surface);border-top:1px solid var(--line);
   padding-left:max(8px,env(safe-area-inset-left,0px));padding-right:max(8px,env(safe-area-inset-right,0px));
   padding-bottom:max(14px,env(safe-area-inset-bottom,0px))}
-nav.tabs .in{max-width:640px;margin:0 auto;display:grid;grid-template-columns:repeat(6,1fr);height:var(--tabh)}
+nav.tabs .in{max-width:640px;margin:0 auto;display:grid;grid-template-columns:repeat(5,1fr);height:var(--tabh)}
 .tab{appearance:none;border:0;background:none;touch-action:manipulation;-webkit-tap-highlight-color:transparent;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;cursor:pointer;color:var(--muted);font-size:.72rem;text-decoration:none;position:relative}
 .tab b{font-family:var(--f-display);font-size:1.15rem;font-weight:800;line-height:1}
 .tab[aria-current="page"]{color:var(--accent)}
@@ -556,7 +556,6 @@ details summary{cursor:pointer;font-size:.85rem;color:var(--muted)}
     <a class="tab" href="#ronsho" data-v="ronsho"><b>暗</b>暗記</a>
     <a class="tab" href="#kakomon" data-v="kakomon"><b>過</b>過去問</a>
     <a class="tab" href="#kiroku" data-v="kiroku"><b>録</b>記録</a>
-    <a class="tab" href="#toren" data-v="toren"><b>答</b>答練</a>
   </div>
 </nav>
 
@@ -2606,8 +2605,7 @@ async function gradeSheet(pre){
           put({id:'a_'+uid(),kind:'a',date:today(),subject:d.subjKey,title:d.title||`${d.subject} 答案`,score:`AI ${r.grade||''}（推定${r.score??'—'}点）`,points:pts,memo,ai:r});
           if(pre.k&&q('#ai-k')?.checked){const k=pre.k,id=kid(k.ex,k.ty,k.y),cur=items.get(id)||{id,kind:'k',ex:k.ex,ty:k.ty,y:k.y,cells:{}},c=(cur.cells||{})[k.sj]||{n:0,dates:[]};
             put({...cur,cells:{...(cur.cells||{}),[k.sj]:{...c,n:(+c.n||0)+1,dates:[...(c.dates||[]),today()].slice(-10),score:`AI ${r.grade||''}`}}})}
-          closeSheet();toast(made?`保存しました。論証カードを${made}枚作りました（暗記タブ）`:'採点結果を答練に保存しました');
-          if(current()!=='toren')location.hash='toren';
+          closeSheet();toast(made?`保存しました。論証カードを${made}枚作りました（暗記タブ）`:'採点結果を保存しました');
         };
       }catch(e){
         const msg={not_granted:'Claudeの利用が許可されませんでした。もう一度押すと確認が出ます。',sampling_disabled:'このアカウントではAI採点を使えません。',rate_limited:'利用が混み合っているか、上限に達しました。少し時間をおいてください。',image_rejected:'写真を読み込めませんでした。別の写真にしてください。',images_unavailable:'ここでは写真を送れません。答案を文字で入力してください。',prompt_too_large:'文章が長すぎます。問題文や参考資料を短くしてください。',session_expired:'ログインし直してください。',refused:'この内容は採点できませんでした。',invalid_json:'採点結果をうまく受け取れませんでした。もう一度押してください。',cancelled:'採点を中止しました。'}[e&&e.code]||'採点できませんでした。通信状態を確認して、もう一度押してください。';
@@ -2873,7 +2871,7 @@ document.addEventListener('click',async e=>{if(!e.target.closest('[data-bk-now]'
 setTimeout(takeSnap,3000);
 
 /* ---------- 画面切替 ---------- */
-const VIEWS=['today','tanto','ronsho','kakomon','kiroku','toren','plan'];
+const VIEWS=['today','tanto','ronsho','kakomon','kiroku','plan'];
 const current=()=>{const h=location.hash.slice(1);return VIEWS.includes(h)?h:'today'};
 let rq=0;
 function render(){if(rq)return;rq=requestAnimationFrame(()=>{rq=0;doRender()});setTimeout(()=>{if(rq){cancelAnimationFrame(rq);rq=0;doRender()}},120)}
