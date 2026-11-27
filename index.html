@@ -336,6 +336,7 @@ details.info .tbl+.note{margin-bottom:12px}
 .goal{display:grid}.grow{display:grid;grid-template-columns:2fr 1.2fr 1.2fr .8fr;gap:6px;align-items:center;padding:6px 0;border-bottom:1px solid var(--line);font-size:.92rem}.grow.gh{font-size:.75rem;color:var(--muted);padding:2px 0}.grow.sum{border-bottom:0}.grow input{width:100%;max-width:5em;min-height:36px;padding:4px 6px}.goal .ok{color:var(--ok,#2e7d4f);font-weight:700}.goal .ng{color:var(--ng,#b23b3b);font-weight:700}
 .yo summary{cursor:pointer;display:flex;gap:6px;align-items:center;flex-wrap:wrap;padding:6px 0;border-top:1px solid var(--line)}
 .tray-btns{display:grid;grid-template-columns:1fr 1fr;gap:8px}.tray{display:flex;gap:8px;overflow-x:auto;padding:4px 0}.tr-i{position:relative;flex:0 0 72px;height:96px;border-radius:8px;overflow:hidden;border:1px solid var(--line)}.tr-i img{width:100%;height:100%;object-fit:cover}.tr-x{position:absolute;top:2px;right:2px;width:24px;height:24px;border-radius:50%;border:0;background:rgba(0,0,0,.6);color:#fff;font-size:14px;line-height:24px;padding:0;cursor:pointer}
+.pfg{display:grid;gap:10px}.pbar{display:flex;height:10px;border-radius:999px;overflow:hidden;background:var(--line);margin:4px 0}.pbar i{display:block;height:100%}.pbar .done{background:var(--ok,#2e7d4f)}.pbar .once{background:#8fc5a3}.pbar .t{background:var(--warn,#c9a227)}.pbar .x{background:var(--ng,#b23b3b)}.pfmenu{display:flex;flex-wrap:wrap;gap:6px}.pfmenu .chip{cursor:pointer;font-size:.85rem;padding:4px 10px;background:var(--surface)}.pfmenu .chip b{margin-left:4px}.pm-x b{color:var(--ng,#b23b3b)}.pm-t b{color:var(--warn,#c9a227)}.pm-once b{color:var(--ok,#2e7d4f)}
 .qzrow{display:flex;gap:8px;align-items:flex-start;font-size:.92rem;line-height:1.5}.qzadd{justify-content:flex-start;text-align:left;font-size:.88rem}
 .dref{display:grid;gap:4px}.dref summary{font-size:.9rem;cursor:pointer}
 .dq{display:grid;gap:4px;padding:8px 0;border-top:1px solid var(--line)}.dqa{padding:6px 10px;background:var(--bg);border-radius:8px;margin-top:4px}.grades.three{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
@@ -433,6 +434,7 @@ details summary{cursor:pointer;font-size:.85rem;color:var(--muted)}
 
   <!-- 短答 -->
   <section id="v-tanto" class="view" hidden>
+    <div class="panel" id="pf-goal"></div>
     <div class="panel" id="pf-panel"></div>
     <div class="gone">
     <div class="panel">
@@ -1863,6 +1865,39 @@ function renderKijun(){const el=$('mt-kijun');if(!el)return;
 document.addEventListener('click',e=>{if(e.target.closest('#mt-ai')){yosoAi(e.target.closest('#mt-ai'));return}if(e.target.closest('[data-nnew]')){nForm();return}const v=e.target.closest('[data-nv]');if(v){const n=items.get(v.dataset.nv);if(n)nForm(n)}});
 document.addEventListener('change',e=>{if(e.target.id==='mt-s'){ui.mtS=e.target.value;saveUi();renderYoso()}});
 document.addEventListener('input',e=>{if(e.target.id==='mt-q'){ui.mtQ=e.target.value;saveUi();const pos=e.target.selectionStart;renderNotes();const q=$('mt-q');q.focus();try{q.setSelectionRange(pos,pos)}catch(er){}}});
+/* ---------- 短答 満点への道：2回続けて○で「卒業」。残りを試験日までに割り振って、今日解く番号を出す ---------- */
+const TANTO_DAY='2027-07-18',PF_CORE=['kenpo','minpo1','minpo2','keiho'];
+function pfStat(b,i){const r=b.r[i]||{},ms=[1,2,3].map(n=>r[n]).filter(Boolean);if(!ms.length)return 'new';const l=ms[ms.length-1];if(l!=='o')return l==='x'?'x':'t';return ms.length>=2&&ms[ms.length-2]==='o'?'done':'once'}
+function pfMenu(keys,quota){const out=[],T=today();
+  const all=keys.flatMap(k=>{const b=pfBook(k);return Array.from({length:b.n},(_,j)=>String(j+1)).map(i=>({k,i,st:pfStat(b,i),dt:b.dt[i]||'',memo:pfHasMemo(b,i)}))}).filter(x=>x.st!=='done');
+  const ord={x:0,t:1,once:2,new:3};
+  // 今日すでに解いたものは外す。1回○は3日あける
+  const cand=all.filter(x=>x.dt!==T&&!(x.st==='once'&&x.dt&&daysTo(x.dt)>-3)).sort((a,b)=>ord[a.st]-ord[b.st]||(a.dt||'').localeCompare(b.dt||'')||(+a.i)-(+b.i));
+  return {menu:cand.slice(0,quota),left:all.length}}
+function renderPfGoal(){const el=$('pf-goal');if(!el)return;const keys=PF_BOOKS.map(b=>b[0]).filter(k=>PF_CORE.includes(k)||Object.keys(pfBook(k).r).length);
+  const days=Math.max(1,daysTo(TANTO_DAY)),T=today();
+  const rows=keys.map(k=>{const b=pfBook(k),c={done:0,once:0,t:0,x:0,new:0};for(let j=1;j<=b.n;j++)c[pfStat(b,String(j))]++;return {k,nm:PF_BOOKS.find(x=>x[0]===k)[1],n:b.n,c}});
+  const tot=rows.reduce((a,r)=>a+r.n,0),done=rows.reduce((a,r)=>a+r.c.done,0),need=rows.reduce((a,r)=>a+r.c.new*2+r.c.x*2+r.c.t*2+r.c.once,0);
+  const solvedToday=keys.reduce((a,k)=>a+Object.values(pfBook(k).dt).filter(d=>d===T).length,0);
+  const quota=Math.max(10,Math.ceil(need/Math.max(1,days-14)));
+  const {menu}=pfMenu(keys,Math.max(0,quota-solvedToday));
+  const why={};keys.forEach(k=>{const b=pfBook(k);Object.values(b.m).forEach(m=>{if(m&&m.why)why[m.why]=(why[m.why]||0)+1})});
+  const ADV={'知識があやふや':'メモを「カードにする」で暗記カードにして、毎日の復習で回す','知らなかった':'条文と判例を読み直して、肢の知識をカードにする','勘違い・混同':'似た制度を並べた比較をメモの「正しい知識」に書く','問題文の読み違い':'「正しいもの／誤っているもの」「組合せ」に印をつけてから解く','時間が足りない':'1問の目安時間を決めて、時計を見ながら解く'};
+  const wTop=Object.entries(why).sort((a,b)=>b[1]-a[1]);
+  const lab={x:'×',t:'△',once:'○1回',new:'初'};
+  el.innerHTML=`<div class="spread"><h2>短答 満点への道</h2><span class="meta">短答まであと${days}日</span></div>
+   <p class="note" style="margin:0">パーフェクトの全問を「2回続けて○」にすれば卒業です。全部卒業すれば、本番で見る問題はほぼ全部知っている状態になります。</p>
+   <div class="stats"><div class="stat"><b>${Math.round(done/Math.max(1,tot)*100)}%</b><span>卒業</span></div><div class="stat"><b>${done}<small style="font-size:.7rem">/${tot}</small></b><span>卒業した問題</span></div><div class="stat"><b>${quota}</b><span>1日の目標</span></div></div>
+   <div class="pfg">${rows.map(r=>`<div class="pfg-r"><div class="row" style="justify-content:space-between"><b>${esc(r.nm)}</b><span class="meta">卒業 ${r.c.done}/${r.n}</span></div>
+     <div class="pbar">${['done','once','t','x'].map(k=>`<i class="${k}" style="width:${r.c[k]/r.n*100}%"></i>`).join('')}</div>
+     <div class="meta">○1回 ${r.c.once}・△ ${r.c.t}・× ${r.c.x}・まだ ${r.c.new}</div></div>`).join('')}</div>
+   <h3>今日解く問題（${solvedToday}問 解いた・あと${menu.length}問）</h3>
+   ${menu.length?`<p class="note" style="margin:0">×→△→○1回（3日あけて）→まだ解いていない、の順です。本で解いて、下の表で○△×をつけると消えていきます。押すとその問題のメモが開きます。</p>
+     <div class="pfmenu">${menu.map(x=>`<button class="chip pm-${x.st}" data-pfgo="${x.k}|${x.i}">${esc(PF_BOOKS.find(b=>b[0]===x.k)[1])} ${x.i}<b>${lab[x.st]}</b>${x.memo?'・メモ':''}</button>`).join('')}</div>`
+     :'<p class="note">今日の分は終わりです！ 余裕があれば、×と△のメモを読み直しましょう。</p>'}
+   ${wTop.length?`<h3>まちがいの原因と対策</h3><div class="list">${wTop.slice(0,3).map(([w,n])=>`<div class="item"><div class="row" style="gap:6px"><b>${esc(w)}</b><span class="chip">${n}件</span></div><div class="meta">${esc(ADV[w]||'')}</div></div>`).join('')}</div>`:''}
+   <p class="note">1日の目標は、残りの問題を「卒業まで必要な回数」で数えて、試験の2週間前までに終わるように割り振っています（最低10問）。最後の2週間は総復習に使います。</p>`}
+document.addEventListener('click',e=>{const b=e.target.closest('[data-pfgo]');if(!b)return;const [k,i]=b.dataset.pfgo.split('|');ui.pfb=k;saveUi();renderPF();pfMemoSheet(k,i)});
 /* ---------- タイマー ---------- */
 let tm=Object.assign({run:false,start:0,acc:0,subj:'民法',pomo:false,lastPomo:0},loadJSON(LS_TM)||{});
 // タイマーの状態は端末だけでなく保存先（クラウド）にも残す。アプリが読み込み直されても止まらない
@@ -2948,7 +2983,7 @@ const PF_BOOKS=[['kenpo','憲法'],['minpo1','民法Ⅰ'],['minpo2','民法Ⅱ']
 const PF_MARK={o:'○',t:'△',x:'×'},PF_NEXT={'':'o',o:'t',t:'x',x:''};
 const pfDoc=()=>items.get('perfect')||{id:'perfect',kind:'pf',books:{}};
 const pfKey=()=>PF_BOOKS.some(b=>b[0]===ui.pfb)?ui.pfb:'kenpo';
-const pfBook=k=>{const b=(pfDoc().books||{})[k]||{};return {n:+b.n||100,r:b.r||{},m:b.m||{}}};
+const pfBook=k=>{const b=(pfDoc().books||{})[k]||{};return {n:+b.n||100,r:b.r||{},m:b.m||{},dt:b.dt||{}}};
 const PF_SUBJ={kenpo:'憲法',minpo1:'民法',minpo2:'民法',keiho:'刑法',gyosei:'行政法',shoho:'商法',minso:'民訴',keiso:'刑訴'};
 const PF_WHY=['知識があやふや','知らなかった','勘違い・混同','問題文の読み違い','時間が足りない'];
 const pfHasMemo=(b,i)=>{const m=b.m[i];return !!(m&&(m.q||m.t||m.memo||m.ref||m.why))};
@@ -2985,7 +3020,7 @@ function pfMemoSheet(k,i){const b=pfBook(k),m=b.m[i]||{},bk=PF_BOOKS.find(x=>x[0
     q('#pm-c').onclick=()=>{const v=val();save();sheetFlush=null;cForm({ctype:'qa',use:'tanto',subject:PF_SUBJ[k]||'民法',title:v.t||'',body:v.memo||'',article:v.ref||'',tags:`パーフェクト${bk[1]}No.${i}`})}})}
 let pfLast=null;
 const pfRound=()=>[1,2,3].includes(ui.pfr)?ui.pfr:1;
-function renderPF(){
+function renderPF(){renderPfGoal();
   const el=$('pf-panel');if(!el)return;
   const k=pfKey(),b=pfBook(k),rd=pfRound(),f=ui.pff||'all';
   const mk=i=>(b.r[i]||{})[rd]||'',prevBad=i=>{for(let r=rd-1;r>=1;r--){const m=(b.r[i]||{})[r];if(m)return m!=='o'}return false};
@@ -3005,13 +3040,13 @@ function renderPF(){
     <p class="note">${ui.pfMemo?'番号を押すと、その問題のメモが開きます。':'番号を押すたびに ○→△→×→消す。'}赤い点は前の周で×か△だった問題、青い点はメモがある問題です。</p>
     ${(()=>{const ms=Object.keys(b.m).filter(i=>pfHasMemo(b,i)).sort((a,c)=>(b.m[c].d||'').localeCompare(b.m[a].d||'')||(+a)-(+c));return ms.length?`<details class="pf-memos"${f==='memo'?' open':''}><summary><b>まちがえた問題のメモ（${ms.length}）</b></summary><div class="list">${ms.map(i=>{const mm=b.m[i];return `<div class="item" data-pfm="${esc(i)}" role="button" tabindex="0"><div class="row" style="gap:6px"><b>No.${esc(i)}</b>${mm.why?`<span class="chip">${esc(mm.why)}</span>`:''}<span>${esc(mm.t||'')}</span></div>${mm.memo?`<div class="meta">${esc(mm.memo.slice(0,70))}${mm.memo.length>70?'…':''}</div>`:''}</div>`}).join('')}</div></details>`:''})()}`;
 }
-function pfSave(fn,key){const k=key||pfKey(),d=pfDoc(),books={...(d.books||{})},b=pfBook(k),nb={n:b.n,r:JSON.parse(JSON.stringify(b.r)),m:JSON.parse(JSON.stringify(b.m))};fn(nb);books[k]=nb;put({...d,id:'perfect',kind:'pf',books})}
+function pfSave(fn,key){const k=key||pfKey(),d=pfDoc(),books={...(d.books||{})},b=pfBook(k),nb={n:b.n,r:JSON.parse(JSON.stringify(b.r)),m:JSON.parse(JSON.stringify(b.m)),dt:{...b.dt}};fn(nb);books[k]=nb;put({...d,id:'perfect',kind:'pf',books})}
 document.addEventListener('click',e=>{
   const pm=e.target.closest('[data-pfmode]');if(pm){ui.pfMemo=pm.dataset.pfmode==='memo';saveUi();renderPF();return}
   const pmo=e.target.closest('[data-pfm]');if(pmo){pfMemoSheet(pfKey(),pmo.dataset.pfm);return}
   if(e.target.closest('[data-pf-memo]')&&pfLast){const i=pfLast.i;pfLast=null;renderPF();pfMemoSheet(pfKey(),i);return}
   const c0=e.target.closest('[data-pf]');if(c0&&ui.pfMemo){pfMemoSheet(pfKey(),c0.dataset.pf);return}
-  const c=e.target.closest('[data-pf]');if(c){const i=c.dataset.pf,rd=pfRound();let nx='';pfSave(b=>{const cur=(b.r[i]||{})[rd]||'';nx=PF_NEXT[cur];b.r[i]={...(b.r[i]||{})};if(nx)b.r[i][rd]=nx;else delete b.r[i][rd];if(!Object.keys(b.r[i]).length)delete b.r[i]});
+  const c=e.target.closest('[data-pf]');if(c){const i=c.dataset.pf,rd=pfRound();let nx='';pfSave(b=>{const cur=(b.r[i]||{})[rd]||'';nx=PF_NEXT[cur];b.r[i]={...(b.r[i]||{})};if(nx)b.r[i][rd]=nx;else delete b.r[i][rd];if(!Object.keys(b.r[i]).length)delete b.r[i];if(nx)b.dt[i]=today()});
     pfLast=(nx==='x'||nx==='t')?{i,m:nx}:null;renderPF();return}
   if(e.target.closest('[data-pf-card]')&&pfLast){const k=pfKey(),bk=PF_BOOKS.find(b=>b[0]===k),subj={kenpo:'憲法',minpo1:'民法',minpo2:'民法',keiho:'刑法',gyosei:'行政法',shoho:'商法',minso:'民訴',keiso:'刑訴'}[k]||'民法',tag=`パーフェクト${bk[1]}No.${pfLast.i}`;
     pfLast=null;renderPF();cForm({ctype:'qa',use:'tanto',subject:subj,title:'',body:'',article:'',tags:tag});
