@@ -1786,13 +1786,13 @@ document.addEventListener('change',async e=>{if(e.target.id!=='hs-bulk')return;c
           bb.m[no]=cur;n++})});
         Object.keys(by).forEach(no=>dAuto('h:'+k+':'+no,HS_SUBJ[k]||'選択'));
         closeSheet();toast(`${n}件の判例メモに入れました${bad?`（番号がわからない${bad}枚は保存していません）`:''}`)}});
-  draw(`0 / ${fs.length}枚 読み取っています…（1枚20秒ほど）`);
-  for(let j=0;j<fs.length&&!stop;j++){let r={};
-    try{const img=await shrink(fs[j]);r=await sample.json(`司法試験の受験生が使う判例集（${hsName(k)}）のページの写真です。この写真に載っている判例を、受験生の暗記用にまとめてください。
+  draw(`0 / ${fs.length}枚 読み取っています…（3枚ずつ同時に。3枚で20〜30秒ほど）`);
+  const one=async f=>{let r={};try{const img=await shrink(f);r=await sample.json(`司法試験の受験生が使う判例集（${hsName(k)}）のページの写真です。この写真に載っている判例を、受験生の暗記用にまとめてください。
 JSONだけで返す：{"no":"判例集の項目番号（ページ上部の番号。付録なら A3 のように。分からなければ空文字）","t":"事件名（通称があれば通称）","d":"裁判所・年月日（例：最決平16.3.22）","f":"事案（結論を書かずに100〜200字）","memo":"判旨（規範と結論。大事な語句は【】で囲む。200字以内）","sh":"判例の射程（120字以内）","ro":"付随する論点（読点で区切る）","ka":"本試験で同じ事案が出たときの書き方（問題の所在→規範→当てはめで拾う事実→結論、200字以内）","yo":"司法試験で出そうなところ（事案の変え方・問われ方。150字以内）","sum":"まとめ（結論と理由を一言で。60字以内）"}
-- 写真に書いてあることに基づく。写真にない部分は空文字。判例を作らない。読めない部分は［判読不能］。解説者の私見と判旨を混ぜない。`,{images:[img],modelTier:'default'})||{}}catch(er){r={}}
-    res.push({...r,no:String(r.no||'').trim(),ok:!!String(r.no||'').trim()&&!!(r.t||r.memo||r.f)});
-    if($('scrim').hidden){stop=true;break}draw(`${j+1} / ${fs.length}枚 読み取りました${j+1<fs.length&&!stop?'…':''}`)}
+- 写真に書いてあることに基づく。写真にない部分は空文字。判例を作らない。読めない部分は［判読不能］。解説者の私見と判旨を混ぜない。`,{images:[img],modelTier:'default'})||{}}catch(er){r={}}return {...r,no:String(r.no||'').trim(),ok:!!String(r.no||'').trim()&&!!(r.t||r.memo||r.f)}};
+  // 3枚ずつ同時に読み取る
+  for(let j=0;j<fs.length&&!stop;j+=3){const part=await Promise.all(fs.slice(j,j+3).map(one));res.push(...part);
+    if($('scrim').hidden){stop=true;break}draw(`${res.length} / ${fs.length}枚 読み取りました${res.length<fs.length&&!stop?'…':''}`)}
   if(stop&&!$('scrim').hidden)draw(`${res.length}枚で止めました`)});
 /* ---------- まとめタブ：問われそうなところ・自分のまとめノート・採点のポイント ---------- */
 const MT_SUBJ=['憲法','行政法','民法','商法','民訴','刑法','刑訴','倒産法','租税法','経済法','知的財産法','労働法','環境法','国際関係法（公法系）','国際関係法（私法系）'];
@@ -2781,7 +2781,7 @@ function hsMemoSheet(k,i){
   const b=hsBook(k),m=b.m[i]||{},c=+b.r[i]||0,o=b.o[i];if(hsHasMemo(b,i))dAuto('h:'+k+':'+i,HS_SUBJ[k]||'選択');
   openSheet(`<h2>${esc(hsName(k))} ${hsNo(i)}</h2>
     <div class="f"><span>読んだ回数</span><div class="seg" role="group" aria-label="読んだ回数">${['未読','1回','2回','3回'].map((l,n)=>`<button type="button" data-hr="${n}" aria-pressed="${c===n}">${l}</button>`).join('')}</div></div>
-    ${inClaude?`<label class="btn photo">📷 百選のページを写真で読み込む（AI）<input type="file" id="hm-ph" accept="image/*" multiple hidden></label><p class="note" id="hm-pn" style="margin-top:-4px">見開きなら2枚まで選べます。AIが事件名・日付・事案・判旨・射程・論点などにまとめて、今の内容を上書きします（保存するまでは元に戻せます）。</p>`:''}
+    ${inClaude?`<label class="btn photo">📷 百選のページを写真で読み込む（AI）<input type="file" id="hm-ph" accept="image/*" multiple hidden></label><p class="note" id="hm-pn" style="margin-top:-4px">この判例のページを6枚まで一度に選べます（見開き・解説のページなど）。AIが事件名・日付・事案・判旨・射程・論点などにまとめて、今の内容を上書きします（保存するまでは元に戻せます）。</p>`:''}
     <div class="grid2"><label class="f">事件名<input id="hm-t" value="${esc(m.t||'')}" placeholder="例：クロロホルム事件"></label>
     <label class="f">裁判所・年月日<input id="hm-d" value="${esc(m.d||'')}" placeholder="例：最決平16.3.22"></label></div>
     <div class="f hm-ed"><span id="hm-fl">事案（練習で問題として出ます）</span><div id="hm-f" class="rich" contenteditable="true" role="textbox" aria-multiline="true" aria-labelledby="hm-fl" data-ph="例：XはAをクロロホルムで失神させ、車ごと海に転落させて殺害する計画を立て…">${toRich(m.f||'')}</div></div>
@@ -2832,9 +2832,9 @@ function hsMemoSheet(k,i){
         const add=(el,v)=>{if(!v)return;v=String(v);if(fromRich(el).trim())el.innerHTML+='<br>'+toRich(v);else el.innerHTML=toRich(v)};add(ey,r&&r.yo);add(ez,r&&r.sum);
         if(!(r&&(r.yo||r.sum)))throw 0;toast('入れました。確認して保存してください')}
       catch(er2){toast('作れませんでした')}yai.disabled=false;yai.textContent='AIで「出そうなところ」と「まとめ」を作る'};
-    const ph=sh.querySelector('#hm-ph');if(ph)ph.onchange=async()=>{const fs=[...ph.files].slice(0,2);ph.value='';if(!fs.length)return;const pn=sh.querySelector('#hm-pn');
+    const ph=sh.querySelector('#hm-ph');if(ph)ph.onchange=async()=>{const fs=[...ph.files].slice(0,6);ph.value='';if(!fs.length)return;const pn=sh.querySelector('#hm-pn');
       const sample=await sampleP,caps=sample?await sample.limits().catch(()=>null):null;if(!sample||!caps||!caps.images){toast('ここでは写真を読み込めません');return}
-      pn.textContent='写真を読み取ってまとめています…（30秒ほど）';
+      pn.textContent=`写真${fs.length}枚を読み取ってまとめています…（30秒ほど）`;
       try{const imgs=[];for(const f of fs)imgs.push(await shrink(f));
         const r=await sample.json(`司法試験の受験生が使う判例集（${hsName(k)} ${hsNo(i)}）のページの写真です。この判例を、受験生の暗記用にまとめてください。
 JSONだけで返す：{"t":"事件名（通称があれば通称）","d":"裁判所・年月日（例：最決平16.3.22）","f":"事案（当事者・事実関係を、結論を書かずに100〜200字）","memo":"判旨（規範と結論。大事な語句は【】で囲む。200字以内）","sh":"判例の射程（どこまで及ぶか、事案の違いで結論が変わるところ。120字以内）","ro":"付随する論点（読点で区切る）","ka":"本試験で同じ事案が出たときの書き方（問題の所在→規範→当てはめで拾う事実→結論、200字以内）","yo":"司法試験で出そうなところ（事案の変え方・問われ方。150字以内）","sum":"まとめ（結論と理由を一言で。60字以内）"}
