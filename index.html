@@ -149,7 +149,7 @@ label.f>input,label.f>select,label.f>textarea{color:var(--ink);font-size:1rem}
 nav.tabs{position:fixed;left:0;right:0;bottom:0;z-index:20;background:var(--surface);border-top:1px solid var(--line);
   padding-left:max(8px,env(safe-area-inset-left,0px));padding-right:max(8px,env(safe-area-inset-right,0px));
   padding-bottom:max(14px,env(safe-area-inset-bottom,0px))}
-nav.tabs .in{max-width:640px;margin:0 auto;display:grid;grid-template-columns:repeat(6,1fr);height:var(--tabh)}
+nav.tabs .in{max-width:640px;margin:0 auto;display:grid;grid-template-columns:repeat(5,1fr);height:var(--tabh)}
 .tab{appearance:none;border:0;background:none;touch-action:manipulation;-webkit-tap-highlight-color:transparent;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;cursor:pointer;color:var(--muted);font-size:.72rem;text-decoration:none;position:relative}
 .tab b{font-family:var(--f-display);font-size:1.15rem;font-weight:800;line-height:1}
 .tab[aria-current="page"]{color:var(--accent)}
@@ -565,7 +565,6 @@ details summary{cursor:pointer;font-size:.85rem;color:var(--muted)}
     <a class="tab" href="#ronsho" data-v="ronsho"><b>暗</b>暗記</a>
     <a class="tab" href="#kakomon" data-v="kakomon"><b>過</b>過去問</a>
     <a class="tab" href="#kiroku" data-v="kiroku"><b>録</b>記録</a>
-    <a class="tab" href="#matome" data-v="matome"><b>ま</b>まとめ</a>
   </div>
 </nav>
 
@@ -1471,7 +1470,7 @@ function refItem(r){const [k,a,b]=r.split(':');if(k==='i'){const x=getItem(r.sli
     const tl={ronsho:'論証',hanrei:'判例',teigi:'定義',qa:'一問一答'}[ctOf(x)]||'カード';
     return {t:tl+'：'+stripC(x.title),x:`【${tl}】${stripC(x.title)}${x.issue?'\n問題提起：'+stripC(x.issue):''}${x.facts?'\n事案：'+x.facts:''}${x.article?'\n'+x.article:''}\n${stripC(x.body).replace(/[【】《》]/g,'')}`}}
   if(k==='p'){const bk=pfBook(a),m=bk.m[b]||{},nm=(PF_BOOKS.find(x=>x[0]===a)||[a,a])[1];return {t:`短答 ${nm}No.${b}`+(m.t?' '+m.t:''),x:`【短答のまちがい】パーフェクト${nm} No.${b}${m.t?'　'+m.t:''}${m.q?'\n問題文：'+m.q.slice(0,400):''}${m.why?'\n理由：'+m.why:''}${m.memo?'\n正しい知識：'+m.memo:''}${m.ref?'\n'+m.ref:''}`}}
-  if(k==='h'){const bk=hsBook(a),m=bk.m[b]||{};return {t:hsTag(a,b)+(m.t?' '+m.t:''),x:`【判例】${hsName(a)} ${hsNo(b)}${m.t?' '+m.t:''}${m.d?'（'+m.d+'）':''}${m.f?'\n事案：'+stripC(m.f):''}${m.memo?'\n判旨・メモ：'+stripC(m.memo):''}${m.ro?'\n論点：'+stripC(m.ro):''}${m.sh?'\n射程：'+stripC(m.sh):''}${m.ka?'\n起案の参考：'+stripC(m.ka):''}`}}
+  if(k==='h'){const bk=hsBook(a),m=bk.m[b]||{};return {t:hsTag(a,b)+(m.t?' '+m.t:''),x:`【判例】${hsName(a)} ${hsNo(b)}${m.t?' '+m.t:''}${m.d?'（'+m.d+'）':''}${m.f?'\n事案：'+stripC(m.f):''}${m.memo?'\n判旨・メモ：'+stripC(m.memo):''}${m.ro?'\n論点：'+stripC(m.ro):''}${m.sh?'\n射程：'+stripC(m.sh):''}${m.ka?'\n起案の参考：'+stripC(m.ka):''}${m.yo?'\n出そうなところ：'+stripC(m.yo):''}${m.sum?'\nまとめ：'+stripC(m.sum):''}`}}
   return null}
 function dAutoTitle(refs){const ts=refs.map(refItem).filter(Boolean).map(r=>r.t);return ts.slice(0,2).join('、')+(ts.length>2?` ほか${ts.length-2}件`:'')}
 function dMaterial(d){const parts=(d.refs||[]).map(refItem).filter(Boolean);return parts.slice(0,12).map(r=>r.x.slice(0,500)).join('\n\n')}
@@ -1561,7 +1560,7 @@ function qzFromRef(r){const [k,a,b]=r.split(':');
     if(x.kind==='c')return {k:'c',ct:ctOf(x),s:x.subject,t:stripC(x.title),f:(x.facts||'').slice(0,300),i:stripC(rsIssue(x)||x.issue||'').slice(0,200),b:String(x.body||'').slice(0,900)}}
   if(k==='p'){const bk=pfBook(a),m=bk.m[b]||{},nm=(PF_BOOKS.find(x=>x[0]===a)||[a,a])[1];if(!m.memo)return null;
     return {k:'c',ct:'qa',s:PF_SUBJ[a]||'民法',t:`短答 ${nm}No.${b}${m.t?'　'+m.t:''}`,f:(m.q||'').slice(0,300),i:'',b:(m.memo+(m.ref?'\n'+m.ref:'')).slice(0,900)}}
-  if(k==='h'){const bk=hsBook(a),m=bk.m[b]||{};const body=[m.memo&&'判旨・メモ：'+stripC(m.memo),m.ro&&'論点：'+stripC(m.ro),m.sh&&'射程：'+stripC(m.sh),m.ka&&'起案の参考：'+stripC(m.ka)].filter(Boolean).join('\n');if(!body)return null;
+  if(k==='h'){const bk=hsBook(a),m=bk.m[b]||{};const body=[m.memo&&'判旨・メモ：'+stripC(m.memo),m.ro&&'論点：'+stripC(m.ro),m.sh&&'射程：'+stripC(m.sh),m.ka&&'起案の参考：'+stripC(m.ka),m.yo&&'出そうなところ：'+stripC(m.yo),m.sum&&'まとめ：'+stripC(m.sum)].filter(Boolean).join('\n');if(!body)return null;
     return {k:'c',ct:'hanrei',s:HS_SUBJ[a]||'選択',t:hsTag(a,b)+(m.t?' '+m.t:''),f:stripC(m.f||'').slice(0,300),i:'',b:body.slice(0,900)}}
   return null}
 const qzLabel=r=>{const x=refItem(r);return x?x.t:r};
@@ -1783,14 +1782,14 @@ document.addEventListener('change',async e=>{if(e.target.id!=='hs-bulk')return;c
           const ok=/^A?\d+$/.test(no)&&(no[0]==='A'?+no.slice(1)<=(b.an||0):+no<=b.n);if(!ok){bad++;return}(by[no]=by[no]||[]).push(r)});
         hsSave(k,bb=>{Object.entries(by).forEach(([no,rs])=>{const cur={...(bb.m[no]||{})};const pick=f=>rs.map(r=>String(r[f]||'').trim()).filter(Boolean);
           [['t','t'],['d','d']].forEach(([a,f])=>{if(!String(cur[a]||'').trim()){const v=pick(f)[0];if(v)cur[a]=v}});
-          [['f','f'],['memo','memo'],['sh','sh'],['ro','ro'],['ka','ka']].forEach(([a,f])=>{if(!String(cur[a]||'').trim()){const v=pick(f);if(v.length)cur[a]=[...new Set(v)].join('\n')}});
+          [['f','f'],['memo','memo'],['sh','sh'],['ro','ro'],['ka','ka'],['yo','yo'],['sum','sum']].forEach(([a,f])=>{if(!String(cur[a]||'').trim()){const v=pick(f);if(v.length)cur[a]=[...new Set(v)].join('\n')}});
           bb.m[no]=cur;n++})});
         Object.keys(by).forEach(no=>dAuto('h:'+k+':'+no,HS_SUBJ[k]||'選択'));
         closeSheet();toast(`${n}件の判例メモに入れました${bad?`（番号がわからない${bad}枚は保存していません）`:''}`)}});
   draw(`0 / ${fs.length}枚 読み取っています…（1枚20秒ほど）`);
   for(let j=0;j<fs.length&&!stop;j++){let r={};
     try{const img=await shrink(fs[j]);r=await sample.json(`司法試験の受験生が使う判例集（${hsName(k)}）のページの写真です。この写真に載っている判例を、受験生の暗記用にまとめてください。
-JSONだけで返す：{"no":"判例集の項目番号（ページ上部の番号。付録なら A3 のように。分からなければ空文字）","t":"事件名（通称があれば通称）","d":"裁判所・年月日（例：最決平16.3.22）","f":"事案（結論を書かずに100〜200字）","memo":"判旨（規範と結論。大事な語句は【】で囲む。200字以内）","sh":"判例の射程（120字以内）","ro":"付随する論点（読点で区切る）","ka":"本試験で同じ事案が出たときの書き方（問題の所在→規範→当てはめで拾う事実→結論、200字以内）"}
+JSONだけで返す：{"no":"判例集の項目番号（ページ上部の番号。付録なら A3 のように。分からなければ空文字）","t":"事件名（通称があれば通称）","d":"裁判所・年月日（例：最決平16.3.22）","f":"事案（結論を書かずに100〜200字）","memo":"判旨（規範と結論。大事な語句は【】で囲む。200字以内）","sh":"判例の射程（120字以内）","ro":"付随する論点（読点で区切る）","ka":"本試験で同じ事案が出たときの書き方（問題の所在→規範→当てはめで拾う事実→結論、200字以内）","yo":"司法試験で出そうなところ（事案の変え方・問われ方。150字以内）","sum":"まとめ（結論と理由を一言で。60字以内）"}
 - 写真に書いてあることに基づく。写真にない部分は空文字。判例を作らない。読めない部分は［判読不能］。解説者の私見と判旨を混ぜない。`,{images:[img],modelTier:'default'})||{}}catch(er){r={}}
     res.push({...r,no:String(r.no||'').trim(),ok:!!String(r.no||'').trim()&&!!(r.t||r.memo||r.f)});
     if($('scrim').hidden){stop=true;break}draw(`${j+1} / ${fs.length}枚 読み取りました${j+1<fs.length&&!stop?'…':''}`)}
@@ -2749,7 +2748,7 @@ const hsAll=b=>[...Array.from({length:b.n},(_,i)=>String(i+1)),...Array.from({le
 const hsIds=b=>hsAll(b).filter(i=>!b.x[i]);
 const hsKey=()=>HS_BOOKS.some(b=>b[0]===ui.hs)?ui.hs:'kenpo1';
 const hsName=k=>HS_BOOKS.find(b=>b[0]===k)[1];
-const hsHasMemo=(b,i)=>{const m=b.m[i];return !!(m&&(m.t||m.f||m.memo||m.d||m.sh||m.ro||m.ka))};
+const hsHasMemo=(b,i)=>{const m=b.m[i];return !!(m&&(m.t||m.f||m.memo||m.d||m.sh||m.ro||m.ka||m.yo||m.etc||m.sum))};
 function renderHS(){
   const el=$('hs-panel');if(!el)return;
   const k=hsKey(),b=hsBook(k),tot=Math.max(1,hsIds(b).length),nx=Object.keys(b.x).length,read=hsIds(b).filter(i=>+b.r[i]>0).length,nm=Object.keys(b.m).filter(i=>hsHasMemo(b,i)&&!b.x[i]).length;
@@ -2791,17 +2790,21 @@ function hsMemoSheet(k,i){
     <div class="f hm-ed"><span id="hm-rl">付随する論点</span><div id="hm-r" class="rich" contenteditable="true" role="textbox" aria-multiline="true" aria-labelledby="hm-rl" data-ph="例：因果関係の錯誤、早すぎた構成要件の実現と故意">${toRich(m.ro||'')}</div></div>
     <div class="f hm-ed"><span id="hm-kl">本試験で同じ事案が出たときの書き方（起案の参考）</span><div id="hm-k" class="rich" contenteditable="true" role="textbox" aria-multiline="true" aria-labelledby="hm-kl" data-ph="例：①問題提起（実行の着手時期が問題となる）→②規範（密接性・危険性、判旨）→③当てはめ（第1行為の時点で…）→④結論。配分の目安：論点の重さに応じて1〜1.5頁">${toRich(m.ka||'')}</div></div>
     ${inClaude?'<button type="button" class="btn" id="hm-kai">AIで起案の参考を作る</button>':''}
+    <div class="f hm-ed"><span id="hm-yl">司法試験で出そうなところ</span><div id="hm-y" class="rich" contenteditable="true" role="textbox" aria-multiline="true" aria-labelledby="hm-yl" data-ph="例：事案を少し変えて（計画がない場合など）射程を問う形。早すぎた構成要件の実現と組み合わせた出題">${toRich(m.yo||'')}</div></div>
+    <div class="f hm-ed"><span id="hm-ol">その他</span><div id="hm-o" class="rich" contenteditable="true" role="textbox" aria-multiline="true" aria-labelledby="hm-ol" data-ph="例：反対意見、学説の批判、関連判例など">${toRich(m.etc||'')}</div></div>
+    <div class="f hm-ed"><span id="hm-zl">まとめ</span><div id="hm-z" class="rich" contenteditable="true" role="textbox" aria-multiline="true" aria-labelledby="hm-zl" data-ph="例：一言でいうと「計画的な一連の行為なら第1行為の時点で着手」">${toRich(m.sum||'')}</div></div>
+    ${inClaude?'<button type="button" class="btn" id="hm-yai">AIで「出そうなところ」と「まとめ」を作る</button>':''}
     <div id="hm-bar">${PEN_BAR('キーワード')}</div>
     <p class="note" style="margin-top:-6px">書いている欄に色がつきます。判旨の大事な語句を選んで「キーワード」を押すと、口頭練習で言えたかを確かめられます。</p>
     ${o?`<p class="note">前回の口頭練習：${o.g===2?'言えた':o.g===1?'あやふや':'言えなかった'}${o.sc!=null?`（AI ${o.sc}点）`:''}・${md(o.last)}</p>`:''}
     <div class="row"><button class="btn" data-hm-say>口で説明する</button><button class="btn primary wide" data-hm-save>保存</button></div>
     <button class="btn ghost" data-hm-x>この番号は使わない（除外する）</button>`,sh=>{
     sh.querySelector('[data-hm-x]').onclick=()=>{hsSave(k,bb=>{bb.x[i]=1});closeSheet();toast(hsNo(i)+'を除外しました。もう一度押すと戻せます')};
-    let rc=c;const ef=sh.querySelector('#hm-f'),em=sh.querySelector('#hm-m'),es=sh.querySelector('#hm-s'),er=sh.querySelector('#hm-r'),ek=sh.querySelector('#hm-k');
-    mkRich(sh,[ef,em,es,er,ek],sh.querySelector('#hm-bar'));
+    let rc=c;const ef=sh.querySelector('#hm-f'),em=sh.querySelector('#hm-m'),es=sh.querySelector('#hm-s'),er=sh.querySelector('#hm-r'),ek=sh.querySelector('#hm-k'),ey=sh.querySelector('#hm-y'),eo=sh.querySelector('#hm-o'),ez=sh.querySelector('#hm-z');
+    mkRich(sh,[ef,em,es,er,ek,ey,eo,ez],sh.querySelector('#hm-bar'));
     sh.querySelectorAll('[data-hr]').forEach(bt=>bt.onclick=()=>{rc=+bt.dataset.hr;sh.querySelectorAll('[data-hr]').forEach(x=>x.setAttribute('aria-pressed',x===bt))});
-    const save=()=>{const v=id=>sh.querySelector(id).value.trim(),t=v('#hm-t'),d=v('#hm-d'),f=fromRich(ef).trim(),memo=fromRich(em).trim(),shg=fromRich(es).trim(),ro=fromRich(er).trim(),ka=fromRich(ek).trim();
-      hsSave(k,bb=>{if(rc)bb.r[i]=rc;else delete bb.r[i];if(t||d||f||memo||shg||ro||ka)bb.m[i]={t,d,f,memo,sh:shg,ro,...(ka?{ka}:{})};else delete bb.m[i]});return t||f||memo};
+    const save=()=>{const v=id=>sh.querySelector(id).value.trim(),t=v('#hm-t'),d=v('#hm-d'),f=fromRich(ef).trim(),memo=fromRich(em).trim(),shg=fromRich(es).trim(),ro=fromRich(er).trim(),ka=fromRich(ek).trim(),yo=fromRich(ey).trim(),etc=fromRich(eo).trim(),sum=fromRich(ez).trim();
+      hsSave(k,bb=>{if(rc)bb.r[i]=rc;else delete bb.r[i];if(t||d||f||memo||shg||ro||ka||yo||etc||sum)bb.m[i]={t,d,f,memo,sh:shg,ro,...(ka?{ka}:{}),...(yo?{yo}:{}),...(etc?{etc}:{}),...(sum?{sum}:{})};else delete bb.m[i]});return t||f||memo};
     sh.querySelector('[data-hm-save]').onclick=()=>{save();closeSheet();toast('保存しました')};
     const kai=sh.querySelector('#hm-kai');if(kai)kai.onclick=async()=>{const t=sh.querySelector('#hm-t').value.trim(),f=fromRich(ef).trim(),memo=fromRich(em).trim();if(!t&&!memo){toast('先に事件名か判旨を書いてください');return}
       const sample=await sampleP;if(!sample){toast('ここではAIが使えません');return}kai.disabled=true;kai.textContent='作っています…（20秒ほど）';
@@ -2816,18 +2819,31 @@ function hsMemoSheet(k,i){
 付随する論点：${fromRich(er).trim()}`,{modelTier:'complex',cache:false});
         const v=String(r&&r.text||'').trim();if(!v)throw 0;if(fromRich(ek).trim())ek.innerHTML+='<br>'+toRich(v);else ek.innerHTML=toRich(v);toast('起案の参考を入れました。確認して保存してください')}
       catch(er2){toast('作れませんでした')}kai.disabled=false;kai.textContent='AIで起案の参考を作る'};
+    const yai=sh.querySelector('#hm-yai');if(yai)yai.onclick=async()=>{const t=sh.querySelector('#hm-t').value.trim(),memo=fromRich(em).trim();if(!t&&!memo){toast('先に事件名か判旨を書いてください');return}
+      const sample=await sampleP;if(!sample){toast('ここではAIが使えません');return}yai.disabled=true;yai.textContent='作っています…（20秒ほど）';
+      try{const r=await sample.json(`司法試験の受験指導の講師として、次の判例について答えてください。JSONだけで返す：{"yo":"司法試験の論文式・短答式で出そうなところ（どんな事案の変え方・問われ方が考えられるか、何を書かせたいか。箇条書きで3〜5点、200字以内）","sum":"この判例のまとめ（結論と理由を一言で。60字以内）"}
+- 判例・通説として確かなことだけ。大事な語句は【】で囲む。
+科目：${SL(HS_SUBJ[k]||'')}　${hsName(k)} ${hsNo(i)}
+事件名：${t}　${sh.querySelector('#hm-d').value.trim()}
+事案：${fromRich(ef).trim()}
+判旨：${memo}
+射程：${fromRich(es).trim()}
+付随する論点：${fromRich(er).trim()}`,{modelTier:'complex'});
+        const add=(el,v)=>{if(!v)return;v=String(v);if(fromRich(el).trim())el.innerHTML+='<br>'+toRich(v);else el.innerHTML=toRich(v)};add(ey,r&&r.yo);add(ez,r&&r.sum);
+        if(!(r&&(r.yo||r.sum)))throw 0;toast('入れました。確認して保存してください')}
+      catch(er2){toast('作れませんでした')}yai.disabled=false;yai.textContent='AIで「出そうなところ」と「まとめ」を作る'};
     const ph=sh.querySelector('#hm-ph');if(ph)ph.onchange=async()=>{const fs=[...ph.files].slice(0,2);ph.value='';if(!fs.length)return;const pn=sh.querySelector('#hm-pn');
       const sample=await sampleP,caps=sample?await sample.limits().catch(()=>null):null;if(!sample||!caps||!caps.images){toast('ここでは写真を読み込めません');return}
       pn.textContent='写真を読み取ってまとめています…（30秒ほど）';
       try{const imgs=[];for(const f of fs)imgs.push(await shrink(f));
         const r=await sample.json(`司法試験の受験生が使う判例集（${hsName(k)} ${hsNo(i)}）のページの写真です。この判例を、受験生の暗記用にまとめてください。
-JSONだけで返す：{"t":"事件名（通称があれば通称）","d":"裁判所・年月日（例：最決平16.3.22）","f":"事案（当事者・事実関係を、結論を書かずに100〜200字）","memo":"判旨（規範と結論。大事な語句は【】で囲む。200字以内）","sh":"判例の射程（どこまで及ぶか、事案の違いで結論が変わるところ。120字以内）","ro":"付随する論点（読点で区切る）","ka":"本試験で同じ事案が出たときの書き方（問題の所在→規範→当てはめで拾う事実→結論、200字以内）"}
+JSONだけで返す：{"t":"事件名（通称があれば通称）","d":"裁判所・年月日（例：最決平16.3.22）","f":"事案（当事者・事実関係を、結論を書かずに100〜200字）","memo":"判旨（規範と結論。大事な語句は【】で囲む。200字以内）","sh":"判例の射程（どこまで及ぶか、事案の違いで結論が変わるところ。120字以内）","ro":"付随する論点（読点で区切る）","ka":"本試験で同じ事案が出たときの書き方（問題の所在→規範→当てはめで拾う事実→結論、200字以内）","yo":"司法試験で出そうなところ（事案の変え方・問われ方。150字以内）","sum":"まとめ（結論と理由を一言で。60字以内）"}
 - 写真に書いてあることに基づいて書く。写真にない判例を作らない。読めない部分は［判読不能］と書く。
 - 解説者の私見と判旨を混ぜない。自信がない部分は「要確認」と書く。`,{images:imgs,modelTier:'default'});
         if(!r||typeof r!=='object')throw 0;let n=0;
         const setI=(id,v)=>{const e=sh.querySelector(id);if(e&&v&&!e.value.trim()){e.value=String(v);n++}};
         const setR=(el,v)=>{if(el&&v&&!fromRich(el).trim()){el.innerHTML=toRich(String(v));n++}};
-        setI('#hm-t',r.t);setI('#hm-d',r.d);setR(ef,r.f);setR(em,r.memo);setR(es,r.sh);setR(er,r.ro);setR(ek,r.ka);
+        setI('#hm-t',r.t);setI('#hm-d',r.d);setR(ef,r.f);setR(em,r.memo);setR(es,r.sh);setR(er,r.ro);setR(ek,r.ka);setR(ey,r.yo);setR(ez,r.sum);
         pn.textContent=n?'まとめました。AIの下書きなので、本と見比べてから「保存」を押してください。':'空いている欄がなかったので、何も変えていません。消してから読み込むと入ります。'}
       catch(e){pn.textContent='読み取れませんでした。明るい場所で、ページ全体が入るように撮り直してください。'}};
     sh.querySelector('[data-hm-say]').onclick=()=>{if(!save()){toast('先に事案か事件名を書いてください');return}hsPractice(k,[String(i)])};
@@ -2874,6 +2890,9 @@ function hsStep(){
       <div class="p-body hp-a">${m.memo?(kws.length&&HP.typed.trim()?fmt(m.memo,'check',{norm:said}):fmt(m.memo,'plain')):'（判旨のメモがありません）'}</div>
       ${m.sh?`<h3 style="margin:0">射程</h3><div class="p-body hp-a">${fmt(m.sh,'plain')}</div>`:''}
       ${m.ka?`<h3 style="margin:0">起案の参考</h3><div class="p-body hp-a">${fmt(m.ka,'plain')}</div>`:''}
+      ${m.yo?`<h3 style="margin:0">司法試験で出そうなところ</h3><div class="p-body hp-a">${fmt(m.yo,'plain')}</div>`:''}
+      ${m.etc?`<h3 style="margin:0">その他</h3><div class="p-body hp-a">${fmt(m.etc,'plain')}</div>`:''}
+      ${m.sum?`<h3 style="margin:0">まとめ</h3><div class="p-body hp-a">${fmt(m.sum,'plain')}</div>`:''}
       ${m.ro?`<h3 style="margin:0">付随する論点</h3><div class="p-body hp-a">${fmt(m.ro,'plain')}</div>`:''}
       <div class="grades three">${[['0','言えなかった','ng'],['1','あやふや',''],['2','言えた','primary']].map(([g,l,c])=>`<button class="btn ${c}${A&&String(A.grade)===g?' sug':''}" data-hg="${g}">${l}</button>`).join('')}</div>
       ${A&&A.grade!=null?'<p class="note">AIのおすすめに枠がついています。自分の感覚で選び直してもOK。</p>':''}`
@@ -3024,7 +3043,7 @@ document.addEventListener('click',async e=>{if(!e.target.closest('[data-bk-now]'
 setTimeout(takeSnap,3000);
 
 /* ---------- 画面切替 ---------- */
-const VIEWS=['today','tanto','ronsho','kakomon','kiroku','matome','plan'];
+const VIEWS=['today','tanto','ronsho','kakomon','kiroku','plan'];
 const current=()=>{const h=location.hash.slice(1);return VIEWS.includes(h)?h:'today'};
 let rq=0;
 function render(){if(rq)return;rq=requestAnimationFrame(()=>{rq=0;doRender()});setTimeout(()=>{if(rq){cancelAnimationFrame(rq);rq=0;doRender()}},120)}
