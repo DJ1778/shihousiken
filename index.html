@@ -335,6 +335,7 @@ details.info .tbl+.note{margin-bottom:12px}
 .lsctl{display:grid;grid-template-columns:1fr 2fr 1fr;gap:8px}.lsctl .btn{font-size:1.1rem;min-height:52px}
 .goal{display:grid}.grow{display:grid;grid-template-columns:2fr 1.2fr 1.2fr .8fr;gap:6px;align-items:center;padding:6px 0;border-bottom:1px solid var(--line);font-size:.92rem}.grow.gh{font-size:.75rem;color:var(--muted);padding:2px 0}.grow.sum{border-bottom:0}.grow input{width:100%;max-width:5em;min-height:36px;padding:4px 6px}.goal .ok{color:var(--ok,#2e7d4f);font-weight:700}.goal .ng{color:var(--ng,#b23b3b);font-weight:700}
 .yo summary{cursor:pointer;display:flex;gap:6px;align-items:center;flex-wrap:wrap;padding:6px 0;border-top:1px solid var(--line)}
+.tray-btns{display:grid;grid-template-columns:1fr 1fr;gap:8px}.tray{display:flex;gap:8px;overflow-x:auto;padding:4px 0}.tr-i{position:relative;flex:0 0 72px;height:96px;border-radius:8px;overflow:hidden;border:1px solid var(--line)}.tr-i img{width:100%;height:100%;object-fit:cover}.tr-x{position:absolute;top:2px;right:2px;width:24px;height:24px;border-radius:50%;border:0;background:rgba(0,0,0,.6);color:#fff;font-size:14px;line-height:24px;padding:0;cursor:pointer}
 .qzrow{display:flex;gap:8px;align-items:flex-start;font-size:.92rem;line-height:1.5}.qzadd{justify-content:flex-start;text-align:left;font-size:.88rem}
 .dref{display:grid;gap:4px}.dref summary{font-size:.9rem;cursor:pointer}
 .dq{display:grid;gap:4px;padding:8px 0;border-top:1px solid var(--line)}.dqa{padding:6px 10px;background:var(--bg);border-radius:8px;margin-top:4px}.grades.three{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
@@ -1766,8 +1767,18 @@ function renderGoals(){const el=$('goal-panel');if(!el)return;const g=goals();
    ${tg||rg?`<div class="dtest"><b>目標どおりなら総合点 ${Math.round(tot*100)/100}点</b><p class="note" style="margin:0">総合点 ＝ 短答 ${tg} ＋ 論文 ${rg} × 1400／800（法務省の基準の計算式）。合格点はその年の結果で決まります。</p></div>`:''}`}
 document.addEventListener('change',e=>{const t=e.target.closest&&e.target.closest('[data-goal]');if(!t)return;const [ty,sj]=t.dataset.goal.split('|'),g=JSON.parse(JSON.stringify(goals())),mx=(ty==='tanto'?G_TANTO:G_RON).find(x=>x[0]===sj)[1];
   const v=t.value.trim();if(v==='')delete g[ty][sj];else g[ty][sj]=Math.max(0,Math.min(mx,Math.round(+v*10)/10));g.updated=Date.now();put(g);renderGoals()});
+/* ---------- 写真トレイ：続けて撮る／選ぶ → まとめて読み込む ---------- */
+function mkTray(box,{max,goLabel,onGo}){const fs=[];const urls=[];
+  const draw=()=>{urls.forEach(u=>{try{URL.revokeObjectURL(u)}catch(e){}});urls.length=0;
+    box.innerHTML=`<div class="tray-btns"><label class="btn photo">📷 撮る<input type="file" accept="image/*" capture="environment" data-tr="cam" hidden></label><label class="btn photo">🖼 写真から選ぶ<input type="file" accept="image/*" multiple data-tr="pick" hidden></label></div>
+      ${fs.length?`<div class="tray">${fs.map((f,i)=>{const u=URL.createObjectURL(f);urls.push(u);return `<div class="tr-i"><img src="${u}" alt="${i+1}枚目"><button type="button" class="tr-x" data-trx="${i}" aria-label="${i+1}枚目を外す">×</button></div>`}).join('')}</div>
+      <p class="note" style="margin:0">${fs.length}枚${fs.length<max?'。続けて「撮る」でページを足せます':'（上限）'}</p><button type="button" class="btn primary" data-tr="go">${goLabel}（${fs.length}枚）</button>`:'<p class="note" style="margin:0">「撮る」を押すたびに1枚ずつ足せます。撮り終わったら「読み込む」を押します。</p>'}`;
+    box.querySelectorAll('[data-tr="cam"],[data-tr="pick"]').forEach(inp=>inp.onchange=()=>{const add=[...inp.files];inp.value='';for(const f of add){if(fs.length>=max){toast(max+'枚までです');break}fs.push(f)}draw()});
+    box.querySelectorAll('[data-trx]').forEach(b=>b.onclick=()=>{fs.splice(+b.dataset.trx,1);draw()});
+    const g=box.querySelector('[data-tr="go"]');if(g)g.onclick=()=>{const list=fs.slice();fs.length=0;draw();onGo(list)}};
+  draw()}
 /* ---------- 百選：写真をまとめて読み込む（1枚ずつAIが番号を読み取って、その番号のメモに入れる） ---------- */
-document.addEventListener('change',async e=>{if(e.target.id!=='hs-bulk')return;const fs=[...e.target.files].slice(0,30);e.target.value='';if(!fs.length)return;
+async function hsBulkRun(fs){fs=fs.slice(0,30);if(!fs.length)return;
   const k=hsKey(),sample=await sampleP,caps=sample?await sample.limits().catch(()=>null):null;if(!sample||!caps||!caps.images){toast('ここでは写真を読み込めません');return}
   const res=[];let stop=false;
   const draw=(msg)=>openSheet(`<h2>写真をまとめて読み込む</h2><p class="note">${msg}</p>
@@ -1793,7 +1804,8 @@ JSONだけで返す：{"no":"判例集の項目番号（ページ上部の番号
   // 3枚ずつ同時に読み取る
   for(let j=0;j<fs.length&&!stop;j+=3){const part=await Promise.all(fs.slice(j,j+3).map(one));res.push(...part);
     if($('scrim').hidden){stop=true;break}draw(`${res.length} / ${fs.length}枚 読み取りました${res.length<fs.length&&!stop?'…':''}`)}
-  if(stop&&!$('scrim').hidden)draw(`${res.length}枚で止めました`)});
+  if(stop&&!$('scrim').hidden)draw(`${res.length}枚で止めました`)}
+document.addEventListener('click',e=>{if(!e.target.closest('[data-hs-bulk]'))return;openSheet(`<h2>写真をまとめて読み込む</h2><p class="note">いろいろな判例のページを撮ってください。AIが1枚ずつ百選の番号を読み取って、その番号のメモに入れます（30枚まで）。</p><div id="hb-tray"></div><button class="btn" data-sheet-close>やめる</button>`,sh=>mkTray(sh.querySelector('#hb-tray'),{max:30,goLabel:'読み込む',onGo:fs=>hsBulkRun(fs)}))});
 /* ---------- まとめタブ：問われそうなところ・自分のまとめノート・採点のポイント ---------- */
 const MT_SUBJ=['憲法','行政法','民法','商法','民訴','刑法','刑訴','倒産法','租税法','経済法','知的財産法','労働法','環境法','国際関係法（公法系）','国際関係法（私法系）'];
 const sjWa=y=>y===2019?'R元':y>2019?'R'+(y-2018):'H'+(y-1988);
@@ -2759,7 +2771,7 @@ function renderHS(){
     <label class="f">Appendix<input type="number" id="hs-an" min="0" max="200" inputmode="numeric" value="${b.an}" placeholder="0"></label></div>
     <div class="meter"><i style="width:${Math.round(read/tot*100)}%"></i></div>
     ${nm?`<button class="btn primary" data-hs-say>口で説明する練習（メモ ${nm}件）</button>`:''}
-    ${inClaude?`<label class="btn photo">📷 写真をまとめて読み込む（AI・何枚でも）<input type="file" id="hs-bulk" accept="image/*" multiple hidden></label>`:''}
+    ${inClaude?`<button class="btn photo" data-hs-bulk>📷 写真をまとめて読み込む（AI・何枚でも）</button>`:''}
     <div class="row" style="gap:8px;align-items:center"><button class="btn${hsXMode?' primary':''}" data-hs-xmode aria-pressed="${hsXMode}">${hsXMode?'除外を選び終わる':'使わない番号を除外'}</button><span class="meta">${hsXMode?'押した番号を除外／戻す':nx?`除外 ${nx}件`:''}</span></div>
     <div class="hs-grid">${Array.from({length:b.n},(_,i)=>cell(String(i+1))).join('')}</div>
     ${b.an?`<h4 class="hs-sub">Appendix</h4><div class="hs-grid">${Array.from({length:b.an},(_,i)=>cell('A'+(i+1))).join('')}</div>`:''}
@@ -2781,7 +2793,7 @@ function hsMemoSheet(k,i){
   const b=hsBook(k),m=b.m[i]||{},c=+b.r[i]||0,o=b.o[i];if(hsHasMemo(b,i))dAuto('h:'+k+':'+i,HS_SUBJ[k]||'選択');
   openSheet(`<h2>${esc(hsName(k))} ${hsNo(i)}</h2>
     <div class="f"><span>読んだ回数</span><div class="seg" role="group" aria-label="読んだ回数">${['未読','1回','2回','3回'].map((l,n)=>`<button type="button" data-hr="${n}" aria-pressed="${c===n}">${l}</button>`).join('')}</div></div>
-    ${inClaude?`<label class="btn photo">📷 百選のページを写真で読み込む（AI）<input type="file" id="hm-ph" accept="image/*" multiple hidden></label><p class="note" id="hm-pn" style="margin-top:-4px">この判例のページを6枚まで一度に選べます（見開き・解説のページなど）。AIが事件名・日付・事案・判旨・射程・論点などにまとめて、今の内容を上書きします（保存するまでは元に戻せます）。</p>`:''}
+    ${inClaude?`<div class="f"><span>📷 百選のページを写真で読み込む（AI）</span><div id="hm-tray"></div></div><p class="note" id="hm-pn" style="margin-top:-4px">この判例のページを6枚まで（見開き・解説のページなど）。AIがまとめて、今の内容を上書きします（保存するまでは元のままです）。</p>`:''}
     <div class="grid2"><label class="f">事件名<input id="hm-t" value="${esc(m.t||'')}" placeholder="例：クロロホルム事件"></label>
     <label class="f">裁判所・年月日<input id="hm-d" value="${esc(m.d||'')}" placeholder="例：最決平16.3.22"></label></div>
     <div class="f hm-ed"><span id="hm-fl">事案（練習で問題として出ます）</span><div id="hm-f" class="rich" contenteditable="true" role="textbox" aria-multiline="true" aria-labelledby="hm-fl" data-ph="例：XはAをクロロホルムで失神させ、車ごと海に転落させて殺害する計画を立て…">${toRich(m.f||'')}</div></div>
@@ -2832,7 +2844,8 @@ function hsMemoSheet(k,i){
         const add=(el,v)=>{if(!v)return;v=String(v);if(fromRich(el).trim())el.innerHTML+='<br>'+toRich(v);else el.innerHTML=toRich(v)};add(ey,r&&r.yo);add(ez,r&&r.sum);
         if(!(r&&(r.yo||r.sum)))throw 0;toast('入れました。確認して保存してください')}
       catch(er2){toast('作れませんでした')}yai.disabled=false;yai.textContent='AIで「出そうなところ」と「まとめ」を作る'};
-    const ph=sh.querySelector('#hm-ph');if(ph)ph.onchange=async()=>{const fs=[...ph.files].slice(0,6);ph.value='';if(!fs.length)return;const pn=sh.querySelector('#hm-pn');
+    const tray=sh.querySelector('#hm-tray');if(tray)mkTray(tray,{max:6,goLabel:'読み込む',onGo:fs=>hmRun(fs)});
+    const hmRun=async fs=>{fs=fs.slice(0,6);if(!fs.length)return;const pn=sh.querySelector('#hm-pn');
       const sample=await sampleP,caps=sample?await sample.limits().catch(()=>null):null;if(!sample||!caps||!caps.images){toast('ここでは写真を読み込めません');return}
       pn.textContent=`写真${fs.length}枚を読み取ってまとめています…（30秒ほど）`;
       try{const imgs=[];for(const f of fs)imgs.push(await shrink(f));
